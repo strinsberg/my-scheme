@@ -1,0 +1,28 @@
+.editor {
+  caret-color: white;
+  color: #fbf1e1;
+  background: #333333;
+  resize: none;
+  font-size: 12pt;
+  font-family: monospace;
+  line-height: 1.25;
+  tab-size: 2;
+  outline: none;
+  border: 1px;
+}
+
+.result {
+  color: #fbf1e1;
+  background: #333333;
+  resize: none;
+  font-size: 12pt;
+  font-family: monospace;
+  line-height: 1.25;
+  border: 1px;
+  outline: none;
+  margin-top: 6px;
+  padding: 5px;
+  width: 580px;
+  display: inline-block;
+}
+

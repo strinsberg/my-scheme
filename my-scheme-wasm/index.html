@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>hello-wasm example</title>
+    <link rel="stylesheet" href="css/style.css"></link>
+    <script type="module">
+      // Intitialize the wasm module and set a global variable to the
+      // main interpreter function so that we can call it from the js
+      import init, { interpret_my_scheme } from "./pkg/my_scheme_wasm.js";
+      window.my_eval = interpret_my_scheme;
+      init();
+    </script>
+  </head>
+
+  <body>
+    <h1>My Scheme Interpreter</h1>
+      <div style="margin-bottom: 6px;">
+      <button id="eval_button" onclick="interpret()">Eval</button>
+      <button id="reset_button" onclick="reset_text()">Reset</button>
+      <button id="clear_button" onclick="clear_text()">Clear</button>
+      </div>
+      <textarea id="code_input" class="editor" rows=20 cols=60></textarea>
+      <div>
+      <div id="eval_result" class="result"></div>
+      </div>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>
+
