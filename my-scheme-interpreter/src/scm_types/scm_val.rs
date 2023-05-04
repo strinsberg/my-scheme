@@ -1,44 +1,67 @@
 use crate::scm_types::builtin::Builtin;
 use crate::scm_types::number::ScmNumber;
 use crate::scm_types::string::{ScmChar, ScmString};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
+
+// This is an attempt to add Rc<RefCell> and Rc<Cell> to the interpreter instead
+// of using a heap that needs garbage collection.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 
 pub type Pointer = u32;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScmVal {
     Number(ScmNumber),
     Boolean(bool),
     Character(ScmChar),
-    Symbol(Box<ScmString>),
-    SymbolRef(Pointer),
-    SymbolBox(Box<ScmString>),
-    StringRef(Pointer),
-    StringBox(Box<ScmString>),
-    ClosureRef(Pointer),
-    ClosureBox(Box<Closure>),
+    Symbol(Rc<ScmString>),
+    Closure(Rc<Closure>),
     Core(Builtin),
-    Pair(Pointer),
-    Env(Pointer),
-    Vector(Vec<ScmVal>), // depricate
-    VectorRef(Pointer),
-    VectorBox(Box<Vec<ScmVal>>),
-    HashMapBox(Box<Map>),
-    HashMapRef(Pointer),
+    Pair(Rc<RefCell<ConsCell>>),
+    Env(Rc<RefCell<Map>>),
+    String(Rc<ScmString>),
+    StringMut(Rc<RefCell<ScmString>>),
+    Vector(Rc<Vec<ScmVal>>),
+    VectorMut(Rc<RefCell<Vec<ScmVal>>>),
+    HashMap(Rc<Map>),
+    HashMapMut(Rc<RefCell<Map>>),
     Undefined,
     Empty,
+}
+
+impl Hash for ScmVal {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match *self {
+            ScmVal::Number(val) => val.hash(state),
+            ScmVal::Boolean(val) => val.hash(state),
+            ScmVal::Character(val) => val.hash(state),
+            ScmVal::Symbol(val) => val.hash(state),
+            ScmVal::String(val) => val.hash(state),
+            ScmVal::StringMut(val) => val.borrow().hash(state),
+            ScmVal::Closure(val) => val.hash(state),
+            ScmVal::Core(val) => val.hash(state),
+            ScmVal::Pair(val) => val.borrow().hash(state),
+            ScmVal::Env(val) => val.borrow().hash(state),
+            ScmVal::Vector(val) => val.hash(state),
+            ScmVal::VectorMut(val) => val.borrow().hash(state),
+            ScmVal::HashMap(val) => val.hash(state),
+            ScmVal::HashMapMut(val) => val.borrow().hash(state),
+            val => val.hash(state),
+        }
+    }
 }
 
 // Struct to wrap HashMap /////////////////////////////////////////////////////
 //
 // Required because can't derive PartialEq with a HashMap in the ScmVal enum.
-// So we wrap it and implement PartialEq ourselves, which for now is just always
-// false. Scheme code can go farther if desired for testing equality, if we add
-// maps to the language. For now all they will be for is to improve the environment
-// lookup performance.
+// Equality of hash maps will be implemented in scheme instead, because it
+// requires looking over all of the internal values and calling equal? recursively
+// like a list or vector. Eqv? can just use the pointer which may need to be
+// setup in here.
 
 #[derive(Debug, Clone)]
 pub struct Map {
@@ -92,7 +115,7 @@ impl Closure {
 
 // Cons Cells /////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConsCell {
     pub head: ScmVal,
     pub tail: ScmVal,
