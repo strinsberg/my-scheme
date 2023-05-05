@@ -1,0 +1,14 @@
+{
+  "name": "my-scheme-wasm",
+  "version": "0.1.0",
+  "files": [
+    "my_scheme_wasm_bg.wasm",
+    "my_scheme_wasm.js",
+    "my_scheme_wasm.d.ts"
+  ],
+  "module": "my_scheme_wasm.js",
+  "types": "my_scheme_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

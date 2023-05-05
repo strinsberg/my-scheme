@@ -2,12 +2,12 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
-    <title>hello-wasm example</title>
+    <title>my-scheme-interpreter-wasm</title>
     <link rel="stylesheet" href="css/style.css"></link>
     <script type="module">
       // Intitialize the wasm module and set a global variable to the
       // main interpreter function so that we can call it from the js
-      import init, { interpret_my_scheme } from "./pkg/my_scheme_wasm.js";
+      import init, { interpret_my_scheme } from "./js/wasm/my_scheme_wasm.js";
       window.my_eval = interpret_my_scheme;
       init();
     </script>
