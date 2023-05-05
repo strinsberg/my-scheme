@@ -1,7 +1,6 @@
-use crate::scanner::Scanner;
-use crate::scm_types::error::{ScmErr, ScmResult, ValResult};
-use crate::scm_types::scm_val::ScmVal;
-use crate::scm_types::token::Token;
+use crate::error::{ScmErr, ScmResult, ValResult};
+use crate::scanner::{Scanner, Token};
+use crate::types::ScmVal;
 use std::rc::Rc;
 
 // TODO confirm that the reader identifies all proper stopping points when
@@ -116,7 +115,7 @@ impl StringReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scm_types::number::ScmNumber;
+    use crate::number::ScmNumber;
 
     #[test]
     fn test_reading_values_parsed_by_the_scanner() {

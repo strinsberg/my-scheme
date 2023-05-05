@@ -1,4 +1,4 @@
-use my_scheme_interpreter::scm_types::scm_val::{Env, ScmVal};
+use my_scheme_interpreter::types::{Env, ScmVal};
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 

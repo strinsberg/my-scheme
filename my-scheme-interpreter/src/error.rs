@@ -1,7 +1,6 @@
-use crate::scm_types::builtin::Builtin;
-use crate::scm_types::number::ScmNumber;
-use crate::scm_types::scm_val::{Env, ScmVal};
-use crate::scm_types::token::Token;
+use crate::number::ScmNumber;
+use crate::scanner::Token;
+use crate::types::{Builtin, Env, ScmVal};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;

@@ -1,7 +1,7 @@
 use crate::eval_tco::eval_forms;
 use crate::reader::StringReader;
 use crate::scheme_libs::std::SCM_LIB_STD;
-use crate::scm_types::scm_val::{Env, ScmVal};
+use crate::types::{Env, ScmVal};
 use std::cell::RefCell;
 use std::rc::Rc;
 

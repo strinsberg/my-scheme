@@ -1,7 +1,6 @@
 use crate::core_proc as proc;
-use crate::scm_types::builtin::Builtin;
-use crate::scm_types::error::{ScmErr, ScmResult, TcoResult, ValResult};
-use crate::scm_types::scm_val::{Closure, Env, ScmVal};
+use crate::error::{ScmErr, ScmResult, TcoResult, ValResult};
+use crate::types::{Builtin, Closure, Env, ScmVal};
 use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;

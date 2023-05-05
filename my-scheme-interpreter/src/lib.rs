@@ -1,7 +1,10 @@
 pub mod core_proc;
+pub mod error;
 pub mod eval_tco;
 pub mod interpreter;
+pub mod number;
 pub mod reader;
 pub mod scanner;
 pub mod scheme_libs;
-pub mod scm_types;
+pub mod string;
+pub mod types;

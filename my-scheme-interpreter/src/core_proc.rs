@@ -1,6 +1,5 @@
-use crate::scm_types::builtin::Builtin;
-use crate::scm_types::error::{ScmErr, ValResult};
-use crate::scm_types::scm_val::{ListValIter, ScmVal};
+use crate::error::{ScmErr, ValResult};
+use crate::types::{Builtin, ListValIter, ScmVal};
 
 // All builtin functions that are not syntactic keywords and are the basic building
 // blocks for all other functions. Syntactic keywords and things that require tail

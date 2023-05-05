@@ -1,6 +1,5 @@
-use crate::scm_types::builtin::Builtin;
-use crate::scm_types::number::ScmNumber;
-use crate::scm_types::string::{ScmChar, ScmString};
+use crate::number::ScmNumber;
+use crate::string::{ScmChar, ScmString};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
@@ -219,6 +218,26 @@ fn display_vec_mut(f: &mut fmt::Formatter, vec: Rc<RefCell<Vec<ScmVal>>>) -> fmt
     write!(f, "#({})", vec_string.join(" "))
 }
 
+// Builtin Procedures /////////////////////////////////////////////////////////
+
+// A way to properly identify builtin procedures so that their rust functions
+// can be used and they appear different from Closures. The u8 is the arity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Builtin {
+    Cons,
+    Car,
+    Cdr,
+    Eval,
+    Apply,
+    Sum,
+    Subtract,
+    Product,
+    Divide,
+    EQ,
+    Eqv,
+    BaseEnv,
+}
+
 // Cons Cells /////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -356,7 +375,7 @@ impl Hash for Map {
     }
 }
 
-// Closure Wrapper ////////////////////////////////////////////////////////////
+// Closure ////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -377,7 +396,7 @@ impl Closure {
 
 impl Hash for Closure {
     fn hash<H: Hasher>(&self, _: &mut H) {
-        panic!("Env cannot be hashed");
+        panic!("Closure cannot be hashed");
     }
 }
 
