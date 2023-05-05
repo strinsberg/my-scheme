@@ -1,9 +1,6 @@
-use crate::env;
-use crate::heap::{Heap, ListValIter};
 use crate::scm_types::builtin::Builtin;
 use crate::scm_types::error::{ScmErr, ValResult};
-use crate::scm_types::scm_val::ScmVal;
-use crate::utils;
+use crate::scm_types::scm_val::{ListValIter, ScmVal};
 
 // All builtin functions that are not syntactic keywords and are the basic building
 // blocks for all other functions. Syntactic keywords and things that require tail
@@ -15,9 +12,11 @@ use crate::utils;
 
 // Helpers ////////////////////////////////////////////////////////////////////
 
-pub fn meets_arity(arg: ScmVal, arity: usize, heap: &mut Heap) -> Option<usize> {
+// Only iterates long enough to check it meets arity, but would be better if cells
+// were counted.
+pub fn meets_arity(arg: ScmVal, arity: usize) -> Option<usize> {
     match arg {
-        ScmVal::Pair(ptr) => match ListValIter::new(ptr, heap).take(arity).count() {
+        ScmVal::Pair(cell) => match ListValIter::new(cell).take(arity).count() {
             len if len == arity => Some(len),
             len => Some(len),
         },
@@ -27,13 +26,13 @@ pub fn meets_arity(arg: ScmVal, arity: usize, heap: &mut Heap) -> Option<usize> 
 
 // Apply Builtin //////////////////////////////////////////////////////////////
 
-pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>, heap: &mut Heap) -> ValResult {
+pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
     match op {
-        Builtin::Cons => cons_proc(args, heap),
-        Builtin::Car => car_proc(args, heap),
-        Builtin::Cdr => cdr_proc(args, heap),
+        Builtin::Cons => cons_proc(args),
+        Builtin::Car => car_proc(args),
+        Builtin::Cdr => cdr_proc(args),
         Builtin::Eqv => eqv_proc(args),
-        Builtin::BaseEnv => Ok(ScmVal::Env(env::new_base_env(heap))),
+        Builtin::BaseEnv => Ok(ScmVal::null_env()),
         Builtin::Sum | Builtin::Subtract | Builtin::Product | Builtin::Divide => {
             arithmetic_proc(op, args)
         }
@@ -62,50 +61,48 @@ pub fn is_core_proc(val: ScmVal) -> bool {
 
 // Core list functions ////////////////////////////////////////////////////////
 
-pub fn cons(first: ScmVal, rest: ScmVal, heap: &mut Heap) -> ValResult {
-    Ok(ScmVal::Pair(heap.cons(first, rest)))
+pub fn cons(first: ScmVal, rest: ScmVal) -> ValResult {
+    Ok(ScmVal::new_pair(first, rest))
 }
 
-pub fn cons_proc(args: Vec<ScmVal>, heap: &mut Heap) -> ValResult {
+pub fn cons_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
-        2.. => cons(args[0].clone(), args[1].clone(), heap),
+        2.. => cons(args[0].clone(), args[1].clone()),
         _ => Err(ScmErr::Arity("cons".to_owned(), 2)),
     }
 }
 
-pub fn car(arg: ScmVal, heap: &mut Heap) -> ValResult {
+pub fn car(arg: ScmVal) -> ValResult {
     match arg {
-        ScmVal::Pair(ptr) => Ok(heap.car(ptr)),
+        ScmVal::Pair(cell) => Ok(cell.borrow().head.clone()),
         _ => Err(ScmErr::BadArgType("car".to_owned(), 1, "pair".to_owned())),
     }
 }
 
-fn car_proc(args: Vec<ScmVal>, heap: &mut Heap) -> ValResult {
+fn car_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
-        1.. => car(args[0].clone(), heap),
+        1.. => car(args[0].clone()),
         _ => Err(ScmErr::Arity("car".to_owned(), 1)),
     }
 }
 
-pub fn cdr(arg: ScmVal, heap: &mut Heap) -> ValResult {
+pub fn cdr(arg: ScmVal) -> ValResult {
     match arg {
-        ScmVal::Pair(ptr) => Ok(heap.cdr(ptr)),
+        ScmVal::Pair(cell) => Ok(cell.borrow().tail.clone()),
         _ => Err(ScmErr::BadArgType("cdr".to_owned(), 1, "pair".to_owned())),
     }
 }
 
-fn cdr_proc(args: Vec<ScmVal>, heap: &mut Heap) -> ValResult {
+fn cdr_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
-        1.. => cdr(args[0].clone(), heap),
+        1.. => cdr(args[0].clone()),
         _ => Err(ScmErr::Arity("cdr".to_owned(), 1)),
     }
 }
 
-pub fn cadr(arg: ScmVal, heap: &mut Heap) -> ValResult {
-    match arg {
-        ScmVal::Pair(ptr) => heap.nth(ptr, 1),
-        _ => Err(ScmErr::BadArgType("cadr".to_owned(), 1, "pair".to_owned())),
-    }
+// Error here might not be good if list is not size 2
+pub fn cadr(arg: ScmVal) -> ValResult {
+    car(cdr(arg)?)
 }
 
 // Equivalence ////////////////////////////////////////////////////////////////
@@ -158,8 +155,8 @@ fn binary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
 
 fn unary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
     match op {
-        Builtin::Subtract => binary_arithmetic(op, vec![utils::new_int(0), args[0].clone()]),
-        Builtin::Divide => binary_arithmetic(op, vec![utils::new_int(1), args[0].clone()]),
+        Builtin::Subtract => binary_arithmetic(op, vec![ScmVal::new_int(0), args[0].clone()]),
+        Builtin::Divide => binary_arithmetic(op, vec![ScmVal::new_int(1), args[0].clone()]),
         Builtin::Product => Ok(args[0].clone()),
         Builtin::Sum => Ok(args[0].clone()),
         _ => {
@@ -191,7 +188,7 @@ pub fn is_arithmetic_builtin(val: Builtin) -> bool {
 
 pub fn is_closure(val: ScmVal) -> bool {
     match val {
-        ScmVal::ClosureRef(_) => true,
+        ScmVal::Closure(_) => true,
         _ => false,
     }
 }
