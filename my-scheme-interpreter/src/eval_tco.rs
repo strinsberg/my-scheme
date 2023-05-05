@@ -5,9 +5,6 @@ use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
 
-// TODO all have arity checks, but they have 2 different types. Try to make them
-// the same, use the vec way.
-//
 // TODO it is an ERROR to use define within a form, so we should check for
 // that somehow. Perhaps using eval_forms to check for define on the car
 // of the expression to evaluate it properly, but define not being checked in
@@ -149,28 +146,27 @@ fn eval_if_helper(args: Vec<ScmVal>, false_branch: bool, env: Rc<RefCell<Env>>) 
 
 // Evaluates a lambda statment into a closure and returns it.
 pub fn eval_lambda(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    match args.len() {
-        2.. => {
-            let params = args[0].clone();
-            let params_vec = match params {
-                ScmVal::Pair(_) => ScmVal::list_to_vec(params),
-                ScmVal::Empty => vec![],
-                e => {
-                    return Err(ScmErr::BadArgType(
-                        "lambda".to_owned(),
-                        "list of symbols".to_owned(),
-                        e,
-                    ))
-                }
-            };
-
-            let body_vec: Vec<ScmVal> = args[1..].into();
-            match body_vec.len() {
-                0 => Err(ScmErr::EmptyBody),
-                _ => Ok(ScmVal::new_closure(Closure::new(env, params_vec, body_vec))),
+    if args.len() >= 2 {
+        let params = args[0].clone();
+        let params_vec = match params {
+            ScmVal::Pair(_) => ScmVal::list_to_vec(params),
+            ScmVal::Empty => vec![],
+            e => {
+                return Err(ScmErr::BadArgType(
+                    "lambda".to_owned(),
+                    "list of symbols".to_owned(),
+                    e,
+                ))
             }
+        };
+
+        let body_vec: Vec<ScmVal> = args[1..].into();
+        match body_vec.len() {
+            0 => Err(ScmErr::EmptyBody),
+            _ => Ok(ScmVal::new_closure(Closure::new(env, params_vec, body_vec))),
         }
-        _ => Err(ScmErr::Arity("lambda".to_owned(), 2)),
+    } else {
+        Err(ScmErr::Arity("lambda".to_owned(), 2))
     }
 }
 
@@ -178,23 +174,20 @@ pub fn eval_lambda(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // with the evaluated clojure and its arguments.
 // Example: (let ((a 1) (b 2)) (+ a b)) => ((lambda (a b) (+ a b)) 1 2)
 pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    match args.len() {
-        2.. => {
-            let bindings = args[0].clone();
-            let body: Vec<ScmVal> = args[1..].into();
-            let (params, bind_args) = match unbind(bindings.clone()) {
-                Some(pair) => pair,
-                None => return Err(ScmErr::BadBindings(bindings.to_string())),
-            };
-            match body.len() {
-                0 => Err(ScmErr::EmptyBody),
-                _ => Ok(ScmVal::new_pair(
-                    ScmVal::new_closure(Closure::new(env, params, body)),
-                    ScmVal::vec_to_list(ScmVal::Empty, bind_args),
-                )),
-            }
+    if args.len() >= 2 {
+        let bindings = args[0].clone();
+        let body: Vec<ScmVal> = args[1..].into();
+        let (params, bind_args) =
+            unbind(bindings.clone()).ok_or(ScmErr::BadBindings(bindings.to_string()))?;
+        match body.len() {
+            0 => Err(ScmErr::EmptyBody),
+            _ => Ok(ScmVal::new_pair(
+                ScmVal::new_closure(Closure::new(env, params, body)),
+                ScmVal::vec_to_list(bind_args, ScmVal::Empty),
+            )),
         }
-        _ => Err(ScmErr::Arity("let".to_owned(), 2)),
+    } else {
+        Err(ScmErr::Arity("let".to_owned(), 2))
     }
 }
 
@@ -210,18 +203,19 @@ pub fn eval_letrec(args: Vec<ScmVal>) -> ValResult {
             let body: Vec<ScmVal> = args[1..].into();
 
             // Make new binding list with <undefined> and list of set! assignments
-            let (bind_vec, assign_vec) = match letrec_bind(bindings.clone()) {
-                Some(pair) => pair,
-                None => return Err(ScmErr::BadBindings(bindings.to_string())),
-            };
+            let (bind_vec, assign_vec) =
+                letrec_bind(bindings.clone()).ok_or(ScmErr::BadBindings(bindings.to_string()))?;
 
             // Make the new let expr and return it
             let new_body: Vec<ScmVal> = assign_vec.iter().chain(body.iter()).cloned().collect();
-            let rest = ScmVal::new_pair(
-                ScmVal::vec_to_list(ScmVal::Empty, bind_vec),
-                ScmVal::vec_to_list(ScmVal::Empty, new_body),
-            );
-            Ok(ScmVal::new_pair(ScmVal::new_sym("let"), rest))
+            // Cons let and bindings onto the list of body expr
+            Ok(ScmVal::vec_to_list(
+                vec![
+                    ScmVal::new_sym("let"),
+                    ScmVal::vec_to_list(bind_vec, ScmVal::Empty),
+                ],
+                ScmVal::vec_to_list(new_body, ScmVal::Empty),
+            ))
         }
         _ => Err(ScmErr::Arity("lambda".to_owned(), 2)),
     }
@@ -230,29 +224,27 @@ pub fn eval_letrec(args: Vec<ScmVal>) -> ValResult {
 // Sets the value first element of the pair to the evaluation of
 // the second element in the env.
 pub fn eval_set(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    match args.len() {
-        2.. => {
-            let key = args[0].clone();
-            let val = eval_tco(args[1].clone(), Rc::clone(&env))?;
-            env.borrow_mut()
-                .set(key.clone(), val.clone())
-                .ok_or(ScmErr::Undeclared(key.to_string()))
-        }
-        _ => Err(ScmErr::Arity("set!".to_owned(), 2)),
+    if args.len() >= 2 {
+        let key = args[0].clone();
+        let val = eval_tco(args[1].clone(), Rc::clone(&env))?;
+        env.borrow_mut()
+            .set(key.clone(), val.clone())
+            .ok_or(ScmErr::Undeclared(key.to_string()))
+    } else {
+        Err(ScmErr::Arity("set!".to_owned(), 2))
     }
 }
 
 // Evaluate a define statement by first setting the variable to <undefined>
 // and then using set! to store the new evaluated value.
 pub fn eval_define(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    match args.len() {
-        2.. => {
-            {
-                env.borrow_mut().insert(args[0].clone(), ScmVal::Undefined);
-            }
-            eval_set(args, env)
+    if args.len() >= 2 {
+        {
+            env.borrow_mut().insert(args[0].clone(), ScmVal::Undefined);
         }
-        _ => Err(ScmErr::Arity("define".to_owned(), 2)),
+        eval_set(args, env)
+    } else {
+        Err(ScmErr::Arity("define".to_owned(), 2))
     }
 }
 
@@ -265,9 +257,8 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
         ScmVal::Closure(c) => c,
         _ => panic!("should be passed an ScmVal::Closure"),
     };
-    let arity = closure.params.len();
 
-    if args.len() >= arity {
+    if args.len() >= closure.params.len() {
         // bind params and args to the captured env (args are already evalled)
         let bound_env = Env::bind_in_new_env(Rc::clone(&closure.env), closure.params.clone(), args);
 
@@ -288,34 +279,32 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
 // Only works right now if the second arg is a list and ignores additional args.
 // Not sure if this is the intended r5rs behaviour.
 pub fn user_apply(args: Vec<ScmVal>) -> ValResult {
-    match args.len() {
-        2.. => {
-            let func = args[0].clone();
-            let list = match args[1].clone() {
-                ScmVal::Pair(p) => ScmVal::Pair(p),
-                e => return Err(ScmErr::BadArgType("apply".to_owned(), "pair".to_owned(), e)),
-            };
-            Ok(ScmVal::new_pair(func, list))
-        }
-        _ => Err(ScmErr::Arity("apply".to_owned(), 2)),
+    if args.len() >= 2 {
+        let func = args[0].clone();
+        let list = match args[1].clone() {
+            ScmVal::Pair(p) => ScmVal::Pair(p),
+            e => return Err(ScmErr::BadArgType("apply".to_owned(), "pair".to_owned(), e)),
+        };
+        Ok(ScmVal::new_pair(func, list))
+    } else {
+        Err(ScmErr::Arity("apply".to_owned(), 2))
     }
 }
 
 // Evaluates the first argument using a user supplied environment.
 pub fn user_eval(args: Vec<ScmVal>) -> TcoResult {
-    match args.len() {
-        2.. => {
-            let expr = args[0].clone();
-            match args[1].clone() {
-                ScmVal::Env(env) => Ok((expr, env)),
-                e => Err(ScmErr::BadArgType(
-                    "eval".to_owned(),
-                    "environment".to_owned(),
-                    e,
-                )),
-            }
+    if args.len() >= 2 {
+        let expr = args[0].clone();
+        match args[1].clone() {
+            ScmVal::Env(env) => Ok((expr, env)),
+            e => Err(ScmErr::BadArgType(
+                "eval".to_owned(),
+                "environment".to_owned(),
+                e,
+            )),
         }
-        _ => Err(ScmErr::Arity("apply".to_owned(), 2)),
+    } else {
+        Err(ScmErr::Arity("apply".to_owned(), 2))
     }
 }
 
@@ -367,11 +356,7 @@ fn letrec_bind(list: ScmVal) -> Option<(Vec<ScmVal>, Vec<ScmVal>)> {
     // Create the assingments to add to the start of the body
     // ((set! val1 arg1) ...)
     let assignments = zip(params.clone(), args.clone())
-        .map(|(p, a)| {
-            let begin = ScmVal::new_pair(a, ScmVal::Empty);
-            let rest = ScmVal::new_pair(p, begin);
-            ScmVal::new_pair(ScmVal::new_sym("set!"), rest)
-        })
+        .map(|(p, a)| ScmVal::vec_to_list(vec![ScmVal::new_sym("set!"), p, a], ScmVal::Empty))
         .collect();
 
     Some((bindings, assignments))

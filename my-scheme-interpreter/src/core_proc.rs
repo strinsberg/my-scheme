@@ -1,5 +1,5 @@
 use crate::error::{ScmErr, ValResult};
-use crate::types::{Builtin, ListValIter, ScmVal};
+use crate::types::{Builtin, ScmVal};
 
 // All builtin functions that are not syntactic keywords and are the basic building
 // blocks for all other functions. Syntactic keywords and things that require tail
@@ -8,20 +8,6 @@ use crate::types::{Builtin, ListValIter, ScmVal};
 
 // TODO add tests if you can, even though most things are, or can be tested
 // by the core_procedure tests, though then other failures can break them.
-
-// Helpers ////////////////////////////////////////////////////////////////////
-
-// Only iterates long enough to check it meets arity, but would be better if cells
-// were counted.
-pub fn meets_arity(arg: ScmVal, arity: usize) -> Option<usize> {
-    match arg {
-        ScmVal::Pair(cell) => match ListValIter::new(cell).take(arity).count() {
-            len if len == arity => Some(len),
-            len => Some(len),
-        },
-        _ => None,
-    }
-}
 
 // Apply Builtin //////////////////////////////////////////////////////////////
 

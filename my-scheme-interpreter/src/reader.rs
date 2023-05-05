@@ -61,7 +61,7 @@ impl StringReader {
             }
             val = self.scanner.next()?;
         }
-        Ok(ScmVal::vec_to_list(ScmVal::Empty, vec))
+        Ok(ScmVal::vec_to_list(vec, ScmVal::Empty))
     }
 
     fn read_dot_end(&mut self, values: Vec<ScmVal>) -> ValResult {
@@ -76,7 +76,7 @@ impl StringReader {
                 // If next is a proper value check for ) and make the list
                 let val = self.read_helper(next)?;
                 match self.scanner.next()? {
-                    Token::RParen => Ok(ScmVal::vec_to_list(val, values)),
+                    Token::RParen => Ok(ScmVal::vec_to_list(values, val)),
                     tk => Err(ScmErr::BadToken(self.scanner.line, tk)),
                 }
             }

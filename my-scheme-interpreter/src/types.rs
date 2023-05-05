@@ -120,7 +120,7 @@ impl ScmVal {
     }
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
-    pub fn vec_to_list(end: ScmVal, values: Vec<ScmVal>) -> ScmVal {
+    pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
         values
             .into_iter()
             .rev()
