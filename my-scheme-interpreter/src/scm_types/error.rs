@@ -1,12 +1,14 @@
 use crate::scm_types::builtin::Builtin;
 use crate::scm_types::number::ScmNumber;
-use crate::scm_types::scm_val::{Pointer, ScmVal};
+use crate::scm_types::scm_val::{Env, ScmVal};
 use crate::scm_types::token::Token;
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 pub type ScmResult<T> = Result<T, ScmErr>;
 pub type ValResult = ScmResult<ScmVal>;
-pub type TcoResult = ScmResult<(ScmVal, Pointer)>;
+pub type TcoResult = ScmResult<(ScmVal, Rc<RefCell<Env>>)>;
 pub type ScanResult = ScmResult<Token>;
 
 #[derive(Debug, Clone, PartialEq)]

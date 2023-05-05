@@ -1,22 +1,19 @@
-use crate::heap::Heap;
 use crate::scanner::Scanner;
 use crate::scm_types::error::{ScmErr, ScmResult, ValResult};
 use crate::scm_types::scm_val::ScmVal;
 use crate::scm_types::token::Token;
-use crate::utils;
+use std::rc::Rc;
 
 // TODO confirm that the reader identifies all proper stopping points when
 // parsing complex forms. I.e. a Dot in a vector is an error, is anything else?
 
-pub struct StringReader<'a> {
-    heap: &'a mut Heap,
+pub struct StringReader {
     scanner: Scanner,
 }
 
-impl<'a> StringReader<'a> {
-    pub fn new(string: &str, heap: &'a mut Heap) -> StringReader<'a> {
+impl StringReader {
+    pub fn new(string: &str) -> StringReader {
         StringReader {
-            heap: heap,
             scanner: Scanner::new(string),
         }
     }
@@ -41,11 +38,11 @@ impl<'a> StringReader<'a> {
 
     fn read_helper(&mut self, token: Token) -> ValResult {
         match token {
-            Token::Identifier(s) => Ok(ScmVal::Symbol(Box::new(s))),
+            Token::Identifier(s) => Ok(ScmVal::Symbol(Rc::new(s))),
             Token::Boolean(b) => Ok(ScmVal::Boolean(b)),
             Token::Number(num) => Ok(ScmVal::Number(num)),
             Token::Character(ch) => Ok(ScmVal::Character(ch)),
-            Token::String(s) => utils::new_str_scm(s, self.heap),
+            Token::String(s) => Ok(ScmVal::new_str_mut_from_scmstring(s)),
             Token::LParen => self.read_list(),
             Token::VecOpen => self.read_vector(),
             Token::Quote => self.read_quote(),
@@ -65,7 +62,7 @@ impl<'a> StringReader<'a> {
             }
             val = self.scanner.next()?;
         }
-        Ok(utils::vec_to_list(vec, self.heap))
+        Ok(ScmVal::vec_to_list(ScmVal::Empty, vec))
     }
 
     fn read_dot_end(&mut self, values: Vec<ScmVal>) -> ValResult {
@@ -79,10 +76,7 @@ impl<'a> StringReader<'a> {
                 // If next is a proper value check for ) and make the list
                 let val = self.read_helper(next)?;
                 match self.scanner.next()? {
-                    Token::RParen => Ok(values
-                        .into_iter()
-                        .rev()
-                        .fold(val, |acc, v| ScmVal::Pair(self.heap.cons(v.clone(), acc)))),
+                    Token::RParen => Ok(ScmVal::vec_to_list(val, values)),
                     tk => Err(ScmErr::BadToken(self.scanner.line, tk)),
                 }
             }
@@ -92,9 +86,9 @@ impl<'a> StringReader<'a> {
     fn read_quote(&mut self) -> ValResult {
         // really just makes a list with quote and the next form inside of it
         let next = self.read()?;
-        Ok(utils::vec_to_list(
-            vec![utils::new_sym("quote"), next],
-            self.heap,
+        Ok(ScmVal::new_pair(
+            ScmVal::new_sym("quote"),
+            ScmVal::new_pair(next, ScmVal::Empty),
         ))
     }
 
@@ -112,7 +106,8 @@ impl<'a> StringReader<'a> {
             }
             val = self.scanner.next()?;
         }
-        Ok(ScmVal::Vector(vec))
+        // TODO should vector literals be immutable???
+        Ok(ScmVal::new_vec(vec))
     }
 }
 
@@ -122,79 +117,52 @@ impl<'a> StringReader<'a> {
 mod tests {
     use super::*;
     use crate::scm_types::number::ScmNumber;
-    use crate::utils;
 
     #[test]
     fn test_reading_values_parsed_by_the_scanner() {
-        let mut h = Heap::new();
+        assert_eq!(StringReader::new("10").read(), Ok(ScmVal::new_int(10)));
         assert_eq!(
-            StringReader::new("10", &mut h).read(),
-            Ok(utils::new_int(10))
+            StringReader::new("1.234").read(),
+            Ok(ScmVal::new_float(1.234))
+        );
+        assert_eq!(StringReader::new("#true").read(), Ok(ScmVal::Boolean(true)));
+        assert_eq!(StringReader::new("#f").read(), Ok(ScmVal::Boolean(false)));
+        assert_eq!(StringReader::new("#\\H").read(), Ok(ScmVal::new_char('H')));
+        assert_eq!(
+            StringReader::new("#\\space").read(),
+            Ok(ScmVal::new_char(' '))
         );
         assert_eq!(
-            StringReader::new("1.234", &mut h).read(),
-            Ok(utils::new_float(1.234))
-        );
-        assert_eq!(
-            StringReader::new("#true", &mut h).read(),
-            Ok(ScmVal::Boolean(true))
-        );
-        assert_eq!(
-            StringReader::new("#f", &mut h).read(),
-            Ok(ScmVal::Boolean(false))
-        );
-        assert_eq!(
-            StringReader::new("#\\H", &mut h).read(),
-            Ok(utils::new_char('H'))
-        );
-        assert_eq!(
-            StringReader::new("#\\space", &mut h).read(),
-            Ok(utils::new_char(' '))
-        );
-        assert_eq!(
-            StringReader::new("hello-world!", &mut h).read(),
-            Ok(utils::new_sym("hello-world!"))
+            StringReader::new("hello-world!").read(),
+            Ok(ScmVal::new_sym("hello-world!"))
         );
     }
 
     #[test]
     fn test_reading_strings() {
-        let mut h = Heap::new();
-        assert!(utils::str_eq_scm(
-            "hello, world!",
-            StringReader::new("\"hello, world!\"", &mut h)
-                .read()
-                .unwrap(),
-            &h
-        ));
-        assert!(utils::str_eq_scm(
-            "hello, world!",
-            StringReader::new("\"hello, world!\"", &mut h)
-                .read()
-                .unwrap(),
-            &h
-        ));
+        assert_eq!(
+            StringReader::new("\"hello, world!\"").read().unwrap(),
+            ScmVal::new_str_mut("hello, world!"),
+        );
     }
 
     #[test]
     fn test_reading_lists() {
-        let mut h = Heap::new();
-
         // This is kind of brittle
         let expr = "(1 2 3 4)";
-        let result = utils::val_to_string(StringReader::new(expr, &mut h).read().unwrap(), &h);
+        let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expr);
 
         let expr = "(1 2 3 . 4)";
-        let result = utils::val_to_string(StringReader::new(expr, &mut h).read().unwrap(), &h);
+        let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expr);
 
         let expr = "(1 (2 3) . 4)";
-        let result = utils::val_to_string(StringReader::new(expr, &mut h).read().unwrap(), &h);
+        let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expr);
 
         let expr = "(1 (2 3) . 4 5)";
-        let result = StringReader::new(expr, &mut h).read();
+        let result = StringReader::new(expr).read();
         assert_eq!(
             result,
             Err(ScmErr::BadToken(1, Token::Number(ScmNumber::Integer(5))))
@@ -203,43 +171,42 @@ mod tests {
 
     #[test]
     fn test_reading_quote() {
-        let mut h = Heap::new();
-
         let expr = "'(1 2 3 4)";
         let expect = "(quote (1 2 3 4))";
-        let result = utils::val_to_string(StringReader::new(expr, &mut h).read().unwrap(), &h);
+        let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expect);
 
         let expr = "('1 2 '' 3 4)";
         let expect = "((quote 1) 2 (quote (quote 3)) 4)";
-        let result = utils::val_to_string(StringReader::new(expr, &mut h).read().unwrap(), &h);
+        let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expect);
     }
 
     #[test]
     fn test_reading_vectors() {
-        let mut h = Heap::new();
+        let expr = "#(1 2 3 4)";
+        let expect = "#(1 2 3 4)";
+        let result = StringReader::new(expr).read().unwrap().to_string();
+        assert_eq!(result, expect);
 
         let expr = "#(1 '(2 3) 4)";
         let expect = "#(1 (quote (2 3)) 4)";
-        let result = utils::val_to_string(StringReader::new(expr, &mut h).read().unwrap(), &h);
+        let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expect);
 
         let expr = "#(1 2 3 . 4)";
-        let result = StringReader::new(expr, &mut h).read();
+        let result = StringReader::new(expr).read();
         assert_eq!(result, Err(ScmErr::BadToken(1, Token::Dot)));
     }
 
     #[test]
     fn test_reading_several_forms() {
-        let mut h = Heap::new();
-
         let text = "1 #true\n'(1 2 3 4)\n\n(define a 5)";
-        let result: Vec<String> = StringReader::new(text, &mut h)
+        let result: Vec<String> = StringReader::new(text)
             .read_forms()
             .unwrap()
             .into_iter()
-            .map(|val| utils::val_to_string(val, &h))
+            .map(|val| val.to_string())
             .collect();
 
         assert_eq!(result[0], "1".to_string());

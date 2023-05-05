@@ -1,10 +1,7 @@
 pub mod core_proc;
-pub mod env;
 pub mod eval_tco;
-pub mod heap;
 pub mod interpreter;
 pub mod reader;
 pub mod scanner;
 pub mod scheme_libs;
 pub mod scm_types;
-mod utils;
