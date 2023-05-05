@@ -45,7 +45,8 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>) -> ValResult {
             // Lists have their first arg applied to the cdr
             ScmVal::Pair(cell) => {
                 let dotted = cell.borrow().is_dotted();
-                let args = ScmVal::list_to_vec(cell.borrow().tail.clone());
+                let args = ScmVal::list_to_vec(cell.borrow().tail.clone())
+                    .expect("should be unreachable if cell.is_dotted() was checked");
 
                 // Eval/Apply things that do not require evaluating the first element
                 if dotted {
@@ -148,23 +149,17 @@ fn eval_if_helper(args: Vec<ScmVal>, false_branch: bool, env: Rc<RefCell<Env>>) 
 pub fn eval_lambda(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let params = args[0].clone();
-        let params_vec = match params {
-            ScmVal::Pair(_) => ScmVal::list_to_vec(params),
-            ScmVal::Empty => vec![],
-            e => {
-                return Err(ScmErr::BadArgType(
-                    "lambda".to_owned(),
-                    "list of symbols".to_owned(),
-                    e,
-                ))
-            }
-        };
+        let params_vec = ScmVal::list_to_vec(params).ok_or(ScmErr::BadArgType(
+            "lambda".to_owned(),
+            "pair".to_owned(),
+            args[0].clone(),
+        ))?;
 
-        let body_vec: Vec<ScmVal> = args[1..].into();
-        match body_vec.len() {
-            0 => Err(ScmErr::EmptyBody),
-            _ => Ok(ScmVal::new_closure(Closure::new(env, params_vec, body_vec))),
-        }
+        Ok(ScmVal::new_closure(Closure::new(
+            env,
+            params_vec,
+            args[1..].into(),
+        )))
     } else {
         Err(ScmErr::Arity("lambda".to_owned(), 2))
     }
@@ -176,16 +171,11 @@ pub fn eval_lambda(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let bindings = args[0].clone();
-        let body: Vec<ScmVal> = args[1..].into();
-        let (params, bind_args) =
-            unbind(bindings.clone()).ok_or(ScmErr::BadBindings(bindings.to_string()))?;
-        match body.len() {
-            0 => Err(ScmErr::EmptyBody),
-            _ => Ok(ScmVal::new_pair(
-                ScmVal::new_closure(Closure::new(env, params, body)),
-                ScmVal::vec_to_list(bind_args, ScmVal::Empty),
-            )),
-        }
+        let (params, bind_args) = unbind(bindings.clone())?;
+        Ok(ScmVal::new_pair(
+            ScmVal::new_closure(Closure::new(env, params, args[1..].into())),
+            ScmVal::vec_to_list(bind_args, ScmVal::Empty),
+        ))
     } else {
         Err(ScmErr::Arity("let".to_owned(), 2))
     }
@@ -196,28 +186,21 @@ pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 //          (let ((a <undefined>) (b <undefined>))
 //            (set! a 1) (set! b 2) (+ a b))
 pub fn eval_letrec(args: Vec<ScmVal>) -> ValResult {
-    match args.len() {
-        2.. => {
-            // Destructure letrec
-            let bindings = args[0].clone();
-            let body: Vec<ScmVal> = args[1..].into();
+    if args.len() >= 2 {
+        let bindings = args[0].clone();
+        let (bind_vec, assign_vec) = letrec_bind(bindings.clone())?;
+        let new_body: Vec<ScmVal> = assign_vec.iter().chain(args[1..].iter()).cloned().collect();
 
-            // Make new binding list with <undefined> and list of set! assignments
-            let (bind_vec, assign_vec) =
-                letrec_bind(bindings.clone()).ok_or(ScmErr::BadBindings(bindings.to_string()))?;
-
-            // Make the new let expr and return it
-            let new_body: Vec<ScmVal> = assign_vec.iter().chain(body.iter()).cloned().collect();
-            // Cons let and bindings onto the list of body expr
-            Ok(ScmVal::vec_to_list(
-                vec![
-                    ScmVal::new_sym("let"),
-                    ScmVal::vec_to_list(bind_vec, ScmVal::Empty),
-                ],
-                ScmVal::vec_to_list(new_body, ScmVal::Empty),
-            ))
-        }
-        _ => Err(ScmErr::Arity("lambda".to_owned(), 2)),
+        // Cons let and bindings onto the new body list
+        Ok(ScmVal::vec_to_list(
+            vec![
+                ScmVal::new_sym("let"),
+                ScmVal::vec_to_list(bind_vec, ScmVal::Empty),
+            ],
+            ScmVal::vec_to_list(new_body, ScmVal::Empty),
+        ))
+    } else {
+        Err(ScmErr::Arity("lambda".to_owned(), 2))
     }
 }
 
@@ -259,16 +242,13 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
     };
 
     if args.len() >= closure.params.len() {
-        // bind params and args to the captured env (args are already evalled)
+        // Bind params and args together in a new env and evaluate all but last body expr with it
         let bound_env = Env::bind_in_new_env(Rc::clone(&closure.env), closure.params.clone(), args);
-
-        // eval the body expressions excluding the one in tail position
         for expr in &closure.body[..closure.body.len() - 1] {
             eval_tco(expr.clone(), Rc::clone(&bound_env))?;
         }
 
-        // Return the tail expression unevaluated and the captured environment for
-        // subsequent evaluation with tco
+        // Return the tail expression unevaluated and the updated capture environment for tco
         Ok((closure.body[closure.body.len() - 1].clone(), bound_env))
     } else {
         Err(ScmErr::Arity("closure".to_owned(), 2))
@@ -318,32 +298,42 @@ fn eval_vec(v: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ScmResult<Vec<ScmVal>> {
     Ok(evalled?)
 }
 
-fn unbind(list: ScmVal) -> Option<(Vec<ScmVal>, Vec<ScmVal>)> {
-    match list {
-        ScmVal::Pair(_) => {
-            let pairs: Vec<Vec<ScmVal>> = ScmVal::list_to_vec(list)
-                .into_iter()
-                .map(|p| ScmVal::list_to_vec(p))
-                .collect(); // now pairs is vec![vec[ScmVal, ScmVal], ...]
+fn unbind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
+    // Get a vector of binding lists. i.e. ((sym pair) ...) => [(sym pair) ...]
+    let vec = ScmVal::list_to_vec(list.clone()).ok_or(ScmErr::BadArgType(
+        "let/letrec".to_owned(),
+        "pair".to_owned(),
+        list.clone(),
+    ))?;
 
-            let mut params = Vec::new();
-            let mut args = Vec::new();
-            for p in pairs.iter() {
-                if p.len() >= 2 {
-                    params.push(p[0].clone());
-                    args.push(p[1].clone());
-                } else {
-                    return None;
-                }
+    // Convert the pairs into rust pairs. i.e. [(sym pair) ...] => [(sym, pair) ...]
+    let bindings_vec: ScmResult<Vec<(ScmVal, ScmVal)>> = vec
+        .into_iter()
+        .map(|p| {
+            let binding = ScmVal::list_to_vec(p.clone()).ok_or(ScmErr::BadArgType(
+                "let/letrec bindings".to_owned(),
+                "pair".to_owned(),
+                p.clone(),
+            ))?;
+
+            // Ensure there are two elements in the binding
+            if binding.len() >= 2 {
+                Ok((binding[0].clone(), binding[1].clone()))
+            } else {
+                Err(ScmErr::BadArgType(
+                    "let/letrec bindings".to_owned(),
+                    "(sym pair)".to_owned(),
+                    p,
+                ))
             }
+        })
+        .collect();
 
-            Some((params, args))
-        }
-        _ => return None,
-    }
+    // return (param_vec, args_vec)
+    Ok(bindings_vec?.into_iter().unzip())
 }
 
-fn letrec_bind(list: ScmVal) -> Option<(Vec<ScmVal>, Vec<ScmVal>)> {
+fn letrec_bind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
     let (params, args) = unbind(list)?;
 
     // Create let bindings to declare the vars ((val1 <undefined>) ...)
@@ -359,5 +349,5 @@ fn letrec_bind(list: ScmVal) -> Option<(Vec<ScmVal>, Vec<ScmVal>)> {
         .map(|(p, a)| ScmVal::vec_to_list(vec![ScmVal::new_sym("set!"), p, a], ScmVal::Empty))
         .collect();
 
-    Some((bindings, assignments))
+    Ok((bindings, assignments))
 }

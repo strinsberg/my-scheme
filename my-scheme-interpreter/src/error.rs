@@ -1,4 +1,3 @@
-use crate::number::ScmNumber;
 use crate::scanner::Token;
 use crate::types::{Builtin, Env, ScmVal};
 use std::cell::RefCell;
@@ -23,9 +22,8 @@ pub enum ScmErr {
     Undeclared(String),
     Arity(String, usize),
     BadArgType(String, String, ScmVal),
-    BadArithmetic(Builtin, ScmNumber, ScmNumber),
-    BadUnaryArithmetic(Builtin, ScmNumber),
-    BadBindings(String),
+    BadArithmetic(Builtin, ScmVal, ScmVal),
+    BadUnaryArithmetic(Builtin, ScmVal),
     EmptyBody,
     // seq errors
     OutOfBounds(usize, usize),
@@ -71,9 +69,6 @@ impl fmt::Display for ScmErr {
             }
             ScmErr::BadUnaryArithmetic(op, left) => {
                 write!(f, "Error: bad arithmetic: ({:?} {left})", op)
-            }
-            ScmErr::BadBindings(list) => {
-                write!(f, "Error: invalid binding list: {list}")
             }
             ScmErr::EmptyBody => {
                 write!(f, "Error: empty lambda/let/letrec body")

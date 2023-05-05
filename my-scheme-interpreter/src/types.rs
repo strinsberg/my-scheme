@@ -64,14 +64,6 @@ impl ScmVal {
         ScmVal::String(Rc::new(ScmString::new(string)))
     }
 
-    pub fn str_eq(&self, s: &str) -> bool {
-        match self {
-            ScmVal::StringMut(ref_str) => ref_str.borrow().to_string() == s,
-            ScmVal::String(rc_str) => rc_str.to_string() == s,
-            _ => panic!("should be ScmVal::StringMut"),
-        }
-    }
-
     pub fn new_closure(closure: Closure) -> ScmVal {
         ScmVal::Closure(Rc::new(closure))
     }
@@ -127,11 +119,11 @@ impl ScmVal {
             .fold(end, |acc, v| ScmVal::new_pair(v, acc))
     }
 
-    pub fn list_to_vec(val: ScmVal) -> Vec<ScmVal> {
+    pub fn list_to_vec(val: ScmVal) -> Option<Vec<ScmVal>> {
         match val {
-            ScmVal::Pair(cell) => ListValIter::new(cell).collect(),
-            ScmVal::Empty => vec![],
-            _ => panic!("should be ScmVal::Pair"),
+            ScmVal::Pair(cell) => Some(ListValIter::new(cell).collect()),
+            ScmVal::Empty => Some(vec![]),
+            _ => None,
         }
     }
 }
@@ -147,14 +139,14 @@ impl Hash for ScmVal {
             ScmVal::Symbol(val) => val.hash(state),
             ScmVal::String(val) => val.hash(state),
             ScmVal::StringMut(val) => val.borrow().hash(state),
-            ScmVal::Closure(_) => panic!("Closures cannot be hashed"),
+            ScmVal::Closure(val) => val.hash(state),
             ScmVal::Core(val) => val.hash(state),
             ScmVal::Pair(val) => val.borrow().hash(state),
-            ScmVal::Env(_) => panic!("Environemnt cannot be hashed"),
+            ScmVal::Env(val) => val.borrow().hash(state),
             ScmVal::Vector(val) => val.hash(state),
             ScmVal::VectorMut(val) => val.borrow().hash(state),
-            ScmVal::HashMap(_) => panic!("Hash map cannot be hashed"),
-            ScmVal::HashMapMut(_) => panic!("Hash map cannot be hashed"),
+            ScmVal::HashMap(val) => val.hash(state),
+            ScmVal::HashMapMut(val) => val.borrow().hash(state),
             val => val.hash(state),
         }
     }
@@ -172,10 +164,10 @@ impl fmt::Display for ScmVal {
             ScmVal::Symbol(val) => write!(f, "{}", val),
             ScmVal::String(val) => write!(f, "{}", val),
             ScmVal::StringMut(val) => write!(f, "{}", val.borrow()),
-            ScmVal::Closure(_) => write!(f, "#<CLOSURE>"),
-            ScmVal::Core(val) => write!(f, "#<PROCEDURE {:?}>", val),
+            ScmVal::Closure(_) => write!(f, "#<closure>"),
+            ScmVal::Core(val) => write!(f, "#<procedure {}>", val),
             ScmVal::Pair(val) => display_list(f, Rc::clone(val)),
-            ScmVal::Env(_) => write!(f, "#<ENVIRONMENT>"),
+            ScmVal::Env(_) => write!(f, "#<environment>"),
             ScmVal::Vector(val) => display_vec(f, Rc::clone(val)),
             ScmVal::VectorMut(val) => display_vec_mut(f, Rc::clone(val)),
             ScmVal::HashMap(val) => write!(f, "{:?}", val),

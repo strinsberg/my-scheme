@@ -40,28 +40,23 @@ impl Interpreter {
             panic!("not initialized");
         }
 
-        let result = match StringReader::new(text).read_forms() {
-            Ok(forms) => eval_forms(forms, Rc::clone(&self.env)),
+        match StringReader::new(text).read_forms() {
+            Ok(forms) => match eval_forms(forms, Rc::clone(&self.env)) {
+                Ok(val) => val.to_string(),
+                Err(e) => format!("{e}"),
+            },
             Err(e) => panic!("{e}"),
-        };
-
-        match result {
-            Ok(val) => val.to_string(),
-            Err(e) => format!("{e}"),
         }
     }
 
     fn setup_env(&mut self) {
-        let lib_std_str = match StringReader::new(SCM_LIB_STD).read_forms() {
-            Ok(s) => s,
-            Err(e) => panic!("failed to read SCM_LIB_STD: Err: {e}"),
-        };
+        let lib_std_str = StringReader::new(SCM_LIB_STD)
+            .read_forms()
+            .expect("failed to read SCM_LIB_STD: Err: {e}");
 
         // Eval scheme standard lib with the base env to add all defines to interpreter env
-        match eval_forms(lib_std_str, Rc::clone(&self.env)) {
-            Err(e) => panic!("failed to eval SCM_LIB_STD: Err: {e}"),
-            _ => (),
-        };
+        eval_forms(lib_std_str, Rc::clone(&self.env))
+            .expect("failed to eval SCM_LIB_STD: Err: {e}");
     }
 }
 

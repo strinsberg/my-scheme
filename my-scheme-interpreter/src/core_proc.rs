@@ -13,9 +13,9 @@ use crate::types::{Builtin, ScmVal};
 
 pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
     match op {
-        Builtin::Cons => cons_proc(args),
-        Builtin::Car => car_proc(args),
-        Builtin::Cdr => cdr_proc(args),
+        Builtin::Cons => cons(args),
+        Builtin::Car => car(args),
+        Builtin::Cdr => cdr(args),
         Builtin::Eqv => eqv_proc(args),
         Builtin::BaseEnv => Ok(ScmVal::null_env()),
         Builtin::Sum | Builtin::Subtract | Builtin::Product | Builtin::Divide => {
@@ -46,44 +46,41 @@ pub fn is_core_proc(val: ScmVal) -> bool {
 
 // Core list functions ////////////////////////////////////////////////////////
 
-pub fn cons_proc(args: Vec<ScmVal>) -> ValResult {
+pub fn cons(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
         2.. => Ok(ScmVal::new_pair(args[0].clone(), args[1].clone())),
         _ => Err(ScmErr::Arity("cons".to_owned(), 2)),
     }
 }
 
-pub fn car(arg: ScmVal) -> ValResult {
-    match arg {
-        ScmVal::Pair(cell) => Ok(cell.borrow().head.clone()),
-        _ => Err(ScmErr::BadArgType("car".to_owned(), "pair".to_owned(), arg)),
+pub fn car(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Pair(cell) => Ok(cell.borrow().head.clone()),
+            _ => Err(ScmErr::BadArgType(
+                "car".to_owned(),
+                "pair".to_owned(),
+                args[0].clone(),
+            )),
+        }
+    } else {
+        Err(ScmErr::Arity("car".to_owned(), 1))
     }
 }
 
-pub fn car_proc(args: Vec<ScmVal>) -> ValResult {
-    match args.len() {
-        1.. => car(args[0].clone()),
-        _ => Err(ScmErr::Arity("car".to_owned(), 1)),
+pub fn cdr(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Pair(cell) => Ok(cell.borrow().tail.clone()),
+            _ => Err(ScmErr::BadArgType(
+                "cdr".to_owned(),
+                "pair".to_owned(),
+                args[0].clone(),
+            )),
+        }
+    } else {
+        Err(ScmErr::Arity("cdr".to_owned(), 1))
     }
-}
-
-pub fn cdr(arg: ScmVal) -> ValResult {
-    match arg {
-        ScmVal::Pair(cell) => Ok(cell.borrow().tail.clone()),
-        _ => Err(ScmErr::BadArgType("cdr".to_owned(), "pair".to_owned(), arg)),
-    }
-}
-
-pub fn cdr_proc(args: Vec<ScmVal>) -> ValResult {
-    match args.len() {
-        1.. => cdr(args[0].clone()),
-        _ => Err(ScmErr::Arity("cdr".to_owned(), 1)),
-    }
-}
-
-// Error here might not be good if list is not size 2
-pub fn cadr(arg: ScmVal) -> ValResult {
-    car(cdr(arg)?)
 }
 
 // Equivalence ////////////////////////////////////////////////////////////////
@@ -104,34 +101,30 @@ pub fn arithmetic_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         1 => unary_arithmetic(op, args),
         2 => binary_arithmetic(op, args),
         3.. => sum_arithmetic(op, args),
-        _ => Err(ScmErr::Arity(format! {"{:?}", op}, 2)),
+        _ => Err(ScmErr::Arity(format! {"{}", op}, 1)),
     }
 }
 
 fn binary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
-    let result;
     let left = args[0].clone();
     let right = args[1].clone();
     let type_str = "number".to_string();
 
-    match left.clone() {
-        ScmVal::Number(l) => match right.clone() {
-            ScmVal::Number(r) => match op.clone() {
-                Builtin::Sum => result = (l.add(r.clone()), l, r),
-                Builtin::Subtract => result = (l.subtract(r.clone()), l, r),
-                Builtin::Product => result = (l.multiply(r.clone()), l, r),
-                Builtin::Divide => result = (l.divide(r.clone()), l, r),
-                _ => panic!("operation should be arithmetic procedure: {:?}", op),
-            },
-            e => return Err(ScmErr::BadArgType(format!("{}", op), type_str, e)),
+    let result = match (left.clone(), right.clone()) {
+        (ScmVal::Number(l), ScmVal::Number(r)) => match op.clone() {
+            Builtin::Sum => l.add(r.clone()),
+            Builtin::Subtract => l.subtract(r.clone()),
+            Builtin::Product => l.multiply(r.clone()),
+            Builtin::Divide => l.divide(r.clone()),
+            _ => panic!("operation should be arithmetic procedure: {:?}", op),
         },
-        e => return Err(ScmErr::BadArgType(format!("{}", op), type_str, e)),
-    }
+        (ScmVal::Number(_), r) => return Err(ScmErr::BadArgType(format!("{}", op), type_str, r)),
+        (l, _) => return Err(ScmErr::BadArgType(format!("{}", op), type_str, l)),
+    };
 
-    match result.0 {
-        Some(num) => Ok(ScmVal::Number(num)),
-        None => Err(ScmErr::BadArithmetic(op, result.1, result.2)),
-    }
+    Ok(ScmVal::Number(
+        result.ok_or(ScmErr::BadArithmetic(op, left, right))?,
+    ))
 }
 
 fn unary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
