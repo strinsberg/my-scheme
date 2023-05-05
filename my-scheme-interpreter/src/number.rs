@@ -5,7 +5,6 @@ use std::hash::{Hash, Hasher};
 // Currently only has i64 and f64.
 
 // TODO testing
-// TODO match like this (number(l), number(r)) to make things cleaner
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScmNumber {

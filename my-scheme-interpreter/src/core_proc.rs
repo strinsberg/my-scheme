@@ -48,7 +48,7 @@ pub fn is_core_proc(val: ScmVal) -> bool {
 
 pub fn cons(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
-        2.. => Ok(ScmVal::new_pair(args[0].clone(), args[1].clone())),
+        2.. => Ok(ScmVal::cons(args[0].clone(), args[1].clone())),
         _ => Err(ScmErr::Arity("cons".to_owned(), 2)),
     }
 }

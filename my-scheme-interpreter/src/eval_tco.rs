@@ -44,6 +44,7 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>) -> ValResult {
                 .ok_or(ScmErr::Undeclared(name.to_string())),
             // Lists have their first arg applied to the cdr
             ScmVal::Pair(cell) => {
+                // TODO change this now that dotted is in DottedPair
                 let dotted = cell.borrow().is_dotted();
                 let args = ScmVal::list_to_vec(cell.borrow().tail.clone())
                     .expect("should be unreachable if cell.is_dotted() was checked");
@@ -172,7 +173,7 @@ pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let bindings = args[0].clone();
         let (params, bind_args) = unbind(bindings.clone())?;
-        Ok(ScmVal::new_pair(
+        Ok(ScmVal::cons(
             ScmVal::new_closure(Closure::new(env, params, args[1..].into())),
             ScmVal::vec_to_list(bind_args, ScmVal::Empty),
         ))
@@ -265,7 +266,7 @@ pub fn user_apply(args: Vec<ScmVal>) -> ValResult {
             ScmVal::Pair(p) => ScmVal::Pair(p),
             e => return Err(ScmErr::BadArgType("apply".to_owned(), "pair".to_owned(), e)),
         };
-        Ok(ScmVal::new_pair(func, list))
+        Ok(ScmVal::cons(func, list))
     } else {
         Err(ScmErr::Arity("apply".to_owned(), 2))
     }
@@ -340,7 +341,7 @@ fn letrec_bind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
     let bindings = params
         .clone()
         .into_iter()
-        .map(|p| ScmVal::new_pair(p, ScmVal::Undefined))
+        .map(|p| ScmVal::cons(p, ScmVal::Undefined))
         .collect();
 
     // Create the assingments to add to the start of the body

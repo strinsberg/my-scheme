@@ -7,6 +7,9 @@ use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::rc::Rc;
 
+// TODO count cons cells?
+// TODO add name to closure?
+
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +21,7 @@ pub enum ScmVal {
     Closure(Rc<Closure>),
     Core(Builtin),
     Pair(Rc<RefCell<ConsCell>>),
+    DottedPair(Rc<RefCell<ConsCell>>),
     Env(Rc<RefCell<Env>>),
     String(Rc<ScmString>),
     StringMut(Rc<RefCell<ScmString>>),
@@ -50,6 +54,10 @@ impl ScmVal {
 
     pub fn new_pair(head: ScmVal, tail: ScmVal) -> ScmVal {
         ScmVal::Pair(Rc::new(RefCell::new(ConsCell::new(head, tail))))
+    }
+
+    pub fn new_dotted_pair(head: ScmVal, tail: ScmVal) -> ScmVal {
+        ScmVal::DottedPair(Rc::new(RefCell::new(ConsCell::new(head, tail))))
     }
 
     pub fn new_str_mut(string: &str) -> ScmVal {
@@ -113,17 +121,33 @@ impl ScmVal {
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
     pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
-        values
-            .into_iter()
-            .rev()
-            .fold(end, |acc, v| ScmVal::new_pair(v, acc))
+        match end {
+            ScmVal::Pair(_) | ScmVal::Empty => values
+                .into_iter()
+                .rev()
+                .fold(end, |acc, v| ScmVal::new_pair(v, acc)),
+            _ => values
+                .into_iter()
+                .rev()
+                .fold(end, |acc, v| ScmVal::new_dotted_pair(v, acc)),
+        }
     }
 
     pub fn list_to_vec(val: ScmVal) -> Option<Vec<ScmVal>> {
         match val {
             ScmVal::Pair(cell) => Some(ListValIter::new(cell).collect()),
+            ScmVal::DottedPair(cell) => Some(ListValIter::new(cell).collect()),
             ScmVal::Empty => Some(vec![]),
             _ => None,
+        }
+    }
+
+    pub fn cons(val: ScmVal, rest: ScmVal) -> ScmVal {
+        match rest {
+            ScmVal::Pair(_) => ScmVal::new_pair(val, rest),
+            ScmVal::DottedPair(_) => ScmVal::new_dotted_pair(val, rest),
+            ScmVal::Empty => ScmVal::new_pair(val, ScmVal::Empty),
+            _ => ScmVal::new_dotted_pair(val, rest),
         }
     }
 }
@@ -167,6 +191,7 @@ impl fmt::Display for ScmVal {
             ScmVal::Closure(_) => write!(f, "#<closure>"),
             ScmVal::Core(val) => write!(f, "#<procedure {}>", val),
             ScmVal::Pair(val) => display_list(f, Rc::clone(val)),
+            ScmVal::DottedPair(val) => display_improper_list(f, Rc::clone(val)),
             ScmVal::Env(_) => write!(f, "#<environment>"),
             ScmVal::Vector(val) => display_vec(f, Rc::clone(val)),
             ScmVal::VectorMut(val) => display_vec_mut(f, Rc::clone(val)),
@@ -178,26 +203,19 @@ impl fmt::Display for ScmVal {
     }
 }
 
-fn display_list(f: &mut fmt::Formatter, cell: Rc<RefCell<ConsCell>>) -> fmt::Result {
-    let iter = ListValIterAndDot::new(cell);
-    let mut dotted = false;
-    let vec_string: Vec<String> = iter
-        .map(|(v, d)| {
-            dotted |= d;
-            v.to_string()
-        })
-        .collect();
+fn display_improper_list(f: &mut fmt::Formatter, cell: Rc<RefCell<ConsCell>>) -> fmt::Result {
+    let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_string()).collect();
+    write!(
+        f,
+        "({} . {})",
+        vec_string[..vec_string.len() - 1].join(" "),
+        vec_string[vec_string.len() - 1]
+    )
+}
 
-    if dotted {
-        write!(
-            f,
-            "({} . {})",
-            vec_string[..vec_string.len() - 1].join(" "),
-            vec_string[vec_string.len() - 1]
-        )
-    } else {
-        write!(f, "({})", vec_string.join(" "))
-    }
+fn display_list(f: &mut fmt::Formatter, cell: Rc<RefCell<ConsCell>>) -> fmt::Result {
+    let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_string()).collect();
+    write!(f, "({})", vec_string.join(" "))
 }
 
 fn display_vec(f: &mut fmt::Formatter, vec: Rc<Vec<ScmVal>>) -> fmt::Result {
@@ -250,6 +268,7 @@ impl fmt::Display for Builtin {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConsCell {
+    pub count: usize,
     pub head: ScmVal,
     pub tail: ScmVal,
 }
@@ -257,6 +276,7 @@ pub struct ConsCell {
 impl ConsCell {
     pub fn default() -> ConsCell {
         ConsCell {
+            count: 0,
             head: ScmVal::Empty,
             tail: ScmVal::Empty,
         }
@@ -264,6 +284,7 @@ impl ConsCell {
 
     pub fn new(head: ScmVal, tail: ScmVal) -> ConsCell {
         ConsCell {
+            count: 0,
             head: head,
             tail: tail,
         }
@@ -281,13 +302,15 @@ impl ConsCell {
 
 #[derive(Debug, Clone)]
 pub struct ListValIter {
-    iter: ListValIterAndDot,
+    last: bool,
+    cell: Option<Rc<RefCell<ConsCell>>>,
 }
 
 impl ListValIter {
     pub fn new(cell: Rc<RefCell<ConsCell>>) -> ListValIter {
         ListValIter {
-            iter: ListValIterAndDot::new(cell),
+            last: false,
+            cell: Some(cell),
         }
     }
 }
@@ -296,44 +319,20 @@ impl Iterator for ListValIter {
     type Item = ScmVal;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            Some((v, _)) => Some(v),
-            None => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ListValIterAndDot {
-    pub dot: bool,
-    cell: Option<Rc<RefCell<ConsCell>>>,
-}
-
-impl ListValIterAndDot {
-    pub fn new(cell: Rc<RefCell<ConsCell>>) -> ListValIterAndDot {
-        ListValIterAndDot {
-            dot: false,
-            cell: Some(cell),
-        }
-    }
-}
-
-impl Iterator for ListValIterAndDot {
-    type Item = (ScmVal, bool);
-
-    fn next(&mut self) -> Option<Self::Item> {
         match self.cell.clone() {
             Some(cell) => {
-                if self.dot {
+                if self.last {
                     self.cell = None;
-                    return Some((cell.borrow().tail.clone(), self.dot));
+                    return Some(cell.borrow().tail.clone());
                 }
                 match cell.borrow().tail {
-                    ScmVal::Pair(ref next) => self.cell = Some(Rc::clone(next)),
+                    ScmVal::DottedPair(ref next) | ScmVal::Pair(ref next) => {
+                        self.cell = Some(Rc::clone(next))
+                    }
                     ScmVal::Empty => self.cell = None,
-                    _ => self.dot = true,
+                    _ => self.last = true,
                 };
-                Some((cell.borrow().head.clone(), self.dot))
+                Some(cell.borrow().head.clone())
             }
             None => None,
         }
@@ -446,7 +445,6 @@ impl Env {
     ) -> Rc<RefCell<Env>> {
         let new_env = Env::add_scope(env);
         {
-            // TODO not sure the scope is required
             new_env.borrow_mut().insert_all(zip(params, args).collect());
         }
         new_env
