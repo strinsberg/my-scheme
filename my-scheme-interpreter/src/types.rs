@@ -238,6 +238,22 @@ pub enum Builtin {
     BaseEnv,
 }
 
+impl fmt::Display for Builtin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            Builtin::Sum => "+",
+            Builtin::Subtract => "-",
+            Builtin::Product => "*",
+            Builtin::Divide => "/",
+            Builtin::EQ => "eq?",
+            Builtin::Eqv => "eqv?",
+            Builtin::BaseEnv => "null-environment",
+            b => return write!(f, "{}", format!("{}", b).to_lowercase()),
+        };
+        write!(f, "{}", s)
+    }
+}
+
 // Cons Cells /////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

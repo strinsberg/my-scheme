@@ -71,6 +71,7 @@ impl StringReader {
             Token::RParen | Token::Dot | Token::EOF => {
                 Err(ScmErr::BadToken(self.scanner.line, next.clone()))
             }
+            Token::Quote => Err(ScmErr::Syntax(ScmVal::new_sym("quote"))),
             _ => {
                 // If next is a proper value check for ) and make the list
                 let val = self.read_helper(next)?;

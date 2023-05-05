@@ -60,13 +60,9 @@ pub fn is_core_proc(val: ScmVal) -> bool {
 
 // Core list functions ////////////////////////////////////////////////////////
 
-pub fn cons(first: ScmVal, rest: ScmVal) -> ValResult {
-    Ok(ScmVal::new_pair(first, rest))
-}
-
 pub fn cons_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
-        2.. => cons(args[0].clone(), args[1].clone()),
+        2.. => Ok(ScmVal::new_pair(args[0].clone(), args[1].clone())),
         _ => Err(ScmErr::Arity("cons".to_owned(), 2)),
     }
 }
@@ -74,11 +70,11 @@ pub fn cons_proc(args: Vec<ScmVal>) -> ValResult {
 pub fn car(arg: ScmVal) -> ValResult {
     match arg {
         ScmVal::Pair(cell) => Ok(cell.borrow().head.clone()),
-        _ => Err(ScmErr::BadArgType("car".to_owned(), 1, "pair".to_owned())),
+        _ => Err(ScmErr::BadArgType("car".to_owned(), "pair".to_owned(), arg)),
     }
 }
 
-fn car_proc(args: Vec<ScmVal>) -> ValResult {
+pub fn car_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
         1.. => car(args[0].clone()),
         _ => Err(ScmErr::Arity("car".to_owned(), 1)),
@@ -88,11 +84,11 @@ fn car_proc(args: Vec<ScmVal>) -> ValResult {
 pub fn cdr(arg: ScmVal) -> ValResult {
     match arg {
         ScmVal::Pair(cell) => Ok(cell.borrow().tail.clone()),
-        _ => Err(ScmErr::BadArgType("cdr".to_owned(), 1, "pair".to_owned())),
+        _ => Err(ScmErr::BadArgType("cdr".to_owned(), "pair".to_owned(), arg)),
     }
 }
 
-fn cdr_proc(args: Vec<ScmVal>) -> ValResult {
+pub fn cdr_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
         1.. => cdr(args[0].clone()),
         _ => Err(ScmErr::Arity("cdr".to_owned(), 1)),
@@ -141,9 +137,9 @@ fn binary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
                 Builtin::Divide => result = (l.divide(r.clone()), l, r),
                 _ => panic!("operation should be arithmetic procedure: {:?}", op),
             },
-            _ => return Err(ScmErr::BadArgType(format!("{:?}", op), 2, type_str)),
+            e => return Err(ScmErr::BadArgType(format!("{}", op), type_str, e)),
         },
-        _ => return Err(ScmErr::BadArgType(format!("{:?}", op), 1, type_str)),
+        e => return Err(ScmErr::BadArgType(format!("{}", op), type_str, e)),
     }
 
     match result.0 {
@@ -160,9 +156,9 @@ fn unary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::Sum => Ok(args[0].clone()),
         _ => {
             return Err(ScmErr::BadArgType(
-                format!("{:?}", op),
-                1,
+                format!("{}", op),
                 "number".to_owned(),
+                args[0].clone(),
             ))
         }
     }

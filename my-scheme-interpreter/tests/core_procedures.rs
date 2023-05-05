@@ -133,8 +133,8 @@ fn test_letrec() {
 #[test]
 fn test_set() {
     help::eval_assert("(define a 5) (set! a 10) (+ a 6)", "16");
-    help::eval_assert("(let ((a 5)) (set! a 10) (+ a 6))", "16");
-    help::eval_assert("(letrec ((a 5)) (set! a 10) (+ a 6))", "16");
+    help::eval_assert("(let ((a 5)) (set! a 10) (+ a 8))", "18");
+    help::eval_assert("(letrec ((a 5)) (set! a 10) (+ a 3))", "13");
 }
 
 #[test]

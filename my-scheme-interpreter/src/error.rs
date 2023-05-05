@@ -22,14 +22,15 @@ pub enum ScmErr {
     // eval error
     Undeclared(String),
     Arity(String, usize),
-    BadArgType(String, usize, String),
+    BadArgType(String, String, ScmVal),
     BadArithmetic(Builtin, ScmNumber, ScmNumber),
     BadUnaryArithmetic(Builtin, ScmNumber),
-    BadCall(String),
     BadBindings(String),
     EmptyBody,
     // seq errors
     OutOfBounds(usize, usize),
+    // General
+    Syntax(ScmVal),
 }
 
 impl fmt::Display for ScmErr {
@@ -62,8 +63,8 @@ impl fmt::Display for ScmErr {
             ScmErr::Arity(name, n) => {
                 write!(f, "Error: {name} requires at least {n} arguments")
             }
-            ScmErr::BadArgType(name, pos, kind) => {
-                write!(f, "Error: {name} requires argument {pos} be type {kind} ")
+            ScmErr::BadArgType(name, kind, expr) => {
+                write!(f, "Error in {name}: {expr} is not a {kind}")
             }
             ScmErr::BadArithmetic(op, left, right) => {
                 write!(f, "Error: bad arithmetic: ({:?} {left} {right})", op)
@@ -71,21 +72,21 @@ impl fmt::Display for ScmErr {
             ScmErr::BadUnaryArithmetic(op, left) => {
                 write!(f, "Error: bad arithmetic: ({:?} {left})", op)
             }
-            ScmErr::BadCall(val) => {
-                write!(f, "Error: invalid function call or procedure: {val}")
-            }
             ScmErr::BadBindings(list) => {
                 write!(f, "Error: invalid binding list: {list}")
             }
             ScmErr::EmptyBody => {
-                write!(f, "Error: empty lambda body")
+                write!(f, "Error: empty lambda/let/letrec body")
             }
             ScmErr::OutOfBounds(idx, len) => {
                 write!(
                     f,
                     "Error: index out of bounds: got {idx} when length is {len}"
                 )
-            } //e => write!(f, "{:?}", e),
+            }
+            ScmErr::Syntax(expr) => {
+                write!(f, "Error: invalid syntax: {expr}")
+            }
         }
     }
 }
