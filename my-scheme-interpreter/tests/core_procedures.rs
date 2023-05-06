@@ -77,6 +77,11 @@ fn test_define() {
         "(define f (lambda (x) (if (eqv? x 0) x (f (- x 1))))) (f 10)",
         "0",
     );
+    // define function helper
+    help::eval_assert("(define (f) 13) (f)", "13");
+    help::eval_assert("(define (f x) x) (f 6)", "6");
+    help::eval_assert("(define (f . x) x) (f 1 2 3 4)", "(1 2 3 4)");
+    help::eval_assert("(define (f x y . z) z) (f 1 2 3 4)", "(3 4)");
 }
 
 #[test]

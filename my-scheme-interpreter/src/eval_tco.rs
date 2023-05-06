@@ -6,30 +6,25 @@ use std::iter::zip;
 use std::rc::Rc;
 
 // TODO eval should take the current environment when called with no args...
-// or whatever the standard says.
+// or whatever the standard says. It says there are 3 envs, the one that would
+// get used when called with no args is the interaction-environment and I see that
+// as the env that is already present. The expectation is that if eval allows
+// define expressions that when using the other two you cannot add definitions
+// to them. So if they are shared they have to be immutable environments and if
+// they are just copies, like they are now, then they can be whatever I have
+// and will not alter the environment outside of the evaluation. I expect that
+// for now making a fresh env with null-environment would be best to keep
+// anything from bleeding into the base env when it is not supposed to.
 //
 // TODO it is an ERROR to use define within a form, so we should check for
 // that somehow. Perhaps using eval_forms to check for define on the car
 // of the expression to evaluate it properly, but define not being checked in
 // eval or being an error if found.
 //
-// TODO lambda and define can take differnt forms than the ones I have
-// (lambda (a b c) body) and (lambda x body)
+// TODO define can take differnt forms than the ones I have
 // (define f arg),
 // (define (f a b c) body) => (define f (lambda (a b c) body))
 // (define (f . x) body) => (define f (lambda x body))
-//
-// TODO Check on how apply is supposed to work? For mine right now
-// the arguments are evaluated, but the new call is returned unevaluated for tco,
-// though I am not sure this does anything. The standard says the second arg should
-// be evaluated with tco, but I am not sure if this means evaluating it to a
-// function or the application of it. All evaluations use tco, so if it is a
-// recursive function the closure application will be tco.
-//
-// TODO make sure everything in here is tested by the core_procedure.rs tests.
-// It is good to test these with unit tests, but it is messy and difficult to
-// setup the forms to eval and to expect. It is easier just to test with the
-// output, even if other things could break the tests.
 
 // Eval ///////////////////////////////////////////////////////////////////////
 
@@ -238,13 +233,35 @@ pub fn eval_set(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // Evaluate a define statement by first setting the variable to <undefined>
 // and then using set! to store the new evaluated value.
 pub fn eval_define(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    if args.len() >= 2 {
-        {
-            env.borrow_mut().insert(args[0].clone(), ScmVal::Undefined);
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("define".to_owned(), 2));
+    }
+
+    let first = args[0].clone();
+    match first {
+        ScmVal::Symbol(_) => {
+            {
+                env.borrow_mut().insert(first.clone(), ScmVal::Undefined);
+            }
+            eval_set(args, env)
         }
-        eval_set(args, env)
-    } else {
-        Err(ScmErr::Arity("define".to_owned(), 2))
+        ScmVal::Pair(cell) | ScmVal::DottedPair(cell) => {
+            // (define (f x y z) x) => (define f (lambda (x y z) x))
+            // (define (f x y . z) x) => (define f (lambda (x y . z) x))
+            let name = cell.borrow().head.clone();
+            let params = cell.borrow().tail.clone();
+            let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+            let lambda = ScmVal::cons(ScmVal::new_sym("lambda"), ScmVal::cons(params, body));
+            eval_tco(
+                ScmVal::vec_to_list(vec![ScmVal::new_sym("define"), name, lambda], ScmVal::Empty),
+                env,
+            )
+        }
+        _ => Err(ScmErr::BadArgType(
+            "define".to_owned(),
+            "pair or symbol".to_owned(),
+            first,
+        )),
     }
 }
 
