@@ -129,9 +129,11 @@ fn binary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         (l, _) => return Err(ScmErr::BadArgType(format!("{}", op), type_str, l)),
     };
 
-    Ok(ScmVal::Number(
-        result.ok_or(ScmErr::BadArithmetic(op, left, right))?,
-    ))
+    Ok(ScmVal::Number(result.ok_or(ScmErr::BadArithmetic(
+        op.to_string(),
+        left,
+        right,
+    ))?))
 }
 
 fn unary_arithmetic(op: Builtin, args: Vec<ScmVal>) -> ValResult {

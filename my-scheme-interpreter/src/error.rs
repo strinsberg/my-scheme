@@ -1,5 +1,5 @@
 use crate::scanner::Token;
-use crate::types::{Builtin, Env, ScmVal};
+use crate::types::{Env, ScmVal};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -22,8 +22,7 @@ pub enum ScmErr {
     Undeclared(String),
     Arity(String, usize),
     BadArgType(String, String, ScmVal),
-    BadArithmetic(Builtin, ScmVal, ScmVal),
-    BadUnaryArithmetic(Builtin, ScmVal),
+    BadArithmetic(String, ScmVal, ScmVal),
     BadBinding(ScmVal),
     EmptyBody,
     // seq errors
@@ -66,13 +65,10 @@ impl fmt::Display for ScmErr {
                 write!(f, "Error in {name}: {expr} is not a {kind}")
             }
             ScmErr::BadArithmetic(op, left, right) => {
-                write!(f, "Error: bad arithmetic: ({:?} {left} {right})", op)
-            }
-            ScmErr::BadUnaryArithmetic(op, left) => {
-                write!(f, "Error: bad arithmetic: ({:?} {left})", op)
+                write!(f, "Error: invalid arithmetic: ({op} {left} {right})")
             }
             ScmErr::BadBinding(key) => {
-                write!(f, "Error: invalid binding var: {}", key)
+                write!(f, "Error: invalid binding var: {key}")
             }
             ScmErr::EmptyBody => {
                 write!(f, "Error: empty lambda/let/letrec body")
