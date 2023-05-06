@@ -1,7 +1,7 @@
 use crate::eval_tco::eval_forms;
 use crate::reader::StringReader;
 use crate::scheme_libs::std::SCM_LIB_STD;
-use crate::types::{Env, ScmVal};
+use crate::types::Env;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -22,7 +22,7 @@ impl Interpreter {
     // Create a new interpreter with an empty environment
     pub fn new() -> Interpreter {
         Interpreter {
-            env: ScmVal::null_env_rc(),
+            env: Env::new_null_rc(),
             ready: false,
         }
     }

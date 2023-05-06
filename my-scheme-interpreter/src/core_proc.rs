@@ -1,5 +1,5 @@
 use crate::error::{ScmErr, ValResult};
-use crate::types::{Builtin, ScmVal};
+use crate::types::{Builtin, Env, ScmVal};
 
 // All builtin functions that are not syntactic keywords and are the basic building
 // blocks for all other functions. Syntactic keywords and things that require tail
@@ -17,7 +17,7 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::Car => car(args),
         Builtin::Cdr => cdr(args),
         Builtin::Eqv => eqv_proc(args),
-        Builtin::BaseEnv => Ok(ScmVal::null_env()),
+        Builtin::BaseEnv => Ok(Env::new_null()),
         Builtin::Sum | Builtin::Subtract | Builtin::Product | Builtin::Divide => {
             arithmetic_proc(op, args)
         }

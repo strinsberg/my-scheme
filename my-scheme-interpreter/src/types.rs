@@ -4,13 +4,16 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::iter::zip;
 use std::rc::Rc;
 
 // TODO count cons cells?
 // TODO add name to closure?
 // TODO somewhere add checks to ensure that bindings to the environment cannot
-// be with anything but symbols
+// be with anything but symbols. It is easier to give nice errors if the check is
+// implemented in the forms that actually bind things. However, it is messy that
+// way as there are a lot of places that bind things. The ideal way would be to
+// return a result from insert, it is used by all env binding methods, but the issue
+// is that error would have to be moved into here.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 
@@ -92,45 +95,6 @@ impl ScmVal {
 
     pub fn new_map(map: HashMap<ScmVal, ScmVal>) -> ScmVal {
         ScmVal::HashMap(Rc::new(Map::new(map)))
-    }
-
-    pub fn null_env() -> ScmVal {
-        ScmVal::Env(ScmVal::null_env_rc())
-    }
-
-    pub fn null_env_rc() -> Rc<RefCell<Env>> {
-        Rc::new(RefCell::new(Env::new_with_bindings(vec![
-            (ScmVal::new_sym("apply"), ScmVal::Core(Builtin::Apply)),
-            (ScmVal::new_sym("eval"), ScmVal::Core(Builtin::Eval)),
-            (
-                ScmVal::new_sym("null-environment"),
-                ScmVal::Core(Builtin::BaseEnv),
-            ),
-            // List core
-            (ScmVal::new_sym("cons"), ScmVal::Core(Builtin::Cons)),
-            (ScmVal::new_sym("car"), ScmVal::Core(Builtin::Car)),
-            (ScmVal::new_sym("cdr"), ScmVal::Core(Builtin::Cdr)),
-            // Core Arithmetic
-            (ScmVal::new_sym("+"), ScmVal::Core(Builtin::Sum)),
-            (ScmVal::new_sym("-"), ScmVal::Core(Builtin::Subtract)),
-            (ScmVal::new_sym("*"), ScmVal::Core(Builtin::Product)),
-            (ScmVal::new_sym("/"), ScmVal::Core(Builtin::Divide)),
-            // Comparisson
-            (ScmVal::new_sym("eqv?"), ScmVal::Core(Builtin::Eqv)),
-            // Type Predicates
-            (ScmVal::new_sym("boolean?"), ScmVal::Core(Builtin::IsBool)),
-            (ScmVal::new_sym("char?"), ScmVal::Core(Builtin::IsChar)),
-            (ScmVal::new_sym("symbol?"), ScmVal::Core(Builtin::IsSymbol)),
-            (ScmVal::new_sym("number?"), ScmVal::Core(Builtin::IsNumber)),
-            (ScmVal::new_sym("string?"), ScmVal::Core(Builtin::IsString)),
-            (ScmVal::new_sym("pair?"), ScmVal::Core(Builtin::IsPair)),
-            (ScmVal::new_sym("vector?"), ScmVal::Core(Builtin::IsVector)),
-            (
-                ScmVal::new_sym("procedure?"),
-                ScmVal::Core(Builtin::IsProcedure),
-            ),
-            (ScmVal::new_sym("null?"), ScmVal::Core(Builtin::IsEmpty)),
-        ])))
     }
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
@@ -459,83 +423,6 @@ pub struct Env {
     pub next: Option<Rc<RefCell<Env>>>,
 }
 
-impl Env {
-    pub fn new() -> Env {
-        Env {
-            scope: Map::default(),
-            next: None,
-        }
-    }
-
-    pub fn new_with_bindings(bindings: Vec<(ScmVal, ScmVal)>) -> Env {
-        let mut env = Env::new();
-        env.insert_all(bindings);
-        env
-    }
-
-    pub fn add_scope(env: Rc<RefCell<Env>>) -> Rc<RefCell<Env>> {
-        let new_env = Env {
-            scope: Map::default(),
-            next: Some(env),
-        };
-        Rc::new(RefCell::new(new_env))
-    }
-
-    // Binds a list of symbols to a list of values in a new scope
-    pub fn bind_in_new_env(
-        env: Rc<RefCell<Env>>,
-        params: Vec<ScmVal>,
-        args: Vec<ScmVal>,
-    ) -> Rc<RefCell<Env>> {
-        let new_env = Env::add_scope(env);
-        {
-            new_env.borrow_mut().insert_all(zip(params, args).collect());
-        }
-        new_env
-    }
-
-    // Returns the value for the first time the key is found in any scope.
-    pub fn lookup(&self, key: ScmVal) -> Option<ScmVal> {
-        match self.scope.contents.get(&key) {
-            Some(val) => Some(val.clone()),
-            None => match self.next {
-                Some(ref next) => next.borrow().lookup(key),
-                None => None,
-            },
-        }
-    }
-
-    // Inserts a binding into the top scope of the environment.
-    // If a key exists in the top scope already it will be rebound.
-    pub fn insert(&mut self, key: ScmVal, val: ScmVal) {
-        self.scope.contents.insert(key, val);
-    }
-
-    // Inserts a vector of key value pairs as bindings in the top scope.
-    pub fn insert_all(&mut self, pairs: Vec<(ScmVal, ScmVal)>) {
-        for (key, val) in pairs.iter() {
-            self.insert(key.clone(), val.clone());
-        }
-    }
-
-    // Sets a new value for the first key that matches in any scope.
-    // Returns Some(ScmVal::Empty) when the value was set, None if it was not found.
-    pub fn set(&mut self, key: ScmVal, val: ScmVal) -> Option<ScmVal> {
-        match self.scope.contents.contains_key(&key) {
-            true => {
-                self.scope.contents.insert(key, val);
-                Some(ScmVal::Empty)
-            }
-            false => match self.next {
-                Some(ref next) => next.borrow_mut().set(key, val),
-                None => None,
-            },
-        }
-    }
-}
-
-impl Hash for Env {
-    fn hash<H: Hasher>(&self, _: &mut H) {
-        panic!("Env cannot be hashed");
-    }
-}
+// Implementation is in env_impl because it needs error and error needs other
+// stuff and to make it work I would have to move error in here too, and there
+// are enough things in here.

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
 
-// TODO eval should take the current environment when called with no args...
+// TODO the user_eval should take the current environment when called with no args...
 // or whatever the standard says. It says there are 3 envs, the one that would
 // get used when called with no args is the interaction-environment and I see that
 // as the env that is already present. The expectation is that if eval allows
@@ -15,14 +15,6 @@ use std::rc::Rc;
 // and will not alter the environment outside of the evaluation. I expect that
 // for now making a fresh env with null-environment would be best to keep
 // anything from bleeding into the base env when it is not supposed to.
-//
-// TODO it is an ERROR to use define within a form, so we should check for
-// that somehow. Perhaps using eval_forms to check for define on the car
-// of the expression to evaluate it properly, but define not being checked in
-// eval or being an error if found. Easiest way is probably to just add an arg to
-// eval that indicates if we are top-level or not. We could also take define out
-// of eval and put it into eval_forms, but then the eval proc could not also
-// define things in it's environment.
 
 // Eval ///////////////////////////////////////////////////////////////////////
 
@@ -224,9 +216,7 @@ pub fn eval_set(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let key = args[0].clone();
         let val = eval_tco(args[1].clone(), Rc::clone(&env), false)?;
-        env.borrow_mut()
-            .set(key.clone(), val.clone())
-            .ok_or(ScmErr::Undeclared(key.to_string()))
+        env.borrow_mut().set(key.clone(), val.clone())
     } else {
         Err(ScmErr::Arity("set!".to_owned(), 2))
     }
@@ -242,9 +232,7 @@ pub fn eval_define(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     let first = args[0].clone();
     match first {
         ScmVal::Symbol(_) => {
-            {
-                env.borrow_mut().insert(first.clone(), ScmVal::Undefined);
-            }
+            env.borrow_mut().insert(first.clone(), ScmVal::Undefined)?;
             eval_set(args, env)
         }
         ScmVal::Pair(cell) | ScmVal::DottedPair(cell) => {
@@ -283,10 +271,10 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
             Rc::clone(&closure.env),
             vec![symbol],
             vec![ScmVal::vec_to_list(args, ScmVal::Empty)],
-        ),
+        )?,
         Formals::Fixed(params) => {
             if args.len() >= params.len() {
-                Env::bind_in_new_env(Rc::clone(&closure.env), params.clone(), args)
+                Env::bind_in_new_env(Rc::clone(&closure.env), params.clone(), args)?
             } else {
                 return Err(ScmErr::Arity("closure".to_owned(), 2));
             }
@@ -299,7 +287,7 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
             let rest = ScmVal::vec_to_list(args[params.len()..].into(), ScmVal::Empty);
             full_args.push(rest);
 
-            Env::bind_in_new_env(Rc::clone(&closure.env), full_params, full_args)
+            Env::bind_in_new_env(Rc::clone(&closure.env), full_params, full_args)?
         }
     };
 

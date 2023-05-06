@@ -24,6 +24,7 @@ pub enum ScmErr {
     BadArgType(String, String, ScmVal),
     BadArithmetic(Builtin, ScmVal, ScmVal),
     BadUnaryArithmetic(Builtin, ScmVal),
+    BadBinding(ScmVal),
     EmptyBody,
     // seq errors
     OutOfBounds(usize, usize),
@@ -69,6 +70,9 @@ impl fmt::Display for ScmErr {
             }
             ScmErr::BadUnaryArithmetic(op, left) => {
                 write!(f, "Error: bad arithmetic: ({:?} {left})", op)
+            }
+            ScmErr::BadBinding(key) => {
+                write!(f, "Error: invalid binding var: {}", key)
             }
             ScmErr::EmptyBody => {
                 write!(f, "Error: empty lambda/let/letrec body")
