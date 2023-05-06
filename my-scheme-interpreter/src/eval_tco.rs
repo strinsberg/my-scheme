@@ -19,16 +19,14 @@ use std::rc::Rc;
 // TODO it is an ERROR to use define within a form, so we should check for
 // that somehow. Perhaps using eval_forms to check for define on the car
 // of the expression to evaluate it properly, but define not being checked in
-// eval or being an error if found.
-//
-// TODO define can take differnt forms than the ones I have
-// (define f arg),
-// (define (f a b c) body) => (define f (lambda (a b c) body))
-// (define (f . x) body) => (define f (lambda x body))
+// eval or being an error if found. Easiest way is probably to just add an arg to
+// eval that indicates if we are top-level or not. We could also take define out
+// of eval and put it into eval_forms, but then the eval proc could not also
+// define things in it's environment.
 
 // Eval ///////////////////////////////////////////////////////////////////////
 
-pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>) -> ValResult {
+pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValResult {
     //println!("{}", value.clone().to_string());
     let mut expr = value.clone();
     let mut env = Rc::clone(&environment);
@@ -53,7 +51,11 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>) -> ValResult {
                 } else if cell.borrow().head == ScmVal::new_sym("set!") {
                     return eval_set(args, env);
                 } else if cell.borrow().head == ScmVal::new_sym("define") {
-                    return eval_define(args, env);
+                    if top {
+                        return eval_define(args, env);
+                    } else {
+                        return Err(ScmErr::Syntax(expr));
+                    }
                 } else if cell.borrow().head == ScmVal::new_sym("if") {
                     expr = eval_if(args, Rc::clone(&env))?;
                     continue;
@@ -66,7 +68,7 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>) -> ValResult {
                 }
 
                 // Eval the list elements
-                let proc = eval_tco(cell.borrow().head.clone(), Rc::clone(&env))?;
+                let proc = eval_tco(cell.borrow().head.clone(), Rc::clone(&env), false)?;
                 let arg_vec = eval_vec(args, Rc::clone(&env))?;
 
                 // Eval things that we can evaluate the first element into a proc
@@ -101,9 +103,9 @@ pub fn eval_forms(forms: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     }
 
     for f in forms[..forms.len() - 1].iter() {
-        eval_tco(f.clone(), Rc::clone(&env))?;
+        eval_tco(f.clone(), Rc::clone(&env), true)?;
     }
-    eval_tco(forms[forms.len() - 1].clone(), env)
+    eval_tco(forms[forms.len() - 1].clone(), env, true)
 }
 
 // Eval Helpers ///////////////////////////////////////////////////////////////
@@ -126,7 +128,7 @@ pub fn eval_if(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // Helper to evaluate properly when given a false branch or not
 fn eval_if_helper(args: Vec<ScmVal>, false_branch: bool, env: Rc<RefCell<Env>>) -> ValResult {
     // check condition
-    let result = eval_tco(args[0].clone(), env)?;
+    let result = eval_tco(args[0].clone(), env, false)?;
     // return the correct branch unevaluated
     match result {
         ScmVal::Boolean(false) | ScmVal::Empty => {
@@ -221,7 +223,7 @@ pub fn eval_letrec(args: Vec<ScmVal>) -> ValResult {
 pub fn eval_set(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let key = args[0].clone();
-        let val = eval_tco(args[1].clone(), Rc::clone(&env))?;
+        let val = eval_tco(args[1].clone(), Rc::clone(&env), false)?;
         env.borrow_mut()
             .set(key.clone(), val.clone())
             .ok_or(ScmErr::Undeclared(key.to_string()))
@@ -246,8 +248,7 @@ pub fn eval_define(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
             eval_set(args, env)
         }
         ScmVal::Pair(cell) | ScmVal::DottedPair(cell) => {
-            // (define (f x y z) x) => (define f (lambda (x y z) x))
-            // (define (f x y . z) x) => (define f (lambda (x y . z) x))
+            // just rebuild with (define name lambda) and re-evaluate
             let name = cell.borrow().head.clone();
             let params = cell.borrow().tail.clone();
             let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
@@ -255,6 +256,7 @@ pub fn eval_define(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
             eval_tco(
                 ScmVal::vec_to_list(vec![ScmVal::new_sym("define"), name, lambda], ScmVal::Empty),
                 env,
+                true,
             )
         }
         _ => Err(ScmErr::BadArgType(
@@ -303,7 +305,7 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
 
     // Eval all body exressions but the last one
     for expr in &closure.body[..closure.body.len() - 1] {
-        eval_tco(expr.clone(), Rc::clone(&bound_env))?;
+        eval_tco(expr.clone(), Rc::clone(&bound_env), false)?;
     }
 
     // Return the tail expression unevaluated and the updated capture environment for tco
@@ -348,7 +350,7 @@ pub fn user_eval(args: Vec<ScmVal>) -> TcoResult {
 fn eval_vec(v: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ScmResult<Vec<ScmVal>> {
     let evalled: Result<Vec<ScmVal>, _> = v
         .into_iter()
-        .map(|val| eval_tco(val, Rc::clone(&env)))
+        .map(|val| eval_tco(val, Rc::clone(&env), false))
         .collect();
     Ok(evalled?)
 }
