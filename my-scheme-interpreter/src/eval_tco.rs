@@ -1,6 +1,6 @@
 use crate::core_proc as proc;
 use crate::error::{ScmErr, ScmResult, TcoResult, ValResult};
-use crate::types::{Builtin, Closure, Env, ScmVal};
+use crate::types::{Builtin, Closure, Env, Formals, ScmVal};
 use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
@@ -149,15 +149,32 @@ fn eval_if_helper(args: Vec<ScmVal>, false_branch: bool, env: Rc<RefCell<Env>>) 
 pub fn eval_lambda(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let params = args[0].clone();
-        let params_vec = ScmVal::list_to_vec(params).ok_or(ScmErr::BadArgType(
-            "lambda".to_owned(),
-            "pair".to_owned(),
-            args[0].clone(),
-        ))?;
+        let formals = match params {
+            ScmVal::Symbol(_) => Formals::Collect(params),
+            ScmVal::Pair(_) => Formals::Fixed(ScmVal::list_to_vec(params).ok_or(
+                ScmErr::BadArgType("lambda".to_owned(), "pair".to_owned(), args[0].clone()),
+            )?),
+            ScmVal::DottedPair(_) => {
+                let vec = ScmVal::list_to_vec(params).ok_or(ScmErr::BadArgType(
+                    "lambda".to_owned(),
+                    "pair".to_owned(),
+                    args[0].clone(),
+                ))?;
+                Formals::Rest(vec[..vec.len() - 1].into(), vec[vec.len() - 1].clone())
+            }
+            ScmVal::Empty => Formals::Fixed(vec![]),
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "lambda".to_owned(),
+                    "pair".to_owned(),
+                    args[0].clone(),
+                ))
+            }
+        };
 
         Ok(ScmVal::new_closure(Closure::new(
             env,
-            params_vec,
+            formals,
             args[1..].into(),
         )))
     } else {
@@ -173,7 +190,7 @@ pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
         let bindings = args[0].clone();
         let (params, bind_args) = unbind(bindings.clone())?;
         Ok(ScmVal::cons(
-            ScmVal::new_closure(Closure::new(env, params, args[1..].into())),
+            ScmVal::new_closure(Closure::new(env, Formals::Fixed(params), args[1..].into())),
             ScmVal::vec_to_list(bind_args, ScmVal::Empty),
         ))
     } else {
@@ -241,18 +258,39 @@ pub fn apply_closure(val: ScmVal, args: Vec<ScmVal>) -> TcoResult {
         _ => panic!("should be passed an ScmVal::Closure"),
     };
 
-    if args.len() >= closure.params.len() {
-        // Bind params and args together in a new env and evaluate all but last body expr with it
-        let bound_env = Env::bind_in_new_env(Rc::clone(&closure.env), closure.params.clone(), args);
-        for expr in &closure.body[..closure.body.len() - 1] {
-            eval_tco(expr.clone(), Rc::clone(&bound_env))?;
+    // Bind the arguments to their parameters according to the formals list
+    let bound_env = match closure.params.clone() {
+        Formals::Collect(symbol) => Env::bind_in_new_env(
+            Rc::clone(&closure.env),
+            vec![symbol],
+            vec![ScmVal::vec_to_list(args, ScmVal::Empty)],
+        ),
+        Formals::Fixed(params) => {
+            if args.len() >= params.len() {
+                Env::bind_in_new_env(Rc::clone(&closure.env), params.clone(), args)
+            } else {
+                return Err(ScmErr::Arity("closure".to_owned(), 2));
+            }
         }
+        Formals::Rest(params, symbol) => {
+            let mut full_params = params.clone();
+            full_params.push(symbol);
 
-        // Return the tail expression unevaluated and the updated capture environment for tco
-        Ok((closure.body[closure.body.len() - 1].clone(), bound_env))
-    } else {
-        Err(ScmErr::Arity("closure".to_owned(), 2))
+            let mut full_args: Vec<ScmVal> = args[..params.len()].into();
+            let rest = ScmVal::vec_to_list(args[params.len()..].into(), ScmVal::Empty);
+            full_args.push(rest);
+
+            Env::bind_in_new_env(Rc::clone(&closure.env), full_params, full_args)
+        }
+    };
+
+    // Eval all body exressions but the last one
+    for expr in &closure.body[..closure.body.len() - 1] {
+        eval_tco(expr.clone(), Rc::clone(&bound_env))?;
     }
+
+    // Return the tail expression unevaluated and the updated capture environment for tco
+    Ok((closure.body[closure.body.len() - 1].clone(), bound_env))
 }
 
 // Apply a function to a list of values.

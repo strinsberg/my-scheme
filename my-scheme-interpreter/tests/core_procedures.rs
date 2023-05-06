@@ -59,9 +59,11 @@ fn test_basic_arithmetic() {
 }
 
 #[test]
-fn test_basic_lambda() {
+fn test_lambda() {
     help::eval_assert("((lambda (x) (+ x 1)) 6)", "7");
     help::eval_assert("((lambda (x) (- x 1) (+ x 1)) (- 10 5) (+ 10 5))", "6");
+    help::eval_assert("((lambda x x) 2 3 4 5)", "(2 3 4 5)");
+    help::eval_assert("((lambda (x y . z) z) 2 3 4 5)", "(4 5)");
 }
 
 #[test]
@@ -132,8 +134,8 @@ fn test_letrec() {
 
 #[test]
 fn test_set() {
-    //help::eval_assert("(define a 5) (set! a 10) (+ a 6)", "16");
-    //help::eval_assert("(let ((a 5)) (set! a 10) (+ a 8))", "18");
+    help::eval_assert("(define a 5) (set! a 10) (+ a 6)", "16");
+    help::eval_assert("(let ((a 5)) (set! a 10) (+ a 8))", "18");
     help::eval_assert("(letrec ((a 5)) (set! a 10) (+ a 3))", "13");
 }
 
@@ -143,7 +145,6 @@ fn test_cons_car_cdr() {
     help::eval_assert("(cons 1 3)", "(1 . 3)");
     help::eval_assert("(cons 1 (cons 2 3))", "(1 2 . 3)");
     help::eval_assert("'( 1 . (2 . 3))", "(1 2 . 3)");
-    //help::eval_assert("( 1 . (2 . 3))", "(1 2 . 3)");  // Should this work???
     // Car and Cdr
     help::eval_assert("(car '(1 2 3))", "1");
     help::eval_assert("(cdr '(1 2 3))", "(2 3)");

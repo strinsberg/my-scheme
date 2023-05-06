@@ -422,14 +422,21 @@ impl Hash for Map {
 // Closure ////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Formals {
+    Collect(ScmVal),
+    Fixed(Vec<ScmVal>),
+    Rest(Vec<ScmVal>, ScmVal),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
     pub env: Rc<RefCell<Env>>,
-    pub params: Vec<ScmVal>,
+    pub params: Formals,
     pub body: Vec<ScmVal>,
 }
 
 impl Closure {
-    pub fn new(env: Rc<RefCell<Env>>, params: Vec<ScmVal>, body: Vec<ScmVal>) -> Closure {
+    pub fn new(env: Rc<RefCell<Env>>, params: Formals, body: Vec<ScmVal>) -> Closure {
         Closure {
             env: env,
             params: params,
