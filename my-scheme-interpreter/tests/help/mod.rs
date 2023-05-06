@@ -96,9 +96,14 @@ pub fn eval_bad_binding_error(code: &str, binding: &str) {
     );
 }
 
-/*
-BadBinding(ScmVal),
-EmptyBody,
-// seq errors
-OutOfBounds(usize, usize),
-*/
+pub fn eval_out_of_bounds_error(code: &str, idx: usize, bound: usize) {
+    let result = Interpreter::new().init().eval_string(code);
+    let expected = ScmErr::OutOfBounds(idx, bound).to_string();
+    assert!(
+        result == expected,
+        "\n*** Failed Out Of Bounds Error Assert ***\n----\nEvaluated: {}\n----\nActual:    {}\nExpected:  {}\n----\n",
+        code,
+        result,
+        expected
+    );
+}
