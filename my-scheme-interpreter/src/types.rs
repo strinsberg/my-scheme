@@ -6,14 +6,13 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-// TODO count cons cells?
+// TODO count cons cells? Probably requires using ScmVal::cons everywhere a pair
+// is made instead of ScmVal::new_pair. If it is used in vec_to_list then it helps
+// catch those places too. This is not really a priority, as I am not sure that
+// other schemes do this. Counting lists is discouraged because it is o(n) and
+// counting them would stop that, but would increase the space needed for cells
+// by a fair amount just to allow quick counting.
 // TODO add name to closure?
-// TODO somewhere add checks to ensure that bindings to the environment cannot
-// be with anything but symbols. It is easier to give nice errors if the check is
-// implemented in the forms that actually bind things. However, it is messy that
-// way as there are a lot of places that bind things. The ideal way would be to
-// return a result from insert, it is used by all env binding methods, but the issue
-// is that error would have to be moved into here.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 
@@ -96,6 +95,8 @@ impl ScmVal {
     pub fn new_map(map: HashMap<ScmVal, ScmVal>) -> ScmVal {
         ScmVal::HashMap(Rc::new(Map::new(map)))
     }
+
+    // Helpers //
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
     pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
@@ -415,7 +416,7 @@ impl Hash for Closure {
     }
 }
 
-// Linked List Environment ////////////////////////////////////////////////////
+// Environment ////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Env {
