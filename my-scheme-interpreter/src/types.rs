@@ -9,6 +9,8 @@ use std::rc::Rc;
 
 // TODO count cons cells?
 // TODO add name to closure?
+// TODO somewhere add checks to ensure that bindings to the environment cannot
+// be with anything but symbols
 
 // Scheme Values //////////////////////////////////////////////////////////////
 
@@ -116,6 +118,18 @@ impl ScmVal {
             // Comparisson
             (ScmVal::new_sym("eqv?"), ScmVal::Core(Builtin::Eqv)),
             // Type Predicates
+            (ScmVal::new_sym("boolean?"), ScmVal::Core(Builtin::IsBool)),
+            (ScmVal::new_sym("char?"), ScmVal::Core(Builtin::IsChar)),
+            (ScmVal::new_sym("symbol?"), ScmVal::Core(Builtin::IsSymbol)),
+            (ScmVal::new_sym("number?"), ScmVal::Core(Builtin::IsNumber)),
+            (ScmVal::new_sym("string?"), ScmVal::Core(Builtin::IsString)),
+            (ScmVal::new_sym("pair?"), ScmVal::Core(Builtin::IsPair)),
+            (ScmVal::new_sym("vector?"), ScmVal::Core(Builtin::IsVector)),
+            (
+                ScmVal::new_sym("procedure?"),
+                ScmVal::Core(Builtin::IsProcedure),
+            ),
+            (ScmVal::new_sym("null?"), ScmVal::Core(Builtin::IsEmpty)),
         ])))
     }
 
@@ -239,10 +253,22 @@ pub enum Builtin {
     Cdr,
     Eval,
     Apply,
+    // arithmetic
     Sum,
     Subtract,
     Product,
     Divide,
+    // predicates
+    IsEmpty,
+    IsBool,
+    IsSymbol,
+    IsChar,
+    IsNumber,
+    IsString,
+    IsProcedure,
+    IsPair,
+    IsVector,
+    // other
     EQ,
     Eqv,
     BaseEnv,
@@ -255,6 +281,17 @@ impl fmt::Display for Builtin {
             Builtin::Subtract => "-",
             Builtin::Product => "*",
             Builtin::Divide => "/",
+            //
+            Builtin::IsEmpty => "null?",
+            Builtin::IsBool => "boolean?",
+            Builtin::IsSymbol => "symbol?",
+            Builtin::IsChar => "char?",
+            Builtin::IsNumber => "number?",
+            Builtin::IsString => "string?",
+            Builtin::IsProcedure => "procedure?",
+            Builtin::IsPair => "pair?",
+            Builtin::IsVector => "vector?",
+            //
             Builtin::EQ => "eq?",
             Builtin::Eqv => "eqv?",
             Builtin::BaseEnv => "null-environment",

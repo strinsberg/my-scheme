@@ -218,3 +218,166 @@ fn test_apply() {
 fn test_eval() {
     help::eval_assert("(eval '(+ 1 2) (null-environment))", "3");
 }
+
+// Type predicates ////////////////////////////////////////////////////////////
+
+#[test]
+fn test_is_boolean() {
+    help::eval_assert("(boolean? #t)", "#t");
+    help::eval_assert("(boolean? #f)", "#t");
+    help::eval_assert("(boolean? #true)", "#t");
+    help::eval_assert("(boolean? #false)", "#t");
+    // is not boolean
+    help::eval_assert("(boolean? #\\space)", "#f");
+    help::eval_assert("(boolean? \"hello\")", "#f");
+    help::eval_assert("(boolean? 'world)", "#f");
+    help::eval_assert("(boolean? (cons 1 4))", "#f");
+    help::eval_assert("(boolean? (cons 1 '(4)))", "#f");
+    help::eval_assert("(boolean? #(1 2 3 4))", "#f");
+    help::eval_assert("(boolean? car)", "#f");
+    help::eval_assert("(boolean? (lambda (x) a))", "#f");
+    help::eval_assert("(boolean? 12)", "#f");
+    help::eval_assert("(boolean? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_character() {
+    help::eval_assert("(char? #\\o)", "#t");
+    help::eval_assert("(char? #\\newline)", "#t");
+    help::eval_assert("(char? #\\space)", "#t");
+    help::eval_assert("(char? #\\null)", "#t");
+    help::eval_assert("(char? #\\tab)", "#t");
+    // is not char
+    help::eval_assert("(char? #t)", "#f");
+    help::eval_assert("(char? \"hello\")", "#f");
+    help::eval_assert("(char? 'world)", "#f");
+    help::eval_assert("(char? (cons 1 4))", "#f");
+    help::eval_assert("(char? (cons 1 '(4)))", "#f");
+    help::eval_assert("(char? #(1 2 3 4))", "#f");
+    help::eval_assert("(char? car)", "#f");
+    help::eval_assert("(char? (lambda (x) a))", "#f");
+    help::eval_assert("(char? 12)", "#f");
+    help::eval_assert("(char? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_symbol() {
+    help::eval_assert("(symbol? 'hello)", "#t");
+    // is not symbol
+    help::eval_assert("(symbol? #t)", "#f");
+    help::eval_assert("(symbol? \"hello\")", "#f");
+    help::eval_assert("(symbol? #\\G)", "#f");
+    help::eval_assert("(symbol? (cons 1 4))", "#f");
+    help::eval_assert("(symbol? (cons 1 '(4)))", "#f");
+    help::eval_assert("(symbol? #(1 2 3 4))", "#f");
+    help::eval_assert("(symbol? car)", "#f");
+    help::eval_assert("(symbol? (lambda (x) a))", "#f");
+    help::eval_assert("(symbol? 12)", "#f");
+    help::eval_assert("(symbol? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_number() {
+    help::eval_assert("(number? 0)", "#t");
+    help::eval_assert("(number? 1234)", "#t");
+    help::eval_assert("(number? -1234)", "#t");
+    help::eval_assert("(number? 12.34)", "#t");
+    help::eval_assert("(number? -0.1234)", "#t");
+    // is not number
+    help::eval_assert("(number? #t)", "#f");
+    help::eval_assert("(number? \"hello\")", "#f");
+    help::eval_assert("(number? #\\G)", "#f");
+    help::eval_assert("(number? (cons 1 4))", "#f");
+    help::eval_assert("(number? (cons 1 '(4)))", "#f");
+    help::eval_assert("(number? #(1 2 3 4))", "#f");
+    help::eval_assert("(number? car)", "#f");
+    help::eval_assert("(number? (lambda (x) a))", "#f");
+    help::eval_assert("(number? 'waldo)", "#f");
+}
+
+#[test]
+fn test_is_string() {
+    // TODO add test for immutable strings
+    help::eval_assert("(string? \"hello, world\")", "#t");
+    // is not string
+    help::eval_assert("(string? #t)", "#f");
+    help::eval_assert("(string? #\\G)", "#f");
+    help::eval_assert("(string? (cons 1 4))", "#f");
+    help::eval_assert("(string? (cons 1 '(4)))", "#f");
+    help::eval_assert("(string? #(1 2 3 4))", "#f");
+    help::eval_assert("(string? car)", "#f");
+    help::eval_assert("(string? (lambda (x) a))", "#f");
+    help::eval_assert("(string? 'waldo)", "#f");
+    help::eval_assert("(string? 12)", "#f");
+    help::eval_assert("(string? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_pair() {
+    help::eval_assert("(pair? (cons 1 2))", "#t");
+    help::eval_assert("(pair? (cons 3 '()))", "#t");
+    help::eval_assert("(pair? '(1 2 3 4))", "#t");
+    // is not pair
+    help::eval_assert("(pair? \"hello, world\")", "#f");
+    help::eval_assert("(pair? '())", "#f");
+    help::eval_assert("(pair? #t)", "#f");
+    help::eval_assert("(pair? #\\G)", "#f");
+    help::eval_assert("(pair? #(1 2 3 4))", "#f");
+    help::eval_assert("(pair? car)", "#f");
+    help::eval_assert("(pair? (lambda (x) a))", "#f");
+    help::eval_assert("(pair? 'waldo)", "#f");
+    help::eval_assert("(pair? 12)", "#f");
+    help::eval_assert("(pair? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_vector() {
+    // TODO test immutable vector
+    help::eval_assert("(vector? #(1 2 3 4))", "#t");
+    // is not vector
+    help::eval_assert("(vector? \"hello, world\")", "#f");
+    help::eval_assert("(vector? '())", "#f");
+    help::eval_assert("(vector? #t)", "#f");
+    help::eval_assert("(vector? #\\G)", "#f");
+    help::eval_assert("(vector? (cons 3 4))", "#f");
+    help::eval_assert("(vector? '(1 2 3 4))", "#f");
+    help::eval_assert("(vector? car)", "#f");
+    help::eval_assert("(vector? (lambda (x) a))", "#f");
+    help::eval_assert("(vector? 'waldo)", "#f");
+    help::eval_assert("(vector? 12)", "#f");
+    help::eval_assert("(vector? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_procedure() {
+    help::eval_assert("(procedure? car)", "#t");
+    help::eval_assert("(procedure? (lambda (x) a))", "#t");
+    // is not procedure
+    help::eval_assert("(procedure? #(1 2 3 4))", "#f");
+    help::eval_assert("(procedure? \"hello, world\")", "#f");
+    help::eval_assert("(procedure? '())", "#f");
+    help::eval_assert("(procedure? #t)", "#f");
+    help::eval_assert("(procedure? #\\G)", "#f");
+    help::eval_assert("(procedure? (cons 3 4))", "#f");
+    help::eval_assert("(procedure? '(1 2 3 4))", "#f");
+    help::eval_assert("(procedure? 'waldo)", "#f");
+    help::eval_assert("(procedure? 12)", "#f");
+    help::eval_assert("(procedure? 10.5)", "#f");
+}
+
+#[test]
+fn test_is_null() {
+    help::eval_assert("(null? '())", "#t");
+    // is not procedure
+    help::eval_assert("(null? car)", "#f");
+    help::eval_assert("(null? (lambda (x) a))", "#f");
+    help::eval_assert("(null? #(1 2 3 4))", "#f");
+    help::eval_assert("(null? \"hello, world\")", "#f");
+    help::eval_assert("(null? #t)", "#f");
+    help::eval_assert("(null? #\\G)", "#f");
+    help::eval_assert("(null? (cons 3 4))", "#f");
+    help::eval_assert("(null? '(1 2 3 4))", "#f");
+    help::eval_assert("(null? 'waldo)", "#f");
+    help::eval_assert("(null? 12)", "#f");
+    help::eval_assert("(null? 10.5)", "#f");
+}

@@ -21,6 +21,15 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::Sum | Builtin::Subtract | Builtin::Product | Builtin::Divide => {
             arithmetic_proc(op, args)
         }
+        Builtin::IsBool => is_boolean(args),
+        Builtin::IsChar => is_character(args),
+        Builtin::IsSymbol => is_symbol(args),
+        Builtin::IsNumber => is_number(args),
+        Builtin::IsString => is_string(args),
+        Builtin::IsPair => is_pair(args),
+        Builtin::IsVector => is_vector(args),
+        Builtin::IsProcedure => is_procedure(args),
+        Builtin::IsEmpty => is_empty(args),
         _ => panic!("unsupported builtin: {:?}", op),
     }
 }
@@ -28,18 +37,16 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
 pub fn is_core_proc(val: ScmVal) -> bool {
     match val {
         ScmVal::Core(b) => match b {
-            Builtin::Cons
-            | Builtin::Car
-            | Builtin::Cdr
-            | Builtin::Sum
-            | Builtin::Subtract
-            | Builtin::Product
-            | Builtin::Divide
-            | Builtin::BaseEnv
-            | Builtin::EQ
-            | Builtin::Eqv => true,
-            _ => false,
+            Builtin::Apply | Builtin::Eval => false,
+            _ => true,
         },
+        _ => false,
+    }
+}
+
+pub fn is_closure(val: ScmVal) -> bool {
+    match val {
+        ScmVal::Closure(_) => true,
         _ => false,
     }
 }
@@ -160,9 +167,101 @@ pub fn is_arithmetic_builtin(val: Builtin) -> bool {
 
 // Core Predicates ////////////////////////////////////////////////////////////
 
-pub fn is_closure(val: ScmVal) -> bool {
-    match val {
-        ScmVal::Closure(_) => true,
-        _ => false,
+pub fn is_boolean(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Boolean(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("boolean?".to_owned(), 1))
+    }
+}
+
+pub fn is_character(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Character(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("char?".to_owned(), 1))
+    }
+}
+
+pub fn is_symbol(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Symbol(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("symbol?".to_owned(), 1))
+    }
+}
+
+pub fn is_number(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Number(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("number?".to_owned(), 1))
+    }
+}
+
+pub fn is_string(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::String(_) | ScmVal::StringMut(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("string?".to_owned(), 1))
+    }
+}
+
+pub fn is_pair(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Pair(_) | ScmVal::DottedPair(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("pair?".to_owned(), 1))
+    }
+}
+
+pub fn is_vector(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Vector(_) | ScmVal::VectorMut(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("vector?".to_owned(), 1))
+    }
+}
+
+pub fn is_procedure(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Core(_) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("procedure?".to_owned(), 1))
+    }
+}
+
+pub fn is_empty(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        match args[0].clone() {
+            ScmVal::Empty => Ok(ScmVal::Boolean(true)),
+            _ => Ok(ScmVal::Boolean(false)),
+        }
+    } else {
+        Err(ScmErr::Arity("null?".to_owned(), 1))
     }
 }

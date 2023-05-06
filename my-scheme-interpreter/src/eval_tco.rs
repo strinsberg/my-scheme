@@ -5,6 +5,9 @@ use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
 
+// TODO eval should take the current environment when called with no args...
+// or whatever the standard says.
+//
 // TODO it is an ERROR to use define within a form, so we should check for
 // that somehow. Perhaps using eval_forms to check for define on the car
 // of the expression to evaluate it properly, but define not being checked in
@@ -43,16 +46,12 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>) -> ValResult {
                 .lookup(expr.clone())
                 .ok_or(ScmErr::Undeclared(name.to_string())),
             // Lists have their first arg applied to the cdr
+            ScmVal::DottedPair(_) => Err(ScmErr::Syntax(expr)),
             ScmVal::Pair(cell) => {
-                // TODO change this now that dotted is in DottedPair
-                let dotted = cell.borrow().is_dotted();
                 let args = ScmVal::list_to_vec(cell.borrow().tail.clone())
                     .expect("should be unreachable if cell.is_dotted() was checked");
 
-                // Eval/Apply things that do not require evaluating the first element
-                if dotted {
-                    return Err(ScmErr::Syntax(expr));
-                } else if cell.borrow().head == ScmVal::new_sym("quote") {
+                if cell.borrow().head == ScmVal::new_sym("quote") {
                     return Ok(args[0].clone());
                 } else if cell.borrow().head == ScmVal::new_sym("lambda") {
                     return eval_lambda(args, Rc::clone(&env));
