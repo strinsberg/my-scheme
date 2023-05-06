@@ -110,6 +110,47 @@ fn test_let() {
 }
 
 #[test]
+fn test_let_star() {
+    // Assignments
+    help::eval_assert("(let* ((a 5)) a)", "5");
+    help::eval_assert("(let* ((a 5) (b 6)) b)", "6");
+    help::eval_assert("(let* ((a 5) (b 6)) b a)", "5");
+    help::eval_assert("(let* ((a 5) (b 6)) (+ b a))", "11");
+    // Function
+    help::eval_assert("(let* ((f (lambda (x) (+ x 1)))) (f 6))", "7");
+    // Shadowing
+    help::eval_assert(
+        "(let* ((a 5) (b 6))
+           (let* ((a 8))
+             (+ b a)))",
+        "14",
+    );
+    help::eval_assert(
+        "(let* ((a 5) (b 6))
+           (let* ((a 8))
+             (+ b a))
+           (+ b a))",
+        "11",
+    );
+    // sequential definitions
+    help::eval_assert(
+        "(let* ((a 5) (b a))
+           (+ b a))",
+        "10",
+    );
+    help::eval_assert(
+        "(let* ((a 5) (b 6) (c (+ a b)))
+           (+ b a c))",
+        "22",
+    );
+    help::eval_assert(
+        "(let* ((a 5) (f (lambda (x) (+ x a))))
+           (f 10))",
+        "15",
+    );
+}
+
+#[test]
 fn test_letrec() {
     // Assignments
     help::eval_assert("(letrec ((a 5)) a)", "5");
@@ -303,7 +344,7 @@ fn test_is_number() {
 
 #[test]
 fn test_is_string() {
-    // TODO add test for immutable strings
+    // TODO add test for mutable strings
     help::eval_assert("(string? \"hello, world\")", "#t");
     // is not string
     help::eval_assert("(string? #t)", "#f");

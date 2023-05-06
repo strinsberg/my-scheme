@@ -41,7 +41,7 @@ impl StringReader {
             Token::Boolean(b) => Ok(ScmVal::Boolean(b)),
             Token::Number(num) => Ok(ScmVal::Number(num)),
             Token::Character(ch) => Ok(ScmVal::Character(ch)),
-            Token::String(s) => Ok(ScmVal::new_str_mut_from_scmstring(s)),
+            Token::String(s) => Ok(ScmVal::new_str_from_scmstring(s)),
             Token::LParen => self.read_list(),
             Token::VecOpen => self.read_vector(),
             Token::Quote => self.read_quote(),
@@ -106,7 +106,6 @@ impl StringReader {
             }
             val = self.scanner.next()?;
         }
-        // TODO should vector literals be immutable???
         Ok(ScmVal::new_vec(vec))
     }
 }
@@ -142,7 +141,7 @@ mod tests {
     fn test_reading_strings() {
         assert_eq!(
             StringReader::new("\"hello, world!\"").read().unwrap(),
-            ScmVal::new_str_mut("hello, world!"),
+            ScmVal::new_str("hello, world!"),
         );
     }
 

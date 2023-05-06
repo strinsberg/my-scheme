@@ -66,6 +66,9 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                 } else if cell.borrow().head == ScmVal::new_sym("let") {
                     expr = eval_let(args, Rc::clone(&env))?;
                     continue;
+                } else if cell.borrow().head == ScmVal::new_sym("let*") {
+                    expr = eval_let_star(args, Rc::clone(&env))?;
+                    continue;
                 } else if cell.borrow().head == ScmVal::new_sym("letrec") {
                     expr = eval_letrec(args)?;
                     continue;
@@ -193,6 +196,43 @@ pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
         Ok(ScmVal::cons(
             ScmVal::new_closure(Closure::new(env, Formals::Fixed(params), args[1..].into())),
             ScmVal::vec_to_list(bind_args, ScmVal::Empty),
+        ))
+    } else {
+        Err(ScmErr::Arity("let".to_owned(), 2))
+    }
+}
+
+// It is easier not to convert this one into a million nested let expressions
+// but instead look through the bindings and add them to the env one at a time
+// before evaluating the body.
+pub fn eval_let_star(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    if args.len() >= 2 {
+        let bindings = ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
+            "let*".to_owned(),
+            "pair".to_owned(),
+            args[0].clone(),
+        ))?;
+        let new_env = Env::add_scope(env);
+        for bind in bindings.iter() {
+            let bind_vec = ScmVal::list_to_vec(bind.clone()).ok_or(ScmErr::BadArgType(
+                "let* binding".to_owned(),
+                "pair".to_owned(),
+                args[0].clone(),
+            ))?;
+            if bind_vec.len() < 2 {
+                return Err(ScmErr::Arity("let* binding".to_owned(), 2));
+            }
+
+            let value = eval_tco(bind_vec[1].clone(), Rc::clone(&new_env), false)?;
+            new_env.borrow_mut().insert(bind_vec[0].clone(), value)?;
+        }
+        Ok(ScmVal::cons(
+            ScmVal::new_closure(Closure::new(
+                new_env,
+                Formals::Fixed(vec![]),
+                args[1..].into(),
+            )),
+            ScmVal::Empty,
         ))
     } else {
         Err(ScmErr::Arity("let".to_owned(), 2))
