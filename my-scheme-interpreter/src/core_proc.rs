@@ -34,6 +34,8 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
     }
 }
 
+// Helpers ////////////////////////////////////////////////////////////////////
+
 pub fn is_core_proc(val: ScmVal) -> bool {
     match val {
         ScmVal::Core(b) => match b {
@@ -48,6 +50,13 @@ pub fn is_closure(val: ScmVal) -> bool {
     match val {
         ScmVal::Closure(_) => true,
         _ => false,
+    }
+}
+
+pub fn is_true(val: ScmVal) -> bool {
+    match val {
+        ScmVal::Boolean(false) | ScmVal::Empty => false,
+        _ => true,
     }
 }
 

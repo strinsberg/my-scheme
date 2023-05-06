@@ -428,3 +428,23 @@ fn test_is_null() {
     help::eval_assert("(null? 12)", "#f");
     help::eval_assert("(null? 10.5)", "#f");
 }
+
+// Derived Expressions ////////////////////////////////////////////////////////
+
+#[test]
+fn test_and() {
+    help::eval_assert("(and)", "#t");
+    help::eval_assert("(and (eqv? 2 2) (eqv? 4 4))", "#t");
+    help::eval_assert("(and (eqv? 2 3) (eqv? 4 4))", "#f");
+    help::eval_assert("(and 1 '(1 2 3) 2 'a '(f g))", "(f g)");
+    help::eval_assert("(and (eqv? 2 3) (/ 3 0))", "#f"); // short circuit before error
+}
+
+#[test]
+fn test_or() {
+    help::eval_assert("(or)", "#f");
+    help::eval_assert("(or (eqv? 2 2) (eqv? 4 4))", "#t");
+    help::eval_assert("(or (eqv? 2 3) (eqv? 4 4))", "#t");
+    help::eval_assert("(or #f #f #f)", "#f");
+    help::eval_assert("(or '(1 2 3) (/ 3 0))", "(1 2 3)"); // short circuit before error
+}

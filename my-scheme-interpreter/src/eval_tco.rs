@@ -72,6 +72,19 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                 } else if cell.borrow().head == ScmVal::new_sym("letrec") {
                     expr = eval_letrec(args)?;
                     continue;
+                //  other derived expression, would be best to use macros, but they
+                //  are not implemented yet.
+                } else if cell.borrow().head == ScmVal::new_sym("and") {
+                    expr = eval_and(args, Rc::clone(&env))?;
+                    continue;
+                } else if cell.borrow().head == ScmVal::new_sym("or") {
+                    let (result, do_tco) = eval_or(args, Rc::clone(&env));
+                    if do_tco {
+                        expr = result?;
+                        continue;
+                    } else {
+                        return result;
+                    }
                 }
 
                 // Eval the list elements
@@ -207,13 +220,20 @@ pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // before evaluating the body.
 pub fn eval_let_star(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
-        let bindings = ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
+        // Get bindings list as a vector
+        let bindings_vec = ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
             "let*".to_owned(),
             "pair".to_owned(),
             args[0].clone(),
         ))?;
+
+        // Add a scope to the passed env to get a new env
         let new_env = Env::add_scope(env);
-        for bind in bindings.iter() {
+
+        // loop through the bindings and bind their evaluated value in the new env
+        // sequentially. This makes it possible for a binding to reference previous
+        // bindings, but does not allow for mutal recursion like letrec.
+        for bind in bindings_vec.iter() {
             let bind_vec = ScmVal::list_to_vec(bind.clone()).ok_or(ScmErr::BadArgType(
                 "let* binding".to_owned(),
                 "pair".to_owned(),
@@ -226,6 +246,9 @@ pub fn eval_let_star(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
             let value = eval_tco(bind_vec[1].clone(), Rc::clone(&new_env), false)?;
             new_env.borrow_mut().insert(bind_vec[0].clone(), value)?;
         }
+
+        // Put the new env into a closure that takes no arguments and call it with
+        // not arguments. I.e. ((lambda () body))
         Ok(ScmVal::cons(
             ScmVal::new_closure(Closure::new(
                 new_env,
@@ -383,6 +406,47 @@ pub fn user_eval(args: Vec<ScmVal>) -> TcoResult {
     } else {
         Err(ScmErr::Arity("apply".to_owned(), 2))
     }
+}
+
+// Derived Expressions ////////////////////////////////////////////////////////
+
+// Cond
+// Case
+// And
+pub fn eval_and(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    if args.len() == 0 {
+        return Ok(ScmVal::Boolean(true));
+    }
+
+    // if all values are true before the last one the last one is tco returned
+    for arg in args[..args.len() - 1].iter() {
+        let result = eval_tco(arg.clone(), Rc::clone(&env), false)?;
+        if !proc::is_true(result) {
+            return Ok(ScmVal::Boolean(false));
+        }
+    }
+    Ok(args[args.len() - 1].clone())
+}
+// Or
+pub fn eval_or(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> (ValResult, bool) {
+    if args.len() == 0 {
+        return (Ok(ScmVal::Boolean(false)), false);
+    }
+
+    // if all values are true before the last one the last one is tco returned
+    for arg in args[..args.len() - 1].iter() {
+        let result = eval_tco(arg.clone(), Rc::clone(&env), false);
+        let result = match result {
+            Ok(res) => res,
+            Err(_) => return (result, false),
+        };
+
+        if proc::is_true(result.clone()) {
+            // This is a problem because result gets evalled again
+            return (Ok(result), false);
+        }
+    }
+    (Ok(args[args.len() - 1].clone()), true)
 }
 
 // Helpers ////////////////////////////////////////////////////////////////////
