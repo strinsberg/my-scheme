@@ -448,3 +448,22 @@ fn test_or() {
     help::eval_assert("(or #f #f #f)", "#f");
     help::eval_assert("(or '(1 2 3) (/ 3 0))", "(1 2 3)"); // short circuit before error
 }
+
+#[test]
+fn test_begin() {
+    help::eval_assert(
+        "(let ((a 5) (b 5)) (begin (set! a 33) (set! b 10) (+ a b)))",
+        "43",
+    );
+}
+
+#[test]
+fn test_do() {
+    help::eval_assert(
+        "(let ((x '(1 3 5 7 9)))
+           (do ((x x (cdr x))
+                (sum 0 (+ sum (car x))))
+              ((null? x) sum)))",
+        "25",
+    );
+}

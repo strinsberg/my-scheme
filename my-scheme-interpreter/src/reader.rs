@@ -5,6 +5,13 @@ use std::rc::Rc;
 
 // TODO confirm that the reader identifies all proper stopping points when
 // parsing complex forms. I.e. a Dot in a vector is an error, is anything else?
+//
+// TODO for read and write to work in the expected way they will have to use
+// i/o object streams and not strings. As far as I know there is probably a rust
+// object to hold a string as an i/o object so if the reader and scanner hold
+// an i/o object there can be objects/functions that use them, but with a string
+// to get the same effect as we have now. Makes more sense than rewriting the
+// logic in here (worse for the scanner) just to have an i/o object.
 
 pub struct StringReader {
     scanner: Scanner,

@@ -85,7 +85,14 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                     } else {
                         return result;
                     }
+                } else if cell.borrow().head == ScmVal::new_sym("do") {
+                    expr = eval_do(args, Rc::clone(&env))?;
+                    continue;
+                } else if cell.borrow().head == ScmVal::new_sym("begin") {
+                    expr = eval_begin(args, Rc::clone(&env))?;
+                    continue;
                 }
+                // case, cond, begin, named-let, delay, quasiquote(`)
 
                 // Eval the list elements
                 let proc = eval_tco(cell.borrow().head.clone(), Rc::clone(&env), false)?;
@@ -410,9 +417,6 @@ pub fn user_eval(args: Vec<ScmVal>) -> TcoResult {
 
 // Derived Expressions ////////////////////////////////////////////////////////
 
-// Cond
-// Case
-// And
 pub fn eval_and(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() == 0 {
         return Ok(ScmVal::Boolean(true));
@@ -427,7 +431,7 @@ pub fn eval_and(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     }
     Ok(args[args.len() - 1].clone())
 }
-// Or
+
 pub fn eval_or(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> (ValResult, bool) {
     if args.len() == 0 {
         return (Ok(ScmVal::Boolean(false)), false);
@@ -448,6 +452,91 @@ pub fn eval_or(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> (ValResult, bool) {
     }
     (Ok(args[args.len() - 1].clone()), true)
 }
+
+pub fn eval_begin(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    if args.len() == 0 {
+        return Ok(ScmVal::Empty);
+    }
+
+    for expr in args[..args.len() - 1].iter() {
+        eval_tco(expr.clone(), Rc::clone(&env), false)?;
+    }
+
+    Ok(args[args.len() - 1].clone())
+}
+
+pub fn eval_do(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    // (do ((var init step) ...)
+    //    (cond result)
+    //  commands ...)
+    //  =>
+    //  (letrec ((loop (lambda (var ...)
+    //                   (if cond
+    //                       result
+    //                       (begin commands ...
+    //                              (loop step ...))))))
+    //    (loop init)))
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("do".to_owned(), 2));
+    }
+
+    // Get lists of params, their initial values, and their step expressions
+    let (vars, inits, steps) = unbind_do(args[0].clone())?;
+
+    // Get the condition and result separated
+    let test_vec = ScmVal::list_to_vec(args[1].clone()).ok_or(ScmErr::BadArgType(
+        "do test".to_owned(),
+        "pair".to_owned(),
+        args[1].clone(),
+    ))?;
+    if test_vec.len() < 1 {
+        return Err(ScmErr::Arity("do test".to_owned(), 1));
+    }
+    let cond = test_vec[0].clone();
+    let result = if test_vec.len() > 1 {
+        test_vec[1].clone()
+    } else {
+        ScmVal::Empty
+    };
+
+    // Build the false branch with begin, commands, and recursive call to loop
+    let loop_rec = ScmVal::cons(ScmVal::new_sym("loop"), steps);
+    let mut commands: Vec<ScmVal> = args[2..].into();
+    commands.push(loop_rec);
+    let begin = ScmVal::cons(
+        ScmVal::new_sym("begin"),
+        ScmVal::vec_to_list(commands, ScmVal::Empty),
+    );
+
+    // Build the if statement with the condition, result, and begin branch
+    let if_stmt = ScmVal::vec_to_list(
+        vec![ScmVal::new_sym("if"), cond, result, begin],
+        ScmVal::Empty,
+    );
+
+    // Build the the loop binding
+    let lambda = ScmVal::vec_to_list(
+        vec![ScmVal::new_sym("lambda"), vars, if_stmt],
+        ScmVal::Empty,
+    );
+    let loop_bind = ScmVal::vec_to_list(vec![ScmVal::new_sym("loop"), lambda], ScmVal::Empty);
+    let bindings = ScmVal::cons(loop_bind, ScmVal::Empty);
+
+    // Build the letrec
+    let call = ScmVal::cons(ScmVal::new_sym("loop"), inits);
+    let letrec = ScmVal::vec_to_list(
+        vec![ScmVal::new_sym("letrec"), bindings, call],
+        ScmVal::Empty,
+    );
+
+    // Return the new expression to be evaluated
+    Ok(letrec)
+}
+
+// cond
+// case
+// named let
+// quasiquote(`)
 
 // Helpers ////////////////////////////////////////////////////////////////////
 
@@ -511,4 +600,52 @@ fn letrec_bind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
         .collect();
 
     Ok((bindings, assignments))
+}
+
+fn unbind_do(list: ScmVal) -> ScmResult<(ScmVal, ScmVal, ScmVal)> {
+    // Get a vector of binding lists. i.e. ((var init step) ...) => [(var init step) ...]
+    let vec = ScmVal::list_to_vec(list.clone()).ok_or(ScmErr::BadArgType(
+        "do".to_owned(),
+        "pair".to_owned(),
+        list.clone(),
+    ))?;
+
+    // Convert the pairs into rust pairs. i.e. [(var init step) ...] => [(var init step) ...]
+    let bindings_vec: ScmResult<Vec<(ScmVal, ScmVal, ScmVal)>> = vec
+        .into_iter()
+        .map(|p| {
+            let binding = ScmVal::list_to_vec(p.clone()).ok_or(ScmErr::BadArgType(
+                "do bindings".to_owned(),
+                "pair".to_owned(),
+                p.clone(),
+            ))?;
+
+            // Ensure there are at least two elements in the binding
+            match binding.len() {
+                2.. => Ok((binding[0].clone(), binding[1].clone(), binding[2].clone())),
+                1 => Ok((binding[0].clone(), binding[1].clone(), binding[0].clone())),
+                _ => Err(ScmErr::BadArgType(
+                    "let/letrec bindings".to_owned(),
+                    "(sym pair)".to_owned(),
+                    p,
+                )),
+            }
+        })
+        .collect();
+
+    let mut vars_vec = Vec::new();
+    let mut inits_vec = Vec::new();
+    let mut steps_vec = Vec::new();
+    for bind in bindings_vec?.iter() {
+        vars_vec.push(bind.0.clone());
+        inits_vec.push(bind.1.clone());
+        steps_vec.push(bind.2.clone());
+    }
+
+    // return (vars, inits, steps)
+    Ok((
+        ScmVal::vec_to_list(vars_vec, ScmVal::Empty),
+        ScmVal::vec_to_list(inits_vec, ScmVal::Empty),
+        ScmVal::vec_to_list(steps_vec, ScmVal::Empty),
+    ))
 }
