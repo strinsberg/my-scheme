@@ -269,7 +269,7 @@ impl fmt::Display for Builtin {
             Builtin::EQ => "eq?",
             Builtin::Eqv => "eqv?",
             Builtin::BaseEnv => "null-environment",
-            b => return write!(f, "{}", format!("{}", b).to_lowercase()),
+            b => return write!(f, "{}", format!("{:?}", b).to_lowercase()),
         };
         write!(f, "{}", s)
     }

@@ -91,8 +91,11 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                 } else if cell.borrow().head == ScmVal::new_sym("begin") {
                     expr = eval_begin(args, Rc::clone(&env))?;
                     continue;
+                } else if cell.borrow().head == ScmVal::new_sym("cond") {
+                    expr = eval_cond(args, Rc::clone(&env))?;
+                    continue;
                 }
-                // case, cond, begin, named-let, delay, quasiquote(`)
+                // case, named-let, delay, quasiquote(`)
 
                 // Eval the list elements
                 let proc = eval_tco(cell.borrow().head.clone(), Rc::clone(&env), false)?;
@@ -535,7 +538,83 @@ pub fn eval_do(args: Vec<ScmVal>) -> ValResult {
     Ok(letrec)
 }
 
-// cond
+fn eval_cond(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("cond".to_owned(), 1));
+    }
+
+    for arg in args.iter() {
+        match arg {
+            ScmVal::Pair(_) => {
+                match eval_cond_condition(
+                    ScmVal::list_to_vec(arg.clone()).unwrap(),
+                    Rc::clone(&env),
+                ) {
+                    Some(result_expr) => return result_expr,
+                    None => continue,
+                }
+            }
+            ScmVal::DottedPair(_) => {
+                let vec = ScmVal::list_to_vec(arg.clone()).unwrap();
+                if vec.len() >= 2 && vec[1] == ScmVal::new_sym("=>") {
+                    return Err(ScmErr::Syntax(arg.clone()));
+                } else {
+                    match eval_cond_condition(vec, Rc::clone(&env)) {
+                        Some(result_expr) => return result_expr,
+                        None => continue,
+                    }
+                }
+            }
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "cond".to_owned(),
+                    "pair or dotted pair".to_owned(),
+                    arg.clone(),
+                ))
+            }
+        }
+    }
+    Ok(ScmVal::Empty)
+}
+
+fn eval_cond_condition(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> Option<ValResult> {
+    if args.len() < 2 {
+        return Some(Err(ScmErr::Arity("cond condition".to_owned(), 2)));
+    } else if args[0].clone() == ScmVal::new_sym("else") {
+        // if this is an else branch it is automatically true
+        return Some(eval_begin(args[1..].into(), env));
+    }
+
+    // Evaluate the test
+    let test = match eval_tco(args[0].clone(), Rc::clone(&env), false) {
+        Ok(val) => val,
+        Err(e) => return Some(Err(e)),
+    };
+
+    // If the test is true we evaluate the body
+    if proc::is_true(test.clone()) {
+        // pass test as the first argument to procedure
+        if args[1].clone() == ScmVal::new_sym("=>") {
+            if args.len() < 3 {
+                return Some(Err(ScmErr::Arity("cond arrow(=>) condition".to_owned(), 2)));
+            }
+            // Could eval args[2] to see if it is a valid procedure but to keep it simple
+            // we just pass (proc (quote test)) to be evaluated. It will error if it is a bad
+            // function call.
+            Some(Ok(ScmVal::vec_to_list(
+                vec![
+                    args[2].clone(),
+                    ScmVal::vec_to_list(vec![ScmVal::new_sym("quote"), test], ScmVal::Empty),
+                ],
+                ScmVal::Empty,
+            )))
+        } else {
+            return Some(eval_begin(args[1..].into(), env));
+        }
+    } else {
+        None
+    }
+}
 // case
 // named let
 // quasiquote(`)

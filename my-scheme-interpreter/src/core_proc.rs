@@ -1,7 +1,6 @@
 use crate::error::{ScmErr, ValResult};
 use crate::number::ScmNumber;
 use crate::types::{Builtin, Env, ScmVal};
-use std::cell::RefMut;
 
 // All builtin functions that are not syntactic keywords and are the basic building
 // blocks for all other functions. Syntactic keywords and things that require tail

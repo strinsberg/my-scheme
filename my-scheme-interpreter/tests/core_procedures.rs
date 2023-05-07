@@ -476,6 +476,18 @@ fn test_do() {
 }
 
 #[test]
+fn test_cond() {
+    help::eval_assert("(cond ((eqv? 2 2) 'first) (else 'second))", "first");
+    help::eval_assert(
+        "(cond (#f 'first) (#f 'second) (else 'third 'fourth))",
+        "fourth",
+    );
+    help::eval_assert("(cond ('(1 2 3) => car) (else 'second))", "1");
+}
+
+// Vectors ////////////////////////////////////////////////////////////////////
+
+#[test]
 fn test_vector_operations() {
     help::eval_assert("(vector 1 2 3 4 5)", "#(1 2 3 4 5)");
     help::eval_assert("(vector-length '#(1 2 3 4 5))", "5");
