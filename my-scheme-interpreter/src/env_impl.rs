@@ -134,6 +134,29 @@ impl Env {
                     ScmVal::Core(Builtin::IsProcedure),
                 ),
                 (ScmVal::new_sym("null?"), ScmVal::Core(Builtin::IsEmpty)),
+                // Vectors
+                (
+                    ScmVal::new_sym("make-vector"),
+                    ScmVal::Core(Builtin::MakeVec),
+                ),
+                (ScmVal::new_sym("vector"), ScmVal::Core(Builtin::Vector)),
+                (
+                    ScmVal::new_sym("vector-set!"),
+                    ScmVal::Core(Builtin::VecSet),
+                ),
+                (ScmVal::new_sym("vector-ref"), ScmVal::Core(Builtin::VecRef)),
+                (
+                    ScmVal::new_sym("vector-length"),
+                    ScmVal::Core(Builtin::VecLen),
+                ),
+                (
+                    ScmVal::new_sym("vector->list"),
+                    ScmVal::Core(Builtin::VecToList),
+                ),
+                (
+                    ScmVal::new_sym("vector-fill!"),
+                    ScmVal::Core(Builtin::VecFill),
+                ),
             ])
             .expect("base env should not have any bad keys"),
         ))

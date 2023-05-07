@@ -233,6 +233,15 @@ pub enum Builtin {
     IsProcedure,
     IsPair,
     IsVector,
+    // Vectors
+    MakeVec,
+    Vector,
+    VecSet,
+    VecRef,
+    VecLen,
+    VecToList,
+    VecFill,
+    // TODO no push, pop, and concat/append in the standards???
     // other
     EQ,
     Eqv,

@@ -86,7 +86,7 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                         return result;
                     }
                 } else if cell.borrow().head == ScmVal::new_sym("do") {
-                    expr = eval_do(args, Rc::clone(&env))?;
+                    expr = eval_do(args)?;
                     continue;
                 } else if cell.borrow().head == ScmVal::new_sym("begin") {
                     expr = eval_begin(args, Rc::clone(&env))?;
@@ -465,7 +465,9 @@ pub fn eval_begin(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     Ok(args[args.len() - 1].clone())
 }
 
-pub fn eval_do(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+// Eval a do statment by restructuring it into a letrec and evaluating it.
+// Would benefit from a nice macro.
+pub fn eval_do(args: Vec<ScmVal>) -> ValResult {
     // (do ((var init step) ...)
     //    (cond result)
     //  commands ...)
@@ -622,8 +624,8 @@ fn unbind_do(list: ScmVal) -> ScmResult<(ScmVal, ScmVal, ScmVal)> {
 
             // Ensure there are at least two elements in the binding
             match binding.len() {
-                2.. => Ok((binding[0].clone(), binding[1].clone(), binding[2].clone())),
-                1 => Ok((binding[0].clone(), binding[1].clone(), binding[0].clone())),
+                3.. => Ok((binding[0].clone(), binding[1].clone(), binding[2].clone())),
+                2 => Ok((binding[0].clone(), binding[1].clone(), binding[0].clone())),
                 _ => Err(ScmErr::BadArgType(
                     "let/letrec bindings".to_owned(),
                     "(sym pair)".to_owned(),
