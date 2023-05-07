@@ -485,6 +485,18 @@ fn test_cond() {
     help::eval_assert("(cond ('(1 2 3) => car) (else 'second))", "1");
 }
 
+#[test]
+fn test_case() {
+    help::eval_assert(
+        "(case (* 2 3) ((1 2 3 4 5) 'first) ((a b c 6) 'second 'third) (else 'fourth))",
+        "third",
+    );
+    help::eval_assert(
+        "(case (* 2 3) ((1 2 3 4 5) 'first) ((a b c d) 'second) (else 'third 'fourth))",
+        "fourth",
+    );
+}
+
 // Vectors ////////////////////////////////////////////////////////////////////
 
 #[test]

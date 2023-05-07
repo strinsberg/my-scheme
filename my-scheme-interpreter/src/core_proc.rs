@@ -115,9 +115,14 @@ pub fn cdr(args: Vec<ScmVal>) -> ValResult {
 // Now that we use pointers some stuff may be easier to do.
 fn eqv_proc(args: Vec<ScmVal>) -> ValResult {
     match args.len() {
-        2.. => Ok(ScmVal::Boolean(args[0] == args[1])),
+        2.. => Ok(ScmVal::Boolean(eqv(args[0].clone(), args[1].clone()))),
         _ => Err(ScmErr::Arity("eqv?".to_owned(), 2)),
     }
+}
+
+// not this simple, but will do for now
+pub fn eqv(a: ScmVal, b: ScmVal) -> bool {
+    a == b
 }
 
 // Core Arithmetic //////////////////////////////////////////////////////////

@@ -94,6 +94,9 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                 } else if cell.borrow().head == ScmVal::new_sym("cond") {
                     expr = eval_cond(args, Rc::clone(&env))?;
                     continue;
+                } else if cell.borrow().head == ScmVal::new_sym("case") {
+                    expr = eval_case(args, Rc::clone(&env))?;
+                    continue;
                 }
                 // case, named-let, delay, quasiquote(`)
 
@@ -615,6 +618,72 @@ fn eval_cond_condition(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> Option<ValRe
         None
     }
 }
+
+fn eval_case(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("case".to_owned(), 2));
+    }
+
+    let test = eval_tco(args[0].clone(), Rc::clone(&env), false)?;
+
+    for arg in args[1..].iter() {
+        match arg {
+            ScmVal::Pair(_) => {
+                match eval_case_condition(
+                    test.clone(),
+                    ScmVal::list_to_vec(arg.clone()).unwrap(),
+                    Rc::clone(&env),
+                ) {
+                    Some(result_expr) => return result_expr,
+                    None => continue,
+                }
+            }
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "case".to_owned(),
+                    "pair".to_owned(),
+                    arg.clone(),
+                ))
+            }
+        }
+    }
+    Ok(ScmVal::Empty)
+}
+
+fn eval_case_condition(
+    case: ScmVal,
+    args: Vec<ScmVal>,
+    env: Rc<RefCell<Env>>,
+) -> Option<ValResult> {
+    if args.len() < 2 {
+        return Some(Err(ScmErr::Arity("case condition".to_owned(), 2)));
+    } else if args[0].clone() == ScmVal::new_sym("else") {
+        // if this is an else branch it is automatically true
+        return Some(eval_begin(args[1..].into(), env));
+    }
+
+    // Test the results agains all datum
+    let datum = match ScmVal::list_to_vec(args[0].clone()) {
+        Some(d) => d,
+        None => {
+            return Some(Err(ScmErr::BadArgType(
+                "case".to_owned(),
+                "pair of datum".to_owned(),
+                args[0].clone(),
+            )))
+        }
+    };
+
+    // If any of the datum match the case then eval the expressions
+    for d in datum.iter() {
+        if proc::eqv(d.clone(), case.clone()) {
+            return Some(eval_begin(args[1..].into(), env));
+        }
+    }
+
+    None
+}
+
 // case
 // named let
 // quasiquote(`)
