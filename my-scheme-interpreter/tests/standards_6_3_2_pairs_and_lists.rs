@@ -58,6 +58,17 @@ fn test_set_car() {
         "mutable pair",
         "(1 2 3)",
     );
+    // strange from standard
+    help::eval_assert(
+        "(define (f) (list 'non-constant-list)) (set-car! (f) 3)",
+        "()",
+    );
+    help::eval_bad_arg_error(
+        "(define (g) '(constant-list)) (set-car! (g) 3)",
+        "set-car!",
+        "mutable pair",
+        "(constant-list)",
+    );
 }
 
 #[test]
