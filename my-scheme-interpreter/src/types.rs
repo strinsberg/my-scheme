@@ -7,17 +7,6 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-// TODO TODO TODO VERY IMPORTANT, the hashing that is setup is no good at all.
-// It will loop forever on some things. The only thing that should be hashed are
-// symbols for the env until I figure out a better way. For the list iterators
-// we can just use the pointer of the cell and hash that, but I am not confident
-// that in the long run (maybe even during list iteration) that that pointer will
-// stay valid enough to be used as a hash value. I am going to make all hashing
-// a panic until I get it figured out. This won't affect the standard, but will
-// affect adding hash tables later.
-//
-// TODO add name to closure?
-
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,8 +24,6 @@ pub enum ScmVal {
     StringMut(Rc<RefCell<ScmString>>),
     Vector(Rc<Vec<ScmVal>>),
     VectorMut(Rc<RefCell<Vec<ScmVal>>>),
-    HashMap(Rc<Map>),
-    HashMapMut(Rc<RefCell<Map>>),
     Undefined,
     Empty,
 }
@@ -92,15 +79,7 @@ impl ScmVal {
         ScmVal::Vector(Rc::new(vec))
     }
 
-    pub fn new_map_mut(map: HashMap<ScmVal, ScmVal>) -> ScmVal {
-        ScmVal::HashMapMut(Rc::new(RefCell::new(Map::new(map))))
-    }
-
-    pub fn new_map(map: HashMap<ScmVal, ScmVal>) -> ScmVal {
-        ScmVal::HashMap(Rc::new(Map::new(map)))
-    }
-
-    // Helpers //
+    // List/Vector Helpers //
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
     pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
@@ -174,8 +153,6 @@ impl ScmVal {
             ScmVal::Env(_) => format!("#<environment>"),
             ScmVal::Vector(val) => ScmVal::extern_vec(Rc::clone(val)),
             ScmVal::VectorMut(val) => ScmVal::extern_vec_mut(Rc::clone(val)),
-            ScmVal::HashMap(val) => format!("{:?}", val),
-            ScmVal::HashMapMut(val) => format!("{:?}", val.borrow()),
             ScmVal::Empty => "()".to_string(),
             val => format!("{:?}", val),
         }
@@ -190,34 +167,13 @@ impl ScmVal {
     }
 
     fn extern_list(val: ScmVal) -> String {
-        // TODO just use list_to_vec
-        let mut dotted = false;
-        let mut strings = Vec::new();
+        let (vec, dotted, cyclic) =
+            ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
+        let strings: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
+        ScmVal::format_list(&strings, dotted || cyclic)
+    }
 
-        for pair in ListPairIter::new(val) {
-            match pair {
-                ScmVal::Pair(cell) => {
-                    strings.push(cell.head.to_extern());
-                    if cell.is_dotted() {
-                        dotted = true;
-                        strings.push(cell.tail.to_extern());
-                    }
-                }
-                ScmVal::PairMut(cell) => {
-                    strings.push(cell.borrow().head.to_extern());
-                    if cell.borrow().is_dotted() {
-                        dotted = true;
-                        strings.push(cell.borrow().tail.to_extern());
-                    }
-                }
-                ScmVal::Undefined => {
-                    dotted = true;
-                    strings.push("#cycle#".to_owned());
-                }
-                _ => panic!("list iterator should only contain pairs: {:?}", pair),
-            }
-        }
-
+    fn format_list(strings: &[String], dotted: bool) -> String {
         if dotted {
             format!(
                 "({} . {})",
@@ -253,74 +209,29 @@ impl Hash for ScmVal {
 
 // ScmVal Display //
 
-// TODO this cannot be used for prn and display where one should give the
-// external representation. There needs to be one that shows a string as "string"
-// and one that just shows string.
-//
+// Display the output version of the object. Uses extern for all objects that
+// display with their external representation.
 // This is not tail recursive and may be an issue if used in print etr.
 impl fmt::Display for ScmVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ScmVal::Number(val) => write!(f, "{}", val),
-            ScmVal::Boolean(val) => write!(f, "#{}", if *val { "t" } else { "f" }),
-            ScmVal::Character(val) => write!(f, "{}", val),
-            ScmVal::Symbol(val) => write!(f, "{}", val),
             ScmVal::String(val) => write!(f, "{}", val),
             ScmVal::StringMut(val) => write!(f, "{}", val.borrow()),
-            ScmVal::Closure(c) => write!(f, "#<closure {}>", c.name),
-            ScmVal::Core(val) => write!(f, "#<procedure {}>", val),
             ScmVal::Pair(_) => display_list(f, self.clone()),
             ScmVal::PairMut(_) => display_list(f, self.clone()),
-            ScmVal::Env(_) => write!(f, "#<environment>"),
             ScmVal::Vector(val) => display_vec(f, Rc::clone(val)),
             ScmVal::VectorMut(val) => display_vec_mut(f, Rc::clone(val)),
-            ScmVal::HashMap(val) => write!(f, "{:?}", val),
-            ScmVal::HashMapMut(val) => write!(f, "{:?}", val.borrow()),
             ScmVal::Empty => write!(f, "()"),
-            val => write!(f, "{:?}", val),
+            val => write!(f, "{}", val.to_extern()),
         }
     }
 }
 
 fn display_list(f: &mut fmt::Formatter, val: ScmVal) -> fmt::Result {
-    // TODO just use list_to_vec
-    let mut dotted = false;
-    let mut strings = Vec::new();
-
-    for pair in ListPairIter::new(val) {
-        match pair {
-            ScmVal::Pair(cell) => {
-                strings.push(cell.head.to_string());
-                if cell.is_dotted() {
-                    dotted = true;
-                    strings.push(cell.tail.to_string());
-                }
-            }
-            ScmVal::PairMut(cell) => {
-                strings.push(cell.borrow().head.to_string());
-                if cell.borrow().is_dotted() {
-                    dotted = true;
-                    strings.push(cell.borrow().tail.to_string());
-                }
-            }
-            ScmVal::Undefined => {
-                dotted = true;
-                strings.push("#cycle#".to_owned());
-            }
-            _ => panic!("list iterator should only contain pairs: {:?}", pair),
-        }
-    }
-
-    if dotted {
-        write!(
-            f,
-            "({} . {})",
-            strings[..strings.len() - 1].join(" "),
-            strings[strings.len() - 1]
-        )
-    } else {
-        write!(f, "({})", strings.join(" "))
-    }
+    let (vec, dotted, cyclic) =
+        ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
+    let strings: Vec<String> = vec.iter().map(|v| v.to_string()).collect();
+    write!(f, "{}", ScmVal::format_list(&strings, dotted || cyclic))
 }
 
 fn display_vec(f: &mut fmt::Formatter, vec: Rc<Vec<ScmVal>>) -> fmt::Result {
@@ -335,7 +246,7 @@ fn display_vec_mut(f: &mut fmt::Formatter, vec: Rc<RefCell<Vec<ScmVal>>>) -> fmt
 
 // Cons Cells /////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsCell {
     pub head: ScmVal,
     pub tail: ScmVal,
@@ -495,43 +406,6 @@ impl Iterator for ListValIter {
     }
 }
 
-// Struct to wrap HashMap /////////////////////////////////////////////////////
-//
-// Required because can't derive equality or Hash with a HashMap in the ScmVal enum.
-// Equality of hash maps will be implemented in scheme instead, because it
-// requires looking over all of the internal values and calling equal? recursively
-// like a list or vector. Eqv? can just use the pointer which may need to be
-// setup in here.
-
-#[derive(Debug, Clone)]
-pub struct Map {
-    pub contents: HashMap<ScmVal, ScmVal>,
-}
-
-impl Map {
-    pub fn new(map: HashMap<ScmVal, ScmVal>) -> Map {
-        Map { contents: map }
-    }
-
-    pub fn default() -> Map {
-        Map {
-            contents: HashMap::new(),
-        }
-    }
-}
-
-impl PartialEq for Map {
-    fn eq(&self, _other: &Map) -> bool {
-        false
-    }
-
-    fn ne(&self, _other: &Map) -> bool {
-        false
-    }
-}
-
-impl Eq for Map {}
-
 // Closure ////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -564,7 +438,7 @@ impl Closure {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Env {
-    pub scope: Map,
+    pub scope: HashMap<ScmVal, ScmVal>,
     pub next: Option<Rc<RefCell<Env>>>,
 }
 

@@ -1,7 +1,8 @@
 use crate::builtin::ALL_BUILTINS;
 use crate::error::{ScmErr, ScmResult, ValResult};
-use crate::types::{Env, Map, ScmVal};
+use crate::types::{Env, ScmVal};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
 use std::rc::Rc;
@@ -19,7 +20,7 @@ use std::rc::Rc;
 impl Env {
     pub fn new() -> Env {
         Env {
-            scope: Map::default(),
+            scope: HashMap::new(),
             next: None,
         }
     }
@@ -32,7 +33,7 @@ impl Env {
 
     pub fn add_scope(env: Rc<RefCell<Env>>) -> Rc<RefCell<Env>> {
         let new_env = Env {
-            scope: Map::default(),
+            scope: HashMap::new(),
             next: Some(env),
         };
         Rc::new(RefCell::new(new_env))
@@ -55,7 +56,7 @@ impl Env {
 
     // Returns the value for the first time the key is found in any scope.
     pub fn lookup(&self, key: ScmVal) -> Option<ScmVal> {
-        match self.scope.contents.get(&key) {
+        match self.scope.get(&key) {
             Some(val) => Some(val.clone()),
             None => match self.next {
                 Some(ref next) => next.borrow().lookup(key),
@@ -69,7 +70,7 @@ impl Env {
     pub fn insert(&mut self, key: ScmVal, val: ScmVal) -> ValResult {
         match key {
             ScmVal::Symbol(_) => {
-                self.scope.contents.insert(key, val);
+                self.scope.insert(key, val);
                 Ok(ScmVal::Empty)
             }
             _ => Err(ScmErr::BadBinding(key)),
@@ -87,7 +88,7 @@ impl Env {
     // Sets a new value for the first key that matches in any scope.
     // Returns Some(ScmVal::Empty) when the value was set, None if it was not found.
     pub fn set(&mut self, key: ScmVal, val: ScmVal) -> ValResult {
-        match self.scope.contents.contains_key(&key) {
+        match self.scope.contains_key(&key) {
             true => self.insert(key, val),
             false => match self.next {
                 Some(ref next) => next.borrow_mut().set(key, val),
