@@ -16,7 +16,20 @@ use std::rc::Rc;
 // change it's idea about the type of list the printing does show it as expected,
 // which tells me that we still have to care about is_dotted() no matter what we
 // start with.
-
+//
+// TODO named let
+// TODO quasiquote(`)
+// TODO delay and force
+// TODO Macros -- note that I am not sure when macros should be expanded. It is
+// relatively clear that they must be done at eval time since they are themselves
+// evaluated, but perhaps top level expressions could be traversed once to expand
+// any macros before evaluating the expression. This would keep macros from
+// being present in a lambda body and having to be transformed every single call.
+// Though perhaps this approach could be used when evaluating a lambda or any
+// structure that might save code to be called later. Just macro expand the body
+// when saving it. Then each call would use the full code. Probably macro expanding
+// has to be recursive until there are no more macros to expand.
+//
 // TODO the user_eval should take the current environment when called with no args...
 // or whatever the standard says. It says there are 3 envs, the one that would
 // get used when called with no args is the interaction-environment and I see that
@@ -163,15 +176,14 @@ fn eval_if_helper(args: Vec<ScmVal>, false_branch: bool, env: Rc<RefCell<Env>>) 
     // check condition
     let result = eval_tco(args[0].clone(), env, false)?;
     // return the correct branch unevaluated
-    match result {
-        ScmVal::Boolean(false) | ScmVal::Empty => {
-            if false_branch {
-                Ok(args[2].clone())
-            } else {
-                Ok(ScmVal::Empty)
-            }
+    if !proc::is_true(result) {
+        if false_branch {
+            Ok(args[2].clone())
+        } else {
+            Ok(ScmVal::Empty)
         }
-        _ => Ok(args[1].clone()),
+    } else {
+        Ok(args[1].clone())
     }
 }
 
@@ -683,10 +695,6 @@ fn eval_case_condition(
 
     None
 }
-
-// case
-// named let
-// quasiquote(`)
 
 // Helpers ////////////////////////////////////////////////////////////////////
 

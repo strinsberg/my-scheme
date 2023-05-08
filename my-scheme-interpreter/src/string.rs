@@ -48,6 +48,25 @@ impl ScmString {
             })
             .collect()
     }
+
+    pub fn to_extern(&self) -> String {
+        let string: String = self
+            .chars
+            .iter()
+            .map(|ascii| match ascii {
+                ScmChar::Null => "\\0".to_owned(),
+                ScmChar::Tab => "\\t".to_owned(),
+                ScmChar::LineFeed => "\\n".to_owned(),
+                ScmChar::Space => " ".to_owned(),
+                ScmChar::Unsupported => panic!(
+                    "ScmString should not contain unsupported ScmChars: {:?}",
+                    ascii
+                ),
+                _ => ascii.to_string(),
+            })
+            .collect();
+        format!("\"{}\"", string)
+    }
 }
 
 impl fmt::Display for ScmString {
@@ -106,19 +125,22 @@ impl ScmChar {
             ScmChar::Unsupported => "#\\UNSUP".to_string(),
         }
     }
-}
 
-impl fmt::Display for ScmChar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match self {
+    pub fn to_extern(&self) -> String {
+        match self {
             ScmChar::Null => "#\\null".to_string(),
             ScmChar::Tab => "#\\tab".to_string(),
             ScmChar::LineFeed => "#\\newline".to_string(),
             ScmChar::Space => "#\\space".to_string(),
             ScmChar::Char(byte) => format!("#\\{}", *byte as char),
             ScmChar::Unsupported => "#\\UNSUP".to_string(),
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for ScmChar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 

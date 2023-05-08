@@ -42,7 +42,7 @@ impl Interpreter {
 
         match StringReader::new(text).read_forms() {
             Ok(forms) => match eval_forms(forms, Rc::clone(&self.env)) {
-                Ok(val) => val.to_string(),
+                Ok(val) => val.to_extern(),
                 Err(e) => format!("{e}"),
             },
             Err(e) => panic!("{e}"),

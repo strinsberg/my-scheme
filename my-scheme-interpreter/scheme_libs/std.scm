@@ -23,3 +23,7 @@
 (define cadddr (lambda (x) (car (cdr (cdr (cdr x))))))
 
 (define caaddr (lambda (x) (car (car (cdr (cdr x))))))
+
+;; Bool ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (not x) (if x #f #t))

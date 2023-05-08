@@ -65,7 +65,7 @@ pub fn is_closure(val: ScmVal) -> bool {
 
 pub fn is_true(val: ScmVal) -> bool {
     match val {
-        ScmVal::Boolean(false) | ScmVal::Empty => false,
+        ScmVal::Boolean(false) => false,
         _ => true,
     }
 }
@@ -82,7 +82,7 @@ pub fn cons(args: Vec<ScmVal>) -> ValResult {
 pub fn car(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(cell) => Ok(cell.borrow().head.clone()),
+            ScmVal::Pair(cell) | ScmVal::DottedPair(cell) => Ok(cell.borrow().head.clone()),
             _ => Err(ScmErr::BadArgType(
                 "car".to_owned(),
                 "pair".to_owned(),

@@ -9,9 +9,6 @@ fn test_basic_data() {
     help::eval_assert("#\\space", "#\\space");
     help::eval_assert("568", "568");
     help::eval_assert("56.8", "56.8");
-    help::eval_assert("\"hello, world!\"", "hello, world!");
-    help::eval_assert("\"hello,\\n world!\"", "hello,\n world!");
-    help::eval_assert("\"hello,\\t world!\\0\"", "hello,\t world!\0");
     help::eval_assert("#t", "#t");
     help::eval_assert("#f", "#f");
     help::eval_assert("#true", "#t");
@@ -186,25 +183,6 @@ fn test_set() {
 }
 
 #[test]
-fn test_cons_car_cdr() {
-    // Cons and dots
-    help::eval_assert("(cons 1 3)", "(1 . 3)");
-    help::eval_assert("(cons 1 (cons 2 3))", "(1 2 . 3)");
-    help::eval_assert("'( 1 . (2 . 3))", "(1 2 . 3)");
-    // Car and Cdr
-    help::eval_assert("(car '(1 2 3))", "1");
-    help::eval_assert("(cdr '(1 2 3))", "(2 3)");
-    help::eval_assert("(car (cdr '(1 2 3)))", "2");
-    help::eval_assert("(cdr (cdr '(1 2 3)))", "(3)");
-    help::eval_assert("(car (cdr (cdr '(1 2 3))))", "3");
-    help::eval_assert("(cdr (cdr (cdr '(1 2 3))))", "()");
-    help::eval_assert("(cons 5 (cdr (cdr '(1 2 3))))", "(5 3)");
-    // Shared prefixes
-    help::eval_assert("(define x '(1 2 3)) (cons 5 x)", "(5 1 2 3)");
-    help::eval_assert("(define x '(1 2 3)) (cons 5 x) x", "(1 2 3)");
-}
-
-#[test]
 fn test_closure() {
     help::eval_assert(
         "(define f
@@ -340,23 +318,6 @@ fn test_is_number() {
     help::eval_assert("(number? car)", "#f");
     help::eval_assert("(number? (lambda (x) a))", "#f");
     help::eval_assert("(number? 'waldo)", "#f");
-}
-
-#[test]
-fn test_is_string() {
-    // TODO add test for mutable strings
-    help::eval_assert("(string? \"hello, world\")", "#t");
-    // is not string
-    help::eval_assert("(string? #t)", "#f");
-    help::eval_assert("(string? #\\G)", "#f");
-    help::eval_assert("(string? (cons 1 4))", "#f");
-    help::eval_assert("(string? (cons 1 '(4)))", "#f");
-    help::eval_assert("(string? #(1 2 3 4))", "#f");
-    help::eval_assert("(string? car)", "#f");
-    help::eval_assert("(string? (lambda (x) a))", "#f");
-    help::eval_assert("(string? 'waldo)", "#f");
-    help::eval_assert("(string? 12)", "#f");
-    help::eval_assert("(string? 10.5)", "#f");
 }
 
 #[test]

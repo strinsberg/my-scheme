@@ -129,6 +129,52 @@ impl ScmVal {
             _ => ScmVal::new_dotted_pair(val, rest),
         }
     }
+
+    pub fn to_extern(&self) -> String {
+        match self {
+            ScmVal::Number(val) => val.to_string(),
+            ScmVal::Boolean(val) => format!("#{}", if *val { "t" } else { "f" }),
+            ScmVal::Character(val) => val.to_extern(),
+            ScmVal::Symbol(val) => val.to_string(),
+            ScmVal::String(val) => val.to_extern(),
+            ScmVal::StringMut(val) => val.borrow().to_extern(),
+            ScmVal::Closure(_) => format!("#<closure>"),
+            ScmVal::Core(val) => format!("#<procedure {}>", val),
+            ScmVal::Pair(val) => ScmVal::extern_list(Rc::clone(val)),
+            ScmVal::DottedPair(val) => ScmVal::extern_improper_list(Rc::clone(val)),
+            ScmVal::Env(_) => format!("#<environment>"),
+            ScmVal::Vector(val) => ScmVal::extern_vec(Rc::clone(val)),
+            ScmVal::VectorMut(val) => ScmVal::extern_vec_mut(Rc::clone(val)),
+            ScmVal::HashMap(val) => format!("{:?}", val),
+            ScmVal::HashMapMut(val) => format!("{:?}", val.borrow()),
+            ScmVal::Empty => "()".to_string(),
+            val => format!("{:?}", val),
+        }
+    }
+
+    fn extern_improper_list(cell: Rc<RefCell<ConsCell>>) -> String {
+        let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_extern()).collect();
+        format!(
+            "({} . {})",
+            vec_string[..vec_string.len() - 1].join(" "),
+            vec_string[vec_string.len() - 1]
+        )
+    }
+
+    fn extern_list(cell: Rc<RefCell<ConsCell>>) -> String {
+        let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_extern()).collect();
+        format!("({})", vec_string.join(" "))
+    }
+
+    fn extern_vec(vec: Rc<Vec<ScmVal>>) -> String {
+        let vec_string: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
+        format!("#({})", vec_string.join(" "))
+    }
+
+    fn extern_vec_mut(vec: Rc<RefCell<Vec<ScmVal>>>) -> String {
+        let vec_string: Vec<String> = vec.borrow().iter().map(|v| v.to_extern()).collect();
+        format!("#({})", vec_string.join(" "))
+    }
 }
 
 // ScmVal Hash //
@@ -157,6 +203,10 @@ impl Hash for ScmVal {
 
 // ScmVal Display //
 
+// TODO this cannot be used for prn and display where one should give the
+// external representation. There needs to be one that shows a string as "string"
+// and one that just shows string.
+//
 // This is not tail recursive and may be an issue if used in print etr.
 impl fmt::Display for ScmVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
