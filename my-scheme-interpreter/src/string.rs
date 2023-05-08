@@ -9,8 +9,6 @@ use std::fmt;
 // ascii range even though the larger char is not ascii.
 // For example, if a char had the byte sequence [250, 5, 33] would be
 // [#\UNSUP, #\UNSUP, #\!] (not sure this example byte sequence is possible).
-//
-// TODO testing where necessary
 
 // Scheme strings //////////////////////////////////////////////////////////////
 

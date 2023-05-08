@@ -17,7 +17,7 @@ fn test_is_string() {
     help::eval_assert("(string? #\\G)", "#f");
     help::eval_assert("(string? (cons 1 4))", "#f");
     help::eval_assert("(string? (cons 1 '(4)))", "#f");
-    help::eval_assert("(string? #(1 2 3 4))", "#f");
+    help::eval_assert("(string? '#(1 2 3 4))", "#f");
     help::eval_assert("(string? car)", "#f");
     help::eval_assert("(string? (lambda (x) a))", "#f");
     help::eval_assert("(string? 'waldo)", "#f");

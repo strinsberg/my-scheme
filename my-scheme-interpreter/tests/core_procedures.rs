@@ -271,7 +271,7 @@ fn test_is_boolean() {
     help::eval_assert("(boolean? 'world)", "#f");
     help::eval_assert("(boolean? (cons 1 4))", "#f");
     help::eval_assert("(boolean? (cons 1 '(4)))", "#f");
-    help::eval_assert("(boolean? #(1 2 3 4))", "#f");
+    help::eval_assert("(boolean? '#(1 2 3 4))", "#f");
     help::eval_assert("(boolean? car)", "#f");
     help::eval_assert("(boolean? (lambda (x) a))", "#f");
     help::eval_assert("(boolean? 12)", "#f");
@@ -291,7 +291,7 @@ fn test_is_character() {
     help::eval_assert("(char? 'world)", "#f");
     help::eval_assert("(char? (cons 1 4))", "#f");
     help::eval_assert("(char? (cons 1 '(4)))", "#f");
-    help::eval_assert("(char? #(1 2 3 4))", "#f");
+    help::eval_assert("(char? '#(1 2 3 4))", "#f");
     help::eval_assert("(char? car)", "#f");
     help::eval_assert("(char? (lambda (x) a))", "#f");
     help::eval_assert("(char? 12)", "#f");
@@ -307,7 +307,7 @@ fn test_is_symbol() {
     help::eval_assert("(symbol? #\\G)", "#f");
     help::eval_assert("(symbol? (cons 1 4))", "#f");
     help::eval_assert("(symbol? (cons 1 '(4)))", "#f");
-    help::eval_assert("(symbol? #(1 2 3 4))", "#f");
+    help::eval_assert("(symbol? '#(1 2 3 4))", "#f");
     help::eval_assert("(symbol? car)", "#f");
     help::eval_assert("(symbol? (lambda (x) a))", "#f");
     help::eval_assert("(symbol? 12)", "#f");
@@ -327,7 +327,7 @@ fn test_is_number() {
     help::eval_assert("(number? #\\G)", "#f");
     help::eval_assert("(number? (cons 1 4))", "#f");
     help::eval_assert("(number? (cons 1 '(4)))", "#f");
-    help::eval_assert("(number? #(1 2 3 4))", "#f");
+    help::eval_assert("(number? '#(1 2 3 4))", "#f");
     help::eval_assert("(number? car)", "#f");
     help::eval_assert("(number? (lambda (x) a))", "#f");
     help::eval_assert("(number? 'waldo)", "#f");
@@ -336,7 +336,7 @@ fn test_is_number() {
 #[test]
 fn test_is_vector() {
     // TODO test immutable vector
-    help::eval_assert("(vector? #(1 2 3 4))", "#t");
+    help::eval_assert("(vector? '#(1 2 3 4))", "#t");
     // is not vector
     help::eval_assert("(vector? \"hello, world\")", "#f");
     help::eval_assert("(vector? '())", "#f");
@@ -356,7 +356,7 @@ fn test_is_procedure() {
     help::eval_assert("(procedure? car)", "#t");
     help::eval_assert("(procedure? (lambda (x) a))", "#t");
     // is not procedure
-    help::eval_assert("(procedure? #(1 2 3 4))", "#f");
+    help::eval_assert("(procedure? '#(1 2 3 4))", "#f");
     help::eval_assert("(procedure? \"hello, world\")", "#f");
     help::eval_assert("(procedure? '())", "#f");
     help::eval_assert("(procedure? #t)", "#f");

@@ -10,7 +10,7 @@ fn test_is_pair() {
     help::eval_assert("(pair? '())", "#f");
     help::eval_assert("(pair? #t)", "#f");
     help::eval_assert("(pair? #\\G)", "#f");
-    help::eval_assert("(pair? #(1 2 3 4))", "#f");
+    help::eval_assert("(pair? '#(1 2 3 4))", "#f");
     help::eval_assert("(pair? car)", "#f");
     help::eval_assert("(pair? (lambda (x) a))", "#f");
     help::eval_assert("(pair? 'waldo)", "#f");
@@ -103,7 +103,7 @@ fn test_is_null() {
     // is not null
     help::eval_assert("(null? car)", "#f");
     help::eval_assert("(null? (lambda (x) a))", "#f");
-    help::eval_assert("(null? #(1 2 3 4))", "#f");
+    help::eval_assert("(null? '#(1 2 3 4))", "#f");
     help::eval_assert("(null? \"hello, world\")", "#f");
     help::eval_assert("(null? #t)", "#f");
     help::eval_assert("(null? #\\G)", "#f");
@@ -131,7 +131,7 @@ fn test_is_list() {
     // is not list
     help::eval_assert("(null? car)", "#f");
     help::eval_assert("(null? (lambda (x) a))", "#f");
-    help::eval_assert("(null? #(1 2 3 4))", "#f");
+    help::eval_assert("(null? '#(1 2 3 4))", "#f");
     help::eval_assert("(null? \"hello, world\")", "#f");
     help::eval_assert("(null? #t)", "#f");
     help::eval_assert("(null? #\\G)", "#f");

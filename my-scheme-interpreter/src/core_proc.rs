@@ -8,9 +8,6 @@ use crate::types::{Env, ScmVal};
 // call optimization or also return an environment will be in eval_tco as they are
 // special.
 
-// TODO add tests if you can, even though most things are, or can be tested
-// by the core_procedure tests, though then other failures can break them.
-
 // Apply Builtin //////////////////////////////////////////////////////////////
 
 pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {

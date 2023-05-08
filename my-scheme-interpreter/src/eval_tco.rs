@@ -6,18 +6,6 @@ use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
 
-// TODO vector constants must be quoted, so like dotted lists it is an error to
-// use them directly.
-// TODO both vector constants and string literals are immutable and cannot be
-// set, so they must be updated in the Reader if that is not the case already.
-// TODO look into the pair dotted pair thing more, but some testing suggest that
-// set-cdr! cannot turn a long dotted list or regular list into the other type.
-// though the standard seems to suggest that a list can change if you set the
-// fist cells cdr to a value. The big problem here is that even if list? does not
-// change it's idea about the type of list the printing does show it as expected,
-// which tells me that we still have to care about is_dotted() no matter what we
-// start with.
-//
 // TODO named let
 // TODO quasiquote(`)
 // TODO delay and force
@@ -56,6 +44,8 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                 .borrow()
                 .lookup(expr.clone())
                 .ok_or(ScmErr::Undeclared(name.to_string())),
+            // Cannot call a vector
+            ScmVal::Vector(_) | ScmVal::VectorMut(_) => Err(ScmErr::Syntax(expr)),
             // Lists have their first arg applied to the cdr
             ScmVal::Pair(cell) => {
                 // TODO do I need to check pair mut too?? cause the difference in
@@ -356,7 +346,6 @@ pub fn eval_define(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
             env.borrow_mut().insert(first.clone(), ScmVal::Undefined)?;
             eval_set(args, env)
         }
-        // TODO dotted defines need to be processed and those with Pair
         ScmVal::Pair(cell) => {
             // just rebuild with (define name lambda) and re-evaluate
             let name = cell.head.clone();
