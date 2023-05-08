@@ -458,3 +458,8 @@ fn test_vector_operations() {
         "#(a a a a a)",
     );
 }
+
+#[test]
+fn test_eval_mutable_list() {
+    help::eval_assert("(eval (list '+ 1 2) (null-environment))", "3");
+}

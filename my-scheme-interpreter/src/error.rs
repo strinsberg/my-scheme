@@ -28,6 +28,7 @@ pub enum ScmErr {
     OutOfBounds(usize, usize),
     // General
     Syntax(ScmVal),
+    InnerDefine,
 }
 
 impl fmt::Display for ScmErr {
@@ -77,6 +78,9 @@ impl fmt::Display for ScmErr {
             }
             ScmErr::Syntax(expr) => {
                 write!(f, "Error: invalid syntax: {expr}")
+            }
+            ScmErr::InnerDefine => {
+                write!(f, "Error: define only allowed at top-level")
             }
         }
     }

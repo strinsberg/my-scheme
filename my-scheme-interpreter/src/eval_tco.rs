@@ -1,7 +1,7 @@
 use crate::builtin::Builtin;
 use crate::core_proc as proc;
 use crate::error::{ScmErr, ScmResult, TcoResult, ValResult};
-use crate::types::{Closure, Env, Formals, ScmVal};
+use crate::types::{Closure, ConsCell, Env, Formals, ScmVal};
 use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
@@ -32,6 +32,19 @@ use std::rc::Rc;
 
 // Eval ///////////////////////////////////////////////////////////////////////
 
+// Evaluates a vector of forms and returns the value of the last one.
+pub fn eval_forms(forms: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+    if forms.len() < 1 {
+        return Ok(ScmVal::Empty);
+    }
+
+    for f in forms[..forms.len() - 1].iter() {
+        eval_tco(f.clone(), Rc::clone(&env), true)?;
+    }
+    eval_tco(forms[forms.len() - 1].clone(), env, true)
+}
+
+// Evaluate a single for with tail call optimization
 pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValResult {
     //println!("{}", value.clone().to_string());
     let mut expr = value.clone();
@@ -47,91 +60,24 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
             // Cannot call a vector
             ScmVal::Vector(_) | ScmVal::VectorMut(_) => Err(ScmErr::Syntax(expr)),
             // Lists have their first arg applied to the cdr
-            ScmVal::Pair(cell) => {
-                // TODO do I need to check pair mut too?? cause the difference in
-                // pointer type would mean duplicating all of this with just adding
-                // a borrow() to all of them.
-                if cell.is_dotted() {
-                    return Err(ScmErr::Syntax(expr));
-                }
-                let (args, dotted, _) = ScmVal::list_to_vec(cell.tail.clone())
-                    .expect("should be unreachable if cell.is_dotted() was checked");
-
-                if cell.is_dotted() || dotted {
-                    return Err(ScmErr::Syntax(expr));
-                } else if cell.head == ScmVal::new_sym("quote") {
-                    return Ok(args[0].clone());
-                } else if cell.head == ScmVal::new_sym("lambda") {
-                    return eval_lambda(args, Rc::clone(&env));
-                } else if cell.head == ScmVal::new_sym("set!") {
-                    return eval_set(args, env);
-                } else if cell.head == ScmVal::new_sym("define") {
-                    if top {
-                        return eval_define(args, env);
-                    } else {
-                        return Err(ScmErr::Syntax(expr));
-                    }
-                } else if cell.head == ScmVal::new_sym("if") {
-                    expr = eval_if(args, Rc::clone(&env))?;
+            ScmVal::PairMut(cell) => {
+                let mut _is_tco = false;
+                let c = (*cell.borrow()).clone();
+                (expr, env, _is_tco) = eval_pair(c, expr.clone(), Rc::clone(&env), top)?;
+                if _is_tco {
                     continue;
-                } else if cell.head == ScmVal::new_sym("let") {
-                    expr = eval_let(args, Rc::clone(&env))?;
-                    continue;
-                } else if cell.head == ScmVal::new_sym("let*") {
-                    expr = eval_let_star(args, Rc::clone(&env))?;
-                    continue;
-                } else if cell.head == ScmVal::new_sym("letrec") {
-                    expr = eval_letrec(args)?;
-                    continue;
-                //  other derived expression, would be best to use macros, but they
-                //  are not implemented yet.
-                } else if cell.head == ScmVal::new_sym("and") {
-                    expr = eval_and(args, Rc::clone(&env))?;
-                    continue;
-                } else if cell.head == ScmVal::new_sym("or") {
-                    let (result, do_tco) = eval_or(args, Rc::clone(&env));
-                    if do_tco {
-                        expr = result?;
-                        continue;
-                    } else {
-                        return result;
-                    }
-                } else if cell.head == ScmVal::new_sym("do") {
-                    expr = eval_do(args)?;
-                    continue;
-                } else if cell.head == ScmVal::new_sym("begin") {
-                    expr = eval_begin(args, Rc::clone(&env))?;
-                    continue;
-                } else if cell.head == ScmVal::new_sym("cond") {
-                    expr = eval_cond(args, Rc::clone(&env))?;
-                    continue;
-                } else if cell.head == ScmVal::new_sym("case") {
-                    expr = eval_case(args, Rc::clone(&env))?;
-                    continue;
-                }
-                // case, named-let, delay, quasiquote(`)
-
-                // Eval the list elements
-                let proc = eval_tco(cell.head.clone(), Rc::clone(&env), false)?;
-                let arg_vec = eval_vec(args, Rc::clone(&env))?;
-
-                // Eval things that we can evaluate the first element into a proc
-                if proc == ScmVal::Core(Builtin::Apply) {
-                    expr = user_apply(arg_vec)?;
-                    continue;
-                } else if proc == ScmVal::Core(Builtin::Eval) {
-                    (expr, env) = user_eval(arg_vec)?;
-                    continue;
-                } else if proc::is_closure(proc.clone()) {
-                    (expr, env) = apply_closure(proc.clone(), arg_vec)?;
-                    continue;
-                } else if proc::is_core_proc(proc.clone()) {
-                    match proc {
-                        ScmVal::Core(op) => proc::apply_core_proc(op, arg_vec),
-                        _ => panic!("should be ScmVal::Core: {:?}", proc),
-                    }
                 } else {
-                    Err(ScmErr::Syntax(expr))
+                    return Ok(expr);
+                }
+            }
+            ScmVal::Pair(cell) => {
+                let mut _is_tco = false;
+                let c = (*cell).clone();
+                (expr, env, _is_tco) = eval_pair(c, expr.clone(), Rc::clone(&env), top)?;
+                if _is_tco {
+                    continue;
+                } else {
+                    return Ok(expr);
                 }
             }
             // String, Bool, Char, Vector, Closure, Procedure all eval to themselves
@@ -140,19 +86,122 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
     }
 }
 
-// Evaluates a vector of forms and returns the value of the last one.
-pub fn eval_forms(forms: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    if forms.len() < 1 {
-        return Ok(ScmVal::Empty);
+pub fn eval_pair(
+    cell: ConsCell,
+    expr: ScmVal,
+    env: Rc<RefCell<Env>>,
+    top: bool,
+) -> ScmResult<(ScmVal, Rc<RefCell<Env>>, bool)> {
+    if cell.is_dotted() {
+        return Err(ScmErr::Syntax(expr));
     }
+    let (args, dotted, _) = ScmVal::list_to_vec(cell.tail.clone())
+        .expect("should be unreachable if cell.is_dotted() was checked");
 
-    for f in forms[..forms.len() - 1].iter() {
-        eval_tco(f.clone(), Rc::clone(&env), true)?;
+    if cell.is_dotted() || dotted {
+        return Err(ScmErr::Syntax(expr));
+    } else if cell.head == ScmVal::new_sym("quote") {
+        return Ok((args[0].clone(), Rc::clone(&env), false));
+    } else if cell.head == ScmVal::new_sym("lambda") {
+        return Ok((eval_lambda(args, Rc::clone(&env))?, Rc::clone(&env), false));
+    } else if cell.head == ScmVal::new_sym("set!") {
+        return Ok((eval_set(args, Rc::clone(&env))?, Rc::clone(&env), false));
+    } else if cell.head == ScmVal::new_sym("define") {
+        if top {
+            return Ok((eval_define(args, Rc::clone(&env))?, Rc::clone(&env), false));
+        } else {
+            return Err(ScmErr::Syntax(expr));
+        }
+    } else if cell.head == ScmVal::new_sym("if") {
+        return Ok((eval_if(args, Rc::clone(&env))?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("let") {
+        return Ok((eval_let(args, Rc::clone(&env))?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("let*") {
+        return Ok((eval_let_star(args, Rc::clone(&env))?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("letrec") {
+        return Ok((eval_letrec(args)?, Rc::clone(&env), true));
+    //  other derived expression, would be best to use macros, but they
+    //  are not implemented yet.
+    } else if cell.head == ScmVal::new_sym("and") {
+        return Ok((eval_and(args, Rc::clone(&env))?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("or") {
+        let (result, do_tco) = eval_or(args, Rc::clone(&env));
+        return Ok((result?, Rc::clone(&env), do_tco));
+    } else if cell.head == ScmVal::new_sym("do") {
+        return Ok((eval_do(args)?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("begin") {
+        return Ok((eval_begin(args, Rc::clone(&env))?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("cond") {
+        return Ok((eval_cond(args, Rc::clone(&env))?, Rc::clone(&env), true));
+    } else if cell.head == ScmVal::new_sym("case") {
+        return Ok((eval_case(args, Rc::clone(&env))?, Rc::clone(&env), true));
     }
-    eval_tco(forms[forms.len() - 1].clone(), env, true)
+    // case, named-let, delay, quasiquote(`)
+
+    // Eval the list elements
+    let proc = eval_tco(cell.head.clone(), Rc::clone(&env), false)?;
+    let arg_vec = eval_vec(args, Rc::clone(&env))?;
+
+    // Eval things that we can evaluate the first element into a proc
+    if proc == ScmVal::Core(Builtin::Apply) {
+        return Ok((user_apply(arg_vec)?, Rc::clone(&env), true));
+    } else if proc == ScmVal::Core(Builtin::Eval) {
+        let (expr, new_env) = user_eval(arg_vec)?;
+        return Ok((expr, new_env, true));
+    } else if proc::is_closure(proc.clone()) {
+        let (expr, new_env) = apply_closure(proc.clone(), arg_vec)?;
+        return Ok((expr, new_env, true));
+    } else if proc::is_core_proc(proc.clone()) {
+        if let ScmVal::Core(op) = proc {
+            return Ok((proc::apply_core_proc(op, arg_vec)?, Rc::clone(&env), false));
+        } else {
+            Err(ScmErr::Syntax(expr))
+        }
+    } else {
+        Err(ScmErr::Syntax(expr))
+    }
 }
 
-// Eval Helpers ///////////////////////////////////////////////////////////////
+pub fn plain_eval(
+    head: ScmVal,
+    args: Vec<ScmVal>,
+    env: Rc<RefCell<Env>>,
+    is_top_level: bool,
+) -> Option<ValResult> {
+    if let ScmVal::Symbol(name) = head {
+        match name.to_string().as_str() {
+            "quote" => Some(Ok(args[0].clone())),
+            "lambda" => Some(eval_lambda(args, Rc::clone(&env))),
+            "set!" => Some(eval_set(args, env)),
+            "define" if is_top_level => Some(eval_define(args, env)),
+            "define" => Some(Err(ScmErr::InnerDefine)),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+pub fn need_toc_eval(head: ScmVal, args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> Option<ValResult> {
+    if let ScmVal::Symbol(name) = head {
+        match name.to_string().as_str() {
+            "if" => Some(eval_if(args, Rc::clone(&env))),
+            "let" => Some(eval_let(args, Rc::clone(&env))),
+            "let*" => Some(eval_let_star(args, Rc::clone(&env))),
+            "letrec" => Some(eval_letrec(args)),
+            "and" => Some(eval_and(args, Rc::clone(&env))),
+            "do" => Some(eval_do(args)),
+            "begin" => Some(eval_begin(args, Rc::clone(&env))),
+            "cond" => Some(eval_cond(args, Rc::clone(&env))),
+            "case" => Some(eval_case(args, Rc::clone(&env))),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+// Eval Core Forms ////////////////////////////////////////////////////////////
 
 // Evaluates an if statement with tco.
 // Returns the unevaluated expression for the true or false branch based on the
