@@ -61,6 +61,19 @@ fn test_lambda() {
     help::eval_assert("((lambda (x) (- x 1) (+ x 1)) (- 10 5) (+ 10 5))", "6");
     help::eval_assert("((lambda x x) 2 3 4 5)", "(2 3 4 5)");
     help::eval_assert("((lambda (x y . z) z) 2 3 4 5)", "(4 5)");
+    // named with define or set!
+    help::eval_assert("(lambda (x) (+ x 1))", "#<closure>");
+    help::eval_assert("(define f (lambda (x) (+ x 1))) f", "#<procedure f>");
+    help::eval_assert("(define (f x) (+ x 1)) f", "#<procedure f>");
+    help::eval_assert("(define (f . x) (+ x 1)) f", "#<procedure f>");
+    help::eval_assert(
+        "(define g '()) (define (f x) (+ x 1)) (set! g f) f",
+        "#<procedure f>",
+    );
+    help::eval_assert(
+        "(define g '()) (define (f x) (+ x 1)) (set! g f) g",
+        "#<procedure g>",
+    );
 }
 
 #[test]

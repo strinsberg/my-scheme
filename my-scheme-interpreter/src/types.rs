@@ -167,7 +167,7 @@ impl ScmVal {
             ScmVal::Symbol(val) => val.to_string(),
             ScmVal::String(val) => val.to_extern(),
             ScmVal::StringMut(val) => val.borrow().to_extern(),
-            ScmVal::Closure(_) => format!("#<closure>"),
+            ScmVal::Closure(val) => ScmVal::extern_closure(val.name.clone()),
             ScmVal::Core(val) => format!("#<procedure {}>", val),
             ScmVal::Pair(_) => ScmVal::extern_list(self.clone()),
             ScmVal::PairMut(_) => ScmVal::extern_list(self.clone()),
@@ -178,6 +178,14 @@ impl ScmVal {
             ScmVal::HashMapMut(val) => format!("{:?}", val.borrow()),
             ScmVal::Empty => "()".to_string(),
             val => format!("{:?}", val),
+        }
+    }
+
+    fn extern_closure(name: String) -> String {
+        if name == "no-name" {
+            format!("#<closure>")
+        } else {
+            format!("#<procedure {name}>")
         }
     }
 
@@ -259,7 +267,7 @@ impl fmt::Display for ScmVal {
             ScmVal::Symbol(val) => write!(f, "{}", val),
             ScmVal::String(val) => write!(f, "{}", val),
             ScmVal::StringMut(val) => write!(f, "{}", val.borrow()),
-            ScmVal::Closure(_) => write!(f, "#<closure>"),
+            ScmVal::Closure(c) => write!(f, "#<closure {}>", c.name),
             ScmVal::Core(val) => write!(f, "#<procedure {}>", val),
             ScmVal::Pair(_) => display_list(f, self.clone()),
             ScmVal::PairMut(_) => display_list(f, self.clone()),
@@ -535,14 +543,16 @@ pub enum Formals {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
+    pub name: String,
     pub env: Rc<RefCell<Env>>,
     pub params: Formals,
     pub body: Vec<ScmVal>,
 }
 
 impl Closure {
-    pub fn new(env: Rc<RefCell<Env>>, params: Formals, body: Vec<ScmVal>) -> Closure {
+    pub fn new(name: &str, env: Rc<RefCell<Env>>, params: Formals, body: Vec<ScmVal>) -> Closure {
         Closure {
+            name: name.to_owned(),
             env: env,
             params: params,
             body: body,

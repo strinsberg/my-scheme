@@ -223,6 +223,7 @@ pub fn eval_lambda(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
             };
 
         Ok(ScmVal::new_closure(Closure::new(
+            "no-name",
             env,
             formals,
             args[1..].into(),
@@ -240,7 +241,12 @@ pub fn eval_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
         let bindings = args[0].clone();
         let (params, bind_args) = unbind(bindings.clone())?;
         Ok(ScmVal::cons(
-            ScmVal::new_closure(Closure::new(env, Formals::Fixed(params), args[1..].into())),
+            ScmVal::new_closure(Closure::new(
+                "no-name",
+                env,
+                Formals::Fixed(params),
+                args[1..].into(),
+            )),
             ScmVal::vec_to_list(bind_args, ScmVal::Empty),
         ))
     } else {
@@ -282,6 +288,7 @@ pub fn eval_let_star(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
         // not arguments. I.e. ((lambda () body))
         Ok(ScmVal::new_pair(
             ScmVal::new_closure(Closure::new(
+                "no-name",
                 new_env,
                 Formals::Fixed(vec![]),
                 args[1..].into(),
@@ -321,7 +328,15 @@ pub fn eval_letrec(args: Vec<ScmVal>) -> ValResult {
 pub fn eval_set(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let key = args[0].clone();
-        let val = eval_tco(args[1].clone(), Rc::clone(&env), false)?;
+        let val = match eval_tco(args[1].clone(), Rc::clone(&env), false)? {
+            ScmVal::Closure(c) => ScmVal::new_closure(Closure::new(
+                &key.to_string(),
+                Rc::clone(&c.env),
+                c.params.clone(),
+                c.body.clone(),
+            )),
+            v => v,
+        };
         env.borrow_mut().set(key.clone(), val.clone())
     } else {
         Err(ScmErr::Arity("set!".to_owned(), 2))
