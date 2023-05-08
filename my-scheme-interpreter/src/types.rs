@@ -1,11 +1,20 @@
 use crate::number::ScmNumber;
 use crate::string::{ScmChar, ScmString};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+// TODO TODO TODO VERY IMPORTANT, the hashing that is setup is no good at all.
+// It will loop forever on some things. The only thing that should be hashed are
+// symbols for the env until I figure out a better way. For the list iterators
+// we can just use the pointer of the cell and hash that, but I am not confident
+// that in the long run (maybe even during list iteration) that that pointer will
+// stay valid enough to be used as a hash value. I am going to make all hashing
+// a panic until I get it figured out. This won't affect the standard, but will
+// affect adding hash tables later.
+//
 // TODO count cons cells? Probably requires using ScmVal::cons everywhere a pair
 // is made instead of ScmVal::new_pair. If it is used in vec_to_list then it helps
 // catch those places too. This is not really a priority, as I am not sure that
@@ -24,8 +33,8 @@ pub enum ScmVal {
     Symbol(Rc<ScmString>),
     Closure(Rc<Closure>),
     Core(Builtin),
-    Pair(Rc<RefCell<ConsCell>>),
-    DottedPair(Rc<RefCell<ConsCell>>),
+    PairMut(Rc<RefCell<ConsCell>>),
+    Pair(Rc<ConsCell>),
     Env(Rc<RefCell<Env>>),
     String(Rc<ScmString>),
     StringMut(Rc<RefCell<ScmString>>),
@@ -57,11 +66,11 @@ impl ScmVal {
     }
 
     pub fn new_pair(head: ScmVal, tail: ScmVal) -> ScmVal {
-        ScmVal::Pair(Rc::new(RefCell::new(ConsCell::new(head, tail))))
+        ScmVal::Pair(Rc::new(ConsCell::new(head, tail)))
     }
 
-    pub fn new_dotted_pair(head: ScmVal, tail: ScmVal) -> ScmVal {
-        ScmVal::DottedPair(Rc::new(RefCell::new(ConsCell::new(head, tail))))
+    pub fn new_pair_mut(head: ScmVal, tail: ScmVal) -> ScmVal {
+        ScmVal::PairMut(Rc::new(RefCell::new(ConsCell::new(head, tail))))
     }
 
     pub fn new_str_mut(string: &str) -> ScmVal {
@@ -100,35 +109,60 @@ impl ScmVal {
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
     pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
-        match end {
-            ScmVal::Pair(_) | ScmVal::Empty => values
-                .into_iter()
-                .rev()
-                .fold(end, |acc, v| ScmVal::new_pair(v, acc)),
-            _ => values
-                .into_iter()
-                .rev()
-                .fold(end, |acc, v| ScmVal::new_dotted_pair(v, acc)),
-        }
+        values
+            .into_iter()
+            .rev()
+            .fold(end, |acc, v| ScmVal::new_pair(v, acc))
     }
 
-    pub fn list_to_vec(val: ScmVal) -> Option<Vec<ScmVal>> {
-        match val {
-            ScmVal::Pair(cell) => Some(ListValIter::new(cell).collect()),
-            ScmVal::DottedPair(cell) => Some(ListValIter::new(cell).collect()),
-            ScmVal::Empty => Some(vec![]),
-            _ => None,
+    // If end is ScmVal::Empty it will be list otherwise dotted list
+    pub fn vec_to_list_mut(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
+        values
+            .into_iter()
+            .rev()
+            .fold(end, |acc, v| ScmVal::new_pair_mut(v, acc))
+    }
+
+    pub fn list_to_vec(val: ScmVal) -> Option<(Vec<ScmVal>, bool, bool)> {
+        let mut dotted = false;
+        let mut cyclic = false;
+        let mut vals = Vec::new();
+
+        for pair in ListPairIter::new(val) {
+            match pair {
+                ScmVal::Pair(cell) => {
+                    vals.push(cell.head.clone());
+                    if cell.is_dotted() {
+                        dotted = true;
+                        vals.push(cell.tail.clone());
+                    }
+                }
+                ScmVal::PairMut(cell) => {
+                    vals.push(cell.borrow().head.clone());
+                    if cell.borrow().is_dotted() {
+                        dotted = true;
+                        vals.push(cell.borrow().tail.clone());
+                    }
+                }
+                ScmVal::Undefined => {
+                    cyclic = true;
+                    dotted = true;
+                }
+                _ => return None,
+            }
         }
+
+        Some((vals, dotted, cyclic))
     }
 
     pub fn cons(val: ScmVal, rest: ScmVal) -> ScmVal {
         match rest {
             ScmVal::Pair(_) => ScmVal::new_pair(val, rest),
-            ScmVal::DottedPair(_) => ScmVal::new_dotted_pair(val, rest),
-            ScmVal::Empty => ScmVal::new_pair(val, ScmVal::Empty),
-            _ => ScmVal::new_dotted_pair(val, rest),
+            _ => ScmVal::new_pair_mut(val, rest),
         }
     }
+
+    // External representation //
 
     pub fn to_extern(&self) -> String {
         match self {
@@ -140,8 +174,8 @@ impl ScmVal {
             ScmVal::StringMut(val) => val.borrow().to_extern(),
             ScmVal::Closure(_) => format!("#<closure>"),
             ScmVal::Core(val) => format!("#<procedure {}>", val),
-            ScmVal::Pair(val) => ScmVal::extern_list(Rc::clone(val)),
-            ScmVal::DottedPair(val) => ScmVal::extern_improper_list(Rc::clone(val)),
+            ScmVal::Pair(_) => ScmVal::extern_list(self.clone()),
+            ScmVal::PairMut(_) => ScmVal::extern_list(self.clone()),
             ScmVal::Env(_) => format!("#<environment>"),
             ScmVal::Vector(val) => ScmVal::extern_vec(Rc::clone(val)),
             ScmVal::VectorMut(val) => ScmVal::extern_vec_mut(Rc::clone(val)),
@@ -152,18 +186,44 @@ impl ScmVal {
         }
     }
 
-    fn extern_improper_list(cell: Rc<RefCell<ConsCell>>) -> String {
-        let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_extern()).collect();
-        format!(
-            "({} . {})",
-            vec_string[..vec_string.len() - 1].join(" "),
-            vec_string[vec_string.len() - 1]
-        )
-    }
+    fn extern_list(val: ScmVal) -> String {
+        // TODO just use list_to_vec
+        let mut dotted = false;
+        let mut strings = Vec::new();
 
-    fn extern_list(cell: Rc<RefCell<ConsCell>>) -> String {
-        let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_extern()).collect();
-        format!("({})", vec_string.join(" "))
+        for pair in ListPairIter::new(val) {
+            match pair {
+                ScmVal::Pair(cell) => {
+                    strings.push(cell.head.to_extern());
+                    if cell.is_dotted() {
+                        dotted = true;
+                        strings.push(cell.tail.to_extern());
+                    }
+                }
+                ScmVal::PairMut(cell) => {
+                    strings.push(cell.borrow().head.to_extern());
+                    if cell.borrow().is_dotted() {
+                        dotted = true;
+                        strings.push(cell.borrow().tail.to_extern());
+                    }
+                }
+                ScmVal::Undefined => {
+                    dotted = true;
+                    strings.push("#cycle#".to_owned());
+                }
+                _ => panic!("list iterator should only contain pairs: {:?}", pair),
+            }
+        }
+
+        if dotted {
+            format!(
+                "({} . {})",
+                strings[..strings.len() - 1].join(" "),
+                strings[strings.len() - 1]
+            )
+        } else {
+            format!("({})", strings.join(" "))
+        }
     }
 
     fn extern_vec(vec: Rc<Vec<ScmVal>>) -> String {
@@ -182,21 +242,8 @@ impl ScmVal {
 impl Hash for ScmVal {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            ScmVal::Number(val) => val.hash(state),
-            ScmVal::Boolean(val) => val.hash(state),
-            ScmVal::Character(val) => val.hash(state),
             ScmVal::Symbol(val) => val.hash(state),
-            ScmVal::String(val) => val.hash(state),
-            ScmVal::StringMut(val) => val.borrow().hash(state),
-            ScmVal::Closure(val) => val.hash(state),
-            ScmVal::Core(val) => val.hash(state),
-            ScmVal::Pair(val) => val.borrow().hash(state),
-            ScmVal::Env(val) => val.borrow().hash(state),
-            ScmVal::Vector(val) => val.hash(state),
-            ScmVal::VectorMut(val) => val.borrow().hash(state),
-            ScmVal::HashMap(val) => val.hash(state),
-            ScmVal::HashMapMut(val) => val.borrow().hash(state),
-            val => val.hash(state),
+            _ => panic!("cannot hash anything but symbols"),
         }
     }
 }
@@ -219,8 +266,8 @@ impl fmt::Display for ScmVal {
             ScmVal::StringMut(val) => write!(f, "{}", val.borrow()),
             ScmVal::Closure(_) => write!(f, "#<closure>"),
             ScmVal::Core(val) => write!(f, "#<procedure {}>", val),
-            ScmVal::Pair(val) => display_list(f, Rc::clone(val)),
-            ScmVal::DottedPair(val) => display_improper_list(f, Rc::clone(val)),
+            ScmVal::Pair(_) => display_list(f, self.clone()),
+            ScmVal::PairMut(_) => display_list(f, self.clone()),
             ScmVal::Env(_) => write!(f, "#<environment>"),
             ScmVal::Vector(val) => display_vec(f, Rc::clone(val)),
             ScmVal::VectorMut(val) => display_vec_mut(f, Rc::clone(val)),
@@ -232,19 +279,45 @@ impl fmt::Display for ScmVal {
     }
 }
 
-fn display_improper_list(f: &mut fmt::Formatter, cell: Rc<RefCell<ConsCell>>) -> fmt::Result {
-    let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_string()).collect();
-    write!(
-        f,
-        "({} . {})",
-        vec_string[..vec_string.len() - 1].join(" "),
-        vec_string[vec_string.len() - 1]
-    )
-}
+fn display_list(f: &mut fmt::Formatter, val: ScmVal) -> fmt::Result {
+    // TODO just use list_to_vec
+    let mut dotted = false;
+    let mut strings = Vec::new();
 
-fn display_list(f: &mut fmt::Formatter, cell: Rc<RefCell<ConsCell>>) -> fmt::Result {
-    let vec_string: Vec<String> = ListValIter::new(cell).map(|v| v.to_string()).collect();
-    write!(f, "({})", vec_string.join(" "))
+    for pair in ListPairIter::new(val) {
+        match pair {
+            ScmVal::Pair(cell) => {
+                strings.push(cell.head.to_string());
+                if cell.is_dotted() {
+                    dotted = true;
+                    strings.push(cell.tail.to_string());
+                }
+            }
+            ScmVal::PairMut(cell) => {
+                strings.push(cell.borrow().head.to_string());
+                if cell.borrow().is_dotted() {
+                    dotted = true;
+                    strings.push(cell.borrow().tail.to_string());
+                }
+            }
+            ScmVal::Undefined => {
+                dotted = true;
+                strings.push("#cycle#".to_owned());
+            }
+            _ => panic!("list iterator should only contain pairs: {:?}", pair),
+        }
+    }
+
+    if dotted {
+        write!(
+            f,
+            "({} . {})",
+            strings[..strings.len() - 1].join(" "),
+            strings[strings.len() - 1]
+        )
+    } else {
+        write!(f, "({})", strings.join(" "))
+    }
 }
 
 fn display_vec(f: &mut fmt::Formatter, vec: Rc<Vec<ScmVal>>) -> fmt::Result {
@@ -274,7 +347,6 @@ pub enum Builtin {
     Product,
     Divide,
     // predicates
-    IsEmpty,
     IsBool,
     IsSymbol,
     IsChar,
@@ -283,6 +355,10 @@ pub enum Builtin {
     IsProcedure,
     IsPair,
     IsVector,
+    // Lists,
+    SetCar,
+    SetCdr,
+    IsList,
     // Vectors
     MakeVec,
     Vector,
@@ -306,7 +382,6 @@ impl fmt::Display for Builtin {
             Builtin::Product => "*",
             Builtin::Divide => "/",
             //
-            Builtin::IsEmpty => "null?",
             Builtin::IsBool => "boolean?",
             Builtin::IsSymbol => "symbol?",
             Builtin::IsChar => "char?",
@@ -315,6 +390,16 @@ impl fmt::Display for Builtin {
             Builtin::IsProcedure => "procedure?",
             Builtin::IsPair => "pair?",
             Builtin::IsVector => "vector?",
+            //
+            Builtin::SetCar => "set-car?",
+            Builtin::SetCdr => "set-car?",
+            // Vectors
+            Builtin::MakeVec => "make-vector",
+            Builtin::VecSet => "vector-set!",
+            Builtin::VecRef => "vector-ref",
+            Builtin::VecLen => "vector-length",
+            Builtin::VecToList => "vector->list",
+            Builtin::VecFill => "vector-fill!",
             //
             Builtin::EQ => "eq?",
             Builtin::Eqv => "eqv?",
@@ -353,7 +438,7 @@ impl ConsCell {
 
     pub fn is_dotted(&self) -> bool {
         match self.tail {
-            ScmVal::Pair(_) | ScmVal::Empty => false,
+            ScmVal::Pair(_) | ScmVal::PairMut(_) | ScmVal::Empty => false,
             _ => true,
         }
     }
@@ -362,40 +447,130 @@ impl ConsCell {
 // ConsCell Iterators //
 
 #[derive(Debug, Clone)]
-pub struct ListValIter {
-    last: bool,
-    cell: Option<Rc<RefCell<ConsCell>>>,
+pub struct ListPairIter {
+    seen: HashSet<*const ConsCell>,
+    pair: ScmVal,
 }
 
-impl ListValIter {
-    pub fn new(cell: Rc<RefCell<ConsCell>>) -> ListValIter {
-        ListValIter {
-            last: false,
-            cell: Some(cell),
+impl ListPairIter {
+    pub fn new(pair: ScmVal) -> ListPairIter {
+        ListPairIter {
+            seen: HashSet::new(),
+            pair: pair,
         }
     }
 }
 
+// Terminates on cycles with last before none being ScmVal::Undefined
+impl Iterator for ListPairIter {
+    type Item = ScmVal;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.pair.clone() {
+            ScmVal::Pair(cell) => {
+                let next = self.pair.clone();
+                if self.seen.contains(&Rc::as_ptr(&cell)) {
+                    self.pair = ScmVal::Empty;
+                    return Some(ScmVal::Undefined);
+                } else if cell.is_dotted() {
+                    self.pair = ScmVal::Empty;
+                } else {
+                    self.pair = cell.tail.clone();
+                }
+                self.seen.insert(Rc::as_ptr(&cell));
+                Some(next)
+            }
+            ScmVal::PairMut(cell) => {
+                let next = self.pair.clone();
+                if self
+                    .seen
+                    .contains(&(RefCell::as_ptr(&cell) as *const ConsCell))
+                {
+                    self.pair = ScmVal::Empty;
+                    return Some(ScmVal::Undefined);
+                } else if cell.borrow().is_dotted() {
+                    self.pair = ScmVal::Empty;
+                } else {
+                    self.pair = cell.borrow().tail.clone();
+                }
+                self.seen.insert(RefCell::as_ptr(&cell));
+                Some(next)
+            }
+            ScmVal::Empty => None,
+            _ => panic!(
+                "list iterator should not contain non-list ScmVal: {:?}",
+                self.pair
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ListValIter {
+    seen: HashSet<ScmVal>,
+    done: bool,
+    last: ScmVal,
+    pair: ScmVal,
+}
+
+impl ListValIter {
+    pub fn new(pair: ScmVal) -> ListValIter {
+        ListValIter {
+            seen: HashSet::new(),
+            done: false,
+            last: ScmVal::Empty,
+            pair: pair,
+        }
+    }
+}
+
+// Terminates on cycles, returns undefined before none
 impl Iterator for ListValIter {
     type Item = ScmVal;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.cell.clone() {
-            Some(cell) => {
-                if self.last {
-                    self.cell = None;
-                    return Some(cell.borrow().tail.clone());
+        if self.done {
+            return None;
+        } else if self.seen.contains(&self.pair.clone()) {
+            self.done = true;
+            return Some(ScmVal::Undefined);
+        } else {
+            self.seen.insert(self.pair.clone());
+        }
+
+        match self.last {
+            ScmVal::Empty => (),
+            _ => {
+                self.done = true;
+                return Some(self.last.clone());
+            }
+        }
+
+        match self.pair.clone() {
+            ScmVal::Pair(cell) => {
+                if cell.is_dotted() {
+                    self.last = cell.tail.clone();
+                } else {
+                    self.pair = cell.tail.clone();
                 }
-                match cell.borrow().tail {
-                    ScmVal::DottedPair(ref next) | ScmVal::Pair(ref next) => {
-                        self.cell = Some(Rc::clone(next))
-                    }
-                    ScmVal::Empty => self.cell = None,
-                    _ => self.last = true,
-                };
+                Some(cell.head.clone())
+            }
+            ScmVal::PairMut(cell) => {
+                if cell.borrow().is_dotted() {
+                    self.last = cell.borrow().tail.clone();
+                } else {
+                    self.pair = cell.borrow().tail.clone();
+                }
                 Some(cell.borrow().head.clone())
             }
-            None => None,
+            ScmVal::Empty => {
+                self.done = true;
+                None
+            }
+            _ => panic!(
+                "list iterator should not contain non-list ScmVal: {:?}",
+                self.pair
+            ),
         }
     }
 }
@@ -437,12 +612,6 @@ impl PartialEq for Map {
 
 impl Eq for Map {}
 
-impl Hash for Map {
-    fn hash<H: Hasher>(&self, _: &mut H) {
-        panic!("Hash map cannot be hashed");
-    }
-}
-
 // Closure ////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -466,12 +635,6 @@ impl Closure {
             params: params,
             body: body,
         }
-    }
-}
-
-impl Hash for Closure {
-    fn hash<H: Hasher>(&self, _: &mut H) {
-        panic!("Closure cannot be hashed");
     }
 }
 

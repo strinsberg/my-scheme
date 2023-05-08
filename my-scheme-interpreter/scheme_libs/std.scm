@@ -4,6 +4,10 @@
 
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (null? x) (eqv? x '()))
+
+(define (list . xs) xs)
+
 (define caar (lambda (x) (car (car x))))
 (define caaar (lambda (x) (car (car (car x)))))
 (define caaaar (lambda (x) (car (car (car (car x))))))

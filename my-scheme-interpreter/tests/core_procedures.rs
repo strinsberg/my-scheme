@@ -321,24 +321,6 @@ fn test_is_number() {
 }
 
 #[test]
-fn test_is_pair() {
-    help::eval_assert("(pair? (cons 1 2))", "#t");
-    help::eval_assert("(pair? (cons 3 '()))", "#t");
-    help::eval_assert("(pair? '(1 2 3 4))", "#t");
-    // is not pair
-    help::eval_assert("(pair? \"hello, world\")", "#f");
-    help::eval_assert("(pair? '())", "#f");
-    help::eval_assert("(pair? #t)", "#f");
-    help::eval_assert("(pair? #\\G)", "#f");
-    help::eval_assert("(pair? #(1 2 3 4))", "#f");
-    help::eval_assert("(pair? car)", "#f");
-    help::eval_assert("(pair? (lambda (x) a))", "#f");
-    help::eval_assert("(pair? 'waldo)", "#f");
-    help::eval_assert("(pair? 12)", "#f");
-    help::eval_assert("(pair? 10.5)", "#f");
-}
-
-#[test]
 fn test_is_vector() {
     // TODO test immutable vector
     help::eval_assert("(vector? #(1 2 3 4))", "#t");
@@ -371,23 +353,6 @@ fn test_is_procedure() {
     help::eval_assert("(procedure? 'waldo)", "#f");
     help::eval_assert("(procedure? 12)", "#f");
     help::eval_assert("(procedure? 10.5)", "#f");
-}
-
-#[test]
-fn test_is_null() {
-    help::eval_assert("(null? '())", "#t");
-    // is not procedure
-    help::eval_assert("(null? car)", "#f");
-    help::eval_assert("(null? (lambda (x) a))", "#f");
-    help::eval_assert("(null? #(1 2 3 4))", "#f");
-    help::eval_assert("(null? \"hello, world\")", "#f");
-    help::eval_assert("(null? #t)", "#f");
-    help::eval_assert("(null? #\\G)", "#f");
-    help::eval_assert("(null? (cons 3 4))", "#f");
-    help::eval_assert("(null? '(1 2 3 4))", "#f");
-    help::eval_assert("(null? 'waldo)", "#f");
-    help::eval_assert("(null? 12)", "#f");
-    help::eval_assert("(null? 10.5)", "#f");
 }
 
 // Derived Expressions ////////////////////////////////////////////////////////

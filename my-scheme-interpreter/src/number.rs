@@ -1,5 +1,4 @@
 use std::fmt;
-use std::hash::{Hash, Hasher};
 
 // Number type
 // Currently only has i64 and f64.
@@ -113,19 +112,6 @@ impl ScmNumber {
         match *self {
             ScmNumber::Integer(_) => false,
             ScmNumber::Float(_) => true,
-        }
-    }
-}
-
-// TODO the float hash is a hack and could cause problems, but equality on
-// floats is just not a guarantee. I suppose it would be smart to discourage
-// using floats as hash keys. For now at least only the env actually uses
-// the hash map and will always use symbols.
-impl Hash for ScmNumber {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match *self {
-            ScmNumber::Integer(i) => i.hash(state),
-            ScmNumber::Float(f) => format!("{f}").hash(state),
         }
     }
 }

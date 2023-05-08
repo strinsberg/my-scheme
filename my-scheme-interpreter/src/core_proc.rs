@@ -31,7 +31,10 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::IsPair => is_pair(args),
         Builtin::IsVector => is_vector(args),
         Builtin::IsProcedure => is_procedure(args),
-        Builtin::IsEmpty => is_empty(args),
+        // lists
+        Builtin::SetCar => set_car(args),
+        Builtin::SetCdr => set_cdr(args),
+        Builtin::IsList => is_list(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -82,7 +85,8 @@ pub fn cons(args: Vec<ScmVal>) -> ValResult {
 pub fn car(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(cell) | ScmVal::DottedPair(cell) => Ok(cell.borrow().head.clone()),
+            ScmVal::Pair(cell) => Ok(cell.head.clone()),
+            ScmVal::PairMut(cell) => Ok(cell.borrow().head.clone()),
             _ => Err(ScmErr::BadArgType(
                 "car".to_owned(),
                 "pair".to_owned(),
@@ -97,7 +101,8 @@ pub fn car(args: Vec<ScmVal>) -> ValResult {
 pub fn cdr(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(cell) => Ok(cell.borrow().tail.clone()),
+            ScmVal::Pair(cell) => Ok(cell.tail.clone()),
+            ScmVal::PairMut(cell) => Ok(cell.borrow().tail.clone()),
             _ => Err(ScmErr::BadArgType(
                 "cdr".to_owned(),
                 "pair".to_owned(),
@@ -251,7 +256,7 @@ pub fn is_string(args: Vec<ScmVal>) -> ValResult {
 pub fn is_pair(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(_) | ScmVal::DottedPair(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::Pair(_) | ScmVal::PairMut(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {
@@ -281,14 +286,58 @@ pub fn is_procedure(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
-pub fn is_empty(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
+// Lists //////////////////////////////////////////////////////////////////////
+
+pub fn set_car(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 2 {
         match args[0].clone() {
-            ScmVal::Empty => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
+            ScmVal::PairMut(cell) => cell.borrow_mut().head = args[1].clone(),
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "set-car!".to_owned(),
+                    "mutable pair".to_owned(),
+                    args[0].clone(),
+                ))
+            }
         }
     } else {
-        Err(ScmErr::Arity("null?".to_owned(), 1))
+        return Err(ScmErr::Arity("set-car!".to_owned(), 2));
+    }
+    Ok(ScmVal::Empty)
+}
+
+pub fn set_cdr(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 2 {
+        match args[0].clone() {
+            ScmVal::PairMut(cell) => cell.borrow_mut().tail = args[1].clone(),
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "set-cdr!".to_owned(),
+                    "mutable pair".to_owned(),
+                    args[0].clone(),
+                ))
+            }
+        }
+    } else {
+        return Err(ScmErr::Arity("set-cdr!".to_owned(), 2));
+    }
+    Ok(ScmVal::Empty)
+}
+
+pub fn is_list(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        let (vec, dotted, cyclic) = ScmVal::list_to_vec(args[0].clone()).ok_or(
+            ScmErr::BadArgType("list?".to_owned(), "pair".to_owned(), args[0].clone()),
+        )?;
+        if vec.len() == 0 {
+            Ok(ScmVal::Boolean(true))
+        } else if dotted || cyclic {
+            Ok(ScmVal::Boolean(false))
+        } else {
+            Ok(ScmVal::Boolean(true))
+        }
+    } else {
+        Err(ScmErr::Arity("list?".to_owned(), 1))
     }
 }
 

@@ -50,6 +50,7 @@ impl fmt::Display for Token {
 //
 // Scanner ////////////////////////////////////////////////////////////////////
 
+#[derive(Debug)]
 pub struct Scanner {
     pub line: usize,
     idx: usize,

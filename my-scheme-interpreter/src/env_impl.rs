@@ -133,7 +133,10 @@ impl Env {
                     ScmVal::new_sym("procedure?"),
                     ScmVal::Core(Builtin::IsProcedure),
                 ),
-                (ScmVal::new_sym("null?"), ScmVal::Core(Builtin::IsEmpty)),
+                // Lists
+                (ScmVal::new_sym("set-car!"), ScmVal::Core(Builtin::SetCar)),
+                (ScmVal::new_sym("set-cdr!"), ScmVal::Core(Builtin::SetCdr)),
+                (ScmVal::new_sym("list?"), ScmVal::Core(Builtin::IsList)),
                 // Vectors
                 (
                     ScmVal::new_sym("make-vector"),

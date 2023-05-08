@@ -2,6 +2,7 @@ mod help;
 
 #[test]
 fn test_string_eval() {
+    help::eval_assert("\"with double \\\" quote\"", "\"with double \\\" quote\"");
     help::eval_assert("\"hello, world!\"", "\"hello, world!\"");
     help::eval_assert("\"hello,\\n world!\"", "\"hello,\\n world!\"");
     help::eval_assert("\"hello,\\t world!\\0\"", "\"hello,\\t world!\\0\"");

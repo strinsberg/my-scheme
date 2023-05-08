@@ -62,6 +62,7 @@ impl ScmString {
                     "ScmString should not contain unsupported ScmChars: {:?}",
                     ascii
                 ),
+                ScmChar::Char(ch) if *ch == '"' as u8 => "\\\"".to_owned(),
                 _ => ascii.to_string(),
             })
             .collect();

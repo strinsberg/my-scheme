@@ -13,6 +13,7 @@ use std::rc::Rc;
 // to get the same effect as we have now. Makes more sense than rewriting the
 // logic in here (worse for the scanner) just to have an i/o object.
 
+#[derive(Debug)]
 pub struct StringReader {
     scanner: Scanner,
 }
@@ -155,6 +156,7 @@ mod tests {
     #[test]
     fn test_reading_lists() {
         // This is kind of brittle
+        println!("help");
         let expr = "(1 2 3 4)";
         let result = StringReader::new(expr).read().unwrap().to_string();
         assert_eq!(result, expr);
