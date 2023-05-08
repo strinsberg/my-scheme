@@ -1,10 +1,5 @@
 mod help;
 
-// TODO examples in the standard that do not make sense to me
-// (let (f) (list 'non-constant-list) (set-car! (f) 3)) => unsecified
-// (let (g) '(constant-list) (set-car! (g) 3)) => error
-//
-
 #[test]
 fn test_is_pair() {
     help::eval_assert("(pair? (cons 1 2))", "#t");

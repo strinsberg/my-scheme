@@ -1,3 +1,4 @@
+use crate::builtin::Builtin;
 use crate::number::ScmNumber;
 use crate::string::{ScmChar, ScmString};
 use std::cell::RefCell;
@@ -15,12 +16,6 @@ use std::rc::Rc;
 // a panic until I get it figured out. This won't affect the standard, but will
 // affect adding hash tables later.
 //
-// TODO count cons cells? Probably requires using ScmVal::cons everywhere a pair
-// is made instead of ScmVal::new_pair. If it is used in vec_to_list then it helps
-// catch those places too. This is not really a priority, as I am not sure that
-// other schemes do this. Counting lists is discouraged because it is o(n) and
-// counting them would stop that, but would increase the space needed for cells
-// by a fair amount just to allow quick counting.
 // TODO add name to closure?
 
 // Scheme Values //////////////////////////////////////////////////////////////
@@ -330,91 +325,10 @@ fn display_vec_mut(f: &mut fmt::Formatter, vec: Rc<RefCell<Vec<ScmVal>>>) -> fmt
     write!(f, "#({})", vec_string.join(" "))
 }
 
-// Builtin Procedures /////////////////////////////////////////////////////////
-
-// A way to properly identify builtin procedures so that their rust functions
-// can be used and they appear different from Closures. The u8 is the arity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Builtin {
-    Cons,
-    Car,
-    Cdr,
-    Eval,
-    Apply,
-    // arithmetic
-    Sum,
-    Subtract,
-    Product,
-    Divide,
-    // predicates
-    IsBool,
-    IsSymbol,
-    IsChar,
-    IsNumber,
-    IsString,
-    IsProcedure,
-    IsPair,
-    IsVector,
-    // Lists,
-    SetCar,
-    SetCdr,
-    IsList,
-    // Vectors
-    MakeVec,
-    Vector,
-    VecSet,
-    VecRef,
-    VecLen,
-    VecToList,
-    VecFill,
-    // TODO no push, pop, and concat/append in the standards???
-    // other
-    EQ,
-    Eqv,
-    BaseEnv,
-}
-
-impl fmt::Display for Builtin {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match self {
-            Builtin::Sum => "+",
-            Builtin::Subtract => "-",
-            Builtin::Product => "*",
-            Builtin::Divide => "/",
-            //
-            Builtin::IsBool => "boolean?",
-            Builtin::IsSymbol => "symbol?",
-            Builtin::IsChar => "char?",
-            Builtin::IsNumber => "number?",
-            Builtin::IsString => "string?",
-            Builtin::IsProcedure => "procedure?",
-            Builtin::IsPair => "pair?",
-            Builtin::IsVector => "vector?",
-            //
-            Builtin::SetCar => "set-car?",
-            Builtin::SetCdr => "set-car?",
-            // Vectors
-            Builtin::MakeVec => "make-vector",
-            Builtin::VecSet => "vector-set!",
-            Builtin::VecRef => "vector-ref",
-            Builtin::VecLen => "vector-length",
-            Builtin::VecToList => "vector->list",
-            Builtin::VecFill => "vector-fill!",
-            //
-            Builtin::EQ => "eq?",
-            Builtin::Eqv => "eqv?",
-            Builtin::BaseEnv => "null-environment",
-            b => return write!(f, "{}", format!("{:?}", b).to_lowercase()),
-        };
-        write!(f, "{}", s)
-    }
-}
-
 // Cons Cells /////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConsCell {
-    pub count: usize,
     pub head: ScmVal,
     pub tail: ScmVal,
 }
@@ -422,7 +336,6 @@ pub struct ConsCell {
 impl ConsCell {
     pub fn default() -> ConsCell {
         ConsCell {
-            count: 0,
             head: ScmVal::Empty,
             tail: ScmVal::Empty,
         }
@@ -430,7 +343,6 @@ impl ConsCell {
 
     pub fn new(head: ScmVal, tail: ScmVal) -> ConsCell {
         ConsCell {
-            count: 0,
             head: head,
             tail: tail,
         }

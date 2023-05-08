@@ -1,5 +1,6 @@
+use crate::builtin::ALL_BUILTINS;
 use crate::error::{ScmErr, ScmResult, ValResult};
-use crate::types::{Builtin, Env, Map, ScmVal};
+use crate::types::{Env, Map, ScmVal};
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::iter::zip;
@@ -102,66 +103,18 @@ impl Env {
     }
 
     pub fn new_null_rc() -> Rc<RefCell<Env>> {
+        Env::new_builtin_env()
+    }
+
+    // Uses the builtin list to create pairs with symbols and core procs that
+    // can be added to the env
+    pub fn new_builtin_env() -> Rc<RefCell<Env>> {
+        let pairs = ALL_BUILTINS
+            .iter()
+            .map(|b| (ScmVal::new_sym(&format!("{b}")), ScmVal::Core(b.clone())))
+            .collect();
         Rc::new(RefCell::new(
-            Env::new_with_bindings(vec![
-                (ScmVal::new_sym("apply"), ScmVal::Core(Builtin::Apply)),
-                (ScmVal::new_sym("eval"), ScmVal::Core(Builtin::Eval)),
-                (
-                    ScmVal::new_sym("null-environment"),
-                    ScmVal::Core(Builtin::BaseEnv),
-                ),
-                // List core
-                (ScmVal::new_sym("cons"), ScmVal::Core(Builtin::Cons)),
-                (ScmVal::new_sym("car"), ScmVal::Core(Builtin::Car)),
-                (ScmVal::new_sym("cdr"), ScmVal::Core(Builtin::Cdr)),
-                // Core Arithmetic
-                (ScmVal::new_sym("+"), ScmVal::Core(Builtin::Sum)),
-                (ScmVal::new_sym("-"), ScmVal::Core(Builtin::Subtract)),
-                (ScmVal::new_sym("*"), ScmVal::Core(Builtin::Product)),
-                (ScmVal::new_sym("/"), ScmVal::Core(Builtin::Divide)),
-                // Comparisson
-                (ScmVal::new_sym("eqv?"), ScmVal::Core(Builtin::Eqv)),
-                // Type Predicates
-                (ScmVal::new_sym("boolean?"), ScmVal::Core(Builtin::IsBool)),
-                (ScmVal::new_sym("char?"), ScmVal::Core(Builtin::IsChar)),
-                (ScmVal::new_sym("symbol?"), ScmVal::Core(Builtin::IsSymbol)),
-                (ScmVal::new_sym("number?"), ScmVal::Core(Builtin::IsNumber)),
-                (ScmVal::new_sym("string?"), ScmVal::Core(Builtin::IsString)),
-                (ScmVal::new_sym("pair?"), ScmVal::Core(Builtin::IsPair)),
-                (ScmVal::new_sym("vector?"), ScmVal::Core(Builtin::IsVector)),
-                (
-                    ScmVal::new_sym("procedure?"),
-                    ScmVal::Core(Builtin::IsProcedure),
-                ),
-                // Lists
-                (ScmVal::new_sym("set-car!"), ScmVal::Core(Builtin::SetCar)),
-                (ScmVal::new_sym("set-cdr!"), ScmVal::Core(Builtin::SetCdr)),
-                (ScmVal::new_sym("list?"), ScmVal::Core(Builtin::IsList)),
-                // Vectors
-                (
-                    ScmVal::new_sym("make-vector"),
-                    ScmVal::Core(Builtin::MakeVec),
-                ),
-                (ScmVal::new_sym("vector"), ScmVal::Core(Builtin::Vector)),
-                (
-                    ScmVal::new_sym("vector-set!"),
-                    ScmVal::Core(Builtin::VecSet),
-                ),
-                (ScmVal::new_sym("vector-ref"), ScmVal::Core(Builtin::VecRef)),
-                (
-                    ScmVal::new_sym("vector-length"),
-                    ScmVal::Core(Builtin::VecLen),
-                ),
-                (
-                    ScmVal::new_sym("vector->list"),
-                    ScmVal::Core(Builtin::VecToList),
-                ),
-                (
-                    ScmVal::new_sym("vector-fill!"),
-                    ScmVal::Core(Builtin::VecFill),
-                ),
-            ])
-            .expect("base env should not have any bad keys"),
+            Env::new_with_bindings(pairs).expect("builtin env should not have any bad keys"),
         ))
     }
 }
