@@ -57,7 +57,7 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                 .borrow()
                 .lookup(expr.clone())
                 .ok_or(ScmErr::Undeclared(name.to_string())),
-            // Cannot call a vector
+            // Cannot evaluate a vector
             ScmVal::Vector(_) | ScmVal::VectorMut(_) => Err(ScmErr::Syntax(expr)),
             // Lists have their first arg applied to the cdr
             ScmVal::PairMut(cell) => {
@@ -80,12 +80,16 @@ pub fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, top: bool) -> ValR
                     return Ok(expr);
                 }
             }
-            // String, Bool, Char, Vector, Closure, Procedure all eval to themselves
+            // String, Bool, Char, Closure, Procedure all eval to themselves
             _ => Ok(expr),
         };
     }
 }
 
+// I would dearly love to break this up or set it up to have fewer 3 tuples
+// that duplicate things. Possibly the average function could set a local expr
+// var and then that and the env and true/false could be returned at the end,
+// then those items that need to be more specific could just return directly.
 pub fn eval_pair(
     cell: ConsCell,
     expr: ScmVal,
@@ -120,8 +124,8 @@ pub fn eval_pair(
         return Ok((eval_let_star(args, Rc::clone(&env))?, Rc::clone(&env), true));
     } else if cell.head == ScmVal::new_sym("letrec") {
         return Ok((eval_letrec(args)?, Rc::clone(&env), true));
-    //  other derived expression, would be best to use macros, but they
-    //  are not implemented yet.
+
+    //  Other derived expression, would be best to use macros but they work here
     } else if cell.head == ScmVal::new_sym("and") {
         return Ok((eval_and(args, Rc::clone(&env))?, Rc::clone(&env), true));
     } else if cell.head == ScmVal::new_sym("or") {
@@ -136,7 +140,11 @@ pub fn eval_pair(
     } else if cell.head == ScmVal::new_sym("case") {
         return Ok((eval_case(args, Rc::clone(&env))?, Rc::clone(&env), true));
     }
-    // case, named-let, delay, quasiquote(`)
+
+    // If none of the above builtin expressions are correct we evaluate the
+    // proc and arguments and try some other options, including all the builtin
+    // procedures. If they all fail it is a syntax error as the function call is
+    // either malformed or the procedure is not valid.
 
     // Eval the list elements
     let proc = eval_tco(cell.head.clone(), Rc::clone(&env), false)?;
@@ -159,45 +167,6 @@ pub fn eval_pair(
         }
     } else {
         Err(ScmErr::Syntax(expr))
-    }
-}
-
-pub fn plain_eval(
-    head: ScmVal,
-    args: Vec<ScmVal>,
-    env: Rc<RefCell<Env>>,
-    is_top_level: bool,
-) -> Option<ValResult> {
-    if let ScmVal::Symbol(name) = head {
-        match name.to_string().as_str() {
-            "quote" => Some(Ok(args[0].clone())),
-            "lambda" => Some(eval_lambda(args, Rc::clone(&env))),
-            "set!" => Some(eval_set(args, env)),
-            "define" if is_top_level => Some(eval_define(args, env)),
-            "define" => Some(Err(ScmErr::InnerDefine)),
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
-
-pub fn need_toc_eval(head: ScmVal, args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> Option<ValResult> {
-    if let ScmVal::Symbol(name) = head {
-        match name.to_string().as_str() {
-            "if" => Some(eval_if(args, Rc::clone(&env))),
-            "let" => Some(eval_let(args, Rc::clone(&env))),
-            "let*" => Some(eval_let_star(args, Rc::clone(&env))),
-            "letrec" => Some(eval_letrec(args)),
-            "and" => Some(eval_and(args, Rc::clone(&env))),
-            "do" => Some(eval_do(args)),
-            "begin" => Some(eval_begin(args, Rc::clone(&env))),
-            "cond" => Some(eval_cond(args, Rc::clone(&env))),
-            "case" => Some(eval_case(args, Rc::clone(&env))),
-            _ => None,
-        }
-    } else {
-        None
     }
 }
 
