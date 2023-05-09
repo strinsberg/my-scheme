@@ -173,11 +173,15 @@ fn eval_pair_with_symbol_head(
     is_top_level: bool,
     env: Rc<RefCell<Env>>,
 ) -> ScmResult<(ScmVal, Rc<RefCell<Env>>, Tco)> {
-    let lookup = env.borrow().lookup(head.clone());
+    // To make helper calls and returns cleaner by reducing Rc::clone(&env) calls and 3 tuples
+    let clone_env = Rc::clone(&env);
+    let do_tco = |val| Ok((val, Rc::clone(&clone_env), Tco::Yes));
+    let dont_tco = |val| Ok((val, Rc::clone(&clone_env), Tco::No));
+
+    // Check if the symbol has been bound and evaluate accordingly
+    let lookup = clone_env.borrow().lookup(head.clone());
     match lookup {
-        // Symbol has a bound value so replace head and eval again. NEEDS tco.
-        Some(proc) => Ok((ScmVal::cons(proc, tail.clone()), Rc::clone(&env), Tco::Yes)),
-        // No bound value so evaluate it as a keyword or derived expression
+        Some(proc) => do_tco(ScmVal::cons(proc, tail.clone())),
         None => {
             // create an args vector and error if the list is improper
             let (args, dotted, _) = ScmVal::list_to_vec(tail.clone())
@@ -188,46 +192,30 @@ fn eval_pair_with_symbol_head(
 
             match name {
                 // These do not need their results evaluated with tco
-                "quote" => Ok((args[0].clone(), Rc::clone(&env), Tco::No)),
-                "lambda" => Ok((
-                    eval_lambda(args, Rc::clone(&env))?,
-                    Rc::clone(&env),
-                    Tco::No,
-                )),
-                "set!" => Ok((eval_set(args, Rc::clone(&env))?, Rc::clone(&env), Tco::No)),
+                "quote" => dont_tco(args[0].clone()),
+                "lambda" => dont_tco(eval_lambda(args, env)?),
+                "set!" => dont_tco(eval_set(args, env)?),
                 "define" => {
                     if is_top_level {
-                        Ok((
-                            eval_define(args, Rc::clone(&env))?,
-                            Rc::clone(&env),
-                            Tco::No,
-                        ))
+                        dont_tco(eval_define(args, env)?)
                     } else {
                         Err(ScmErr::InnerDefine)
                     }
                 }
                 // These NEED their results evalated with tco
-                "if" => Ok((eval_if(args, Rc::clone(&env))?, Rc::clone(&env), Tco::Yes)),
-                "let" => Ok((eval_let(args, Rc::clone(&env))?, Rc::clone(&env), Tco::Yes)),
-                "let*" => Ok((
-                    eval_let_star(args, Rc::clone(&env))?,
-                    Rc::clone(&env),
-                    Tco::Yes,
-                )),
-                "letrec" => Ok((eval_letrec(args)?, Rc::clone(&env), Tco::Yes)),
-                "and" => Ok((eval_and(args, Rc::clone(&env))?, Rc::clone(&env), Tco::Yes)),
+                "if" => do_tco(eval_if(args, env)?),
+                "let" => do_tco(eval_let(args, env)?),
+                "let*" => do_tco(eval_let_star(args, env)?),
+                "letrec" => do_tco(eval_letrec(args)?),
+                "and" => do_tco(eval_and(args, env)?),
                 "or" => {
                     let (result, do_tco) = eval_or(args, Rc::clone(&env));
-                    Ok((result?, Rc::clone(&env), do_tco))
+                    Ok((result?, env, do_tco))
                 }
-                "do" => Ok((eval_do(args)?, Rc::clone(&env), Tco::Yes)),
-                "begin" => Ok((
-                    eval_begin(args, Rc::clone(&env))?,
-                    Rc::clone(&env),
-                    Tco::Yes,
-                )),
-                "cond" => Ok((eval_cond(args, Rc::clone(&env))?, Rc::clone(&env), Tco::Yes)),
-                "case" => Ok((eval_case(args, Rc::clone(&env))?, Rc::clone(&env), Tco::Yes)),
+                "do" => do_tco(eval_do(args)?),
+                "begin" => do_tco(eval_begin(args, env)?),
+                "cond" => do_tco(eval_cond(args, env)?),
+                "case" => do_tco(eval_case(args, env)?),
                 // Add aditional derived expressions here
 
                 // Undeclared name
