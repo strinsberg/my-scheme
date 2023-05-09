@@ -53,7 +53,7 @@ fn test_set_car() {
         "mutable pair",
         "(1 2 3)",
     );
-    // strange from standard
+    // from standard
     help::eval_assert(
         "(define (f) (list 'non-constant-list)) (set-car! (f) 3)",
         "()",
@@ -129,27 +129,45 @@ fn test_is_list() {
     help::eval_assert("(list? '(1 . 2))", "#f");
     help::eval_assert("(let ((x (list 'a))) (set-cdr! x x) (list? x))", "#f");
     // is not list
-    help::eval_assert("(null? car)", "#f");
-    help::eval_assert("(null? (lambda (x) a))", "#f");
-    help::eval_assert("(null? '#(1 2 3 4))", "#f");
-    help::eval_assert("(null? \"hello, world\")", "#f");
-    help::eval_assert("(null? #t)", "#f");
-    help::eval_assert("(null? #\\G)", "#f");
-    help::eval_assert("(null? (cons 3 4))", "#f");
-    help::eval_assert("(null? 'waldo)", "#f");
-    help::eval_assert("(null? 12)", "#f");
-    help::eval_assert("(null? 10.5)", "#f");
+    help::eval_assert("(list? car)", "#f");
+    help::eval_assert("(list? (lambda (x) a))", "#f");
+    help::eval_assert("(list? '#(1 2 3 4))", "#f");
+    help::eval_assert("(list? \"hello, world\")", "#f");
+    help::eval_assert("(list? #t)", "#f");
+    help::eval_assert("(list? #\\G)", "#f");
+    help::eval_assert("(list? (cons 3 4))", "#f");
+    help::eval_assert("(list? 'waldo)", "#f");
+    help::eval_assert("(list? 12)", "#f");
+    help::eval_assert("(list? 10.5)", "#f");
 }
 
 // length
+#[test]
+fn test_length() {
+    help::eval_assert("(length '(1 2 3 4))", "4");
+    help::eval_assert("(length (list 1 2 '(a b c) 3 4))", "5");
+    help::eval_bad_arg_error("(length 34)", "length", "proper list", "34");
+    help::eval_bad_arg_error("(length '(1 2 . 3))", "length", "proper list", "(1 2 . 3)");
+    help::eval_bad_arg_error(
+        "(let ((x (list 'a))) (set-cdr! x x) (length x))",
+        "length",
+        "proper list",
+        "(a . #cyclic#)",
+    );
+}
+
 // append
 // reverse
+// list-tail
 // list-ref
 
 // others memq, memv, member, assq, assv, assoc
 
 #[test]
-fn test_shared_prefixes() {
+fn test_other() {
+    // cyclic list display
+    help::eval_assert("(let ((x (list 'a))) (set-cdr! x x) x)", "(a . #cyclic#)");
+    // shared prefixes are not affected
     help::eval_assert("(define x '(1 2 3)) (cons 5 x)", "(5 1 2 3)");
     help::eval_assert("(define x '(1 2 3)) (cons 5 x) x", "(1 2 3)");
 }

@@ -21,6 +21,7 @@ pub enum Token {
     CommaAt,
     Dot,
     EOF,
+    Cyclic,
 }
 
 impl fmt::Display for Token {
@@ -40,6 +41,7 @@ impl fmt::Display for Token {
             Token::CommaAt => write!(f, ",@"),
             Token::Dot => write!(f, "."),
             Token::EOF => write!(f, "EOF"),
+            Token::Cyclic => write!(f, "#cyclic#"),
         }
     }
 }
@@ -126,6 +128,7 @@ impl Scanner {
             '\\' => self.scan_char(),
             '(' => Ok(Token::VecOpen),
             't' | 'f' | 'T' | 'F' => self.scan_bool(byte),
+            'c' => self.scan_cyclic(),
             _ => Err(ScmErr::BadChar(self.line, ch)),
         }
     }
@@ -156,6 +159,14 @@ impl Scanner {
             "t" | "true" => Ok(Token::Boolean(true)),
             "f" | "false" => Ok(Token::Boolean(false)),
             name => Err(ScmErr::BadIdentifier(self.line, format!("#{}", name))),
+        }
+    }
+
+    fn scan_cyclic(&mut self) -> ScanResult {
+        let bytes = self.scan_bytes('c' as u8);
+        match as_string(&bytes).as_str() {
+            "cyclic#" => Ok(Token::Cyclic),
+            ident => Err(ScmErr::BadIdentifier(self.line, format!("#{}", ident))),
         }
     }
 

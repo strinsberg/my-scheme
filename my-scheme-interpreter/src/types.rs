@@ -25,6 +25,7 @@ pub enum ScmVal {
     Vector(Rc<Vec<ScmVal>>),
     VectorMut(Rc<RefCell<Vec<ScmVal>>>),
     Undefined,
+    Cyclic,
     Empty,
 }
 
@@ -98,11 +99,17 @@ impl ScmVal {
     }
 
     pub fn list_to_vec(val: ScmVal) -> Option<(Vec<ScmVal>, bool, bool)> {
+        let iter = match val {
+            ScmVal::Pair(_) | ScmVal::PairMut(_) => ListPairIter::new(val),
+            ScmVal::Empty => return Some((vec![], false, false)),
+            _ => return None,
+        };
+
         let mut dotted = false;
         let mut cyclic = false;
         let mut vals = Vec::new();
 
-        for pair in ListPairIter::new(val) {
+        for pair in iter {
             match pair {
                 ScmVal::Pair(cell) => {
                     vals.push(cell.head.clone());
@@ -118,7 +125,7 @@ impl ScmVal {
                         vals.push(cell.borrow().tail.clone());
                     }
                 }
-                ScmVal::Undefined => {
+                ScmVal::Cyclic => {
                     cyclic = true;
                     dotted = true;
                 }
@@ -154,6 +161,7 @@ impl ScmVal {
             ScmVal::Vector(val) => ScmVal::extern_vec(Rc::clone(val)),
             ScmVal::VectorMut(val) => ScmVal::extern_vec_mut(Rc::clone(val)),
             ScmVal::Empty => "()".to_string(),
+            ScmVal::Cyclic => "#cyclic#".to_string(),
             val => format!("{:?}", val),
         }
     }
@@ -170,11 +178,13 @@ impl ScmVal {
         let (vec, dotted, cyclic) =
             ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
         let strings: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
-        ScmVal::format_list(&strings, dotted || cyclic)
+        ScmVal::format_list(&strings, dotted, cyclic)
     }
 
-    fn format_list(strings: &[String], dotted: bool) -> String {
-        if dotted {
+    fn format_list(strings: &[String], dotted: bool, cyclic: bool) -> String {
+        if cyclic {
+            format!("({} . #cyclic#)", strings.join(" "),)
+        } else if dotted {
             format!(
                 "({} . {})",
                 strings[..strings.len() - 1].join(" "),
@@ -231,7 +241,7 @@ fn display_list(f: &mut fmt::Formatter, val: ScmVal) -> fmt::Result {
     let (vec, dotted, cyclic) =
         ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
     let strings: Vec<String> = vec.iter().map(|v| v.to_string()).collect();
-    write!(f, "{}", ScmVal::format_list(&strings, dotted || cyclic))
+    write!(f, "{}", ScmVal::format_list(&strings, dotted, cyclic))
 }
 
 fn display_vec(f: &mut fmt::Formatter, vec: Rc<Vec<ScmVal>>) -> fmt::Result {
@@ -292,7 +302,10 @@ impl ListPairIter {
     }
 }
 
-// Terminates on cycles with last before none being ScmVal::Undefined
+// TODO we can save a cons cell by cloning the ConsCell inside of both the
+// rc and refcell, so that we do not have to match both types of pair.
+
+// Terminates on cycles returning ScmVal::Cyclic before None
 impl Iterator for ListPairIter {
     type Item = ScmVal;
 
@@ -302,7 +315,7 @@ impl Iterator for ListPairIter {
                 let next = self.pair.clone();
                 if self.seen.contains(&Rc::as_ptr(&cell)) {
                     self.pair = ScmVal::Empty;
-                    return Some(ScmVal::Undefined);
+                    return Some(ScmVal::Cyclic);
                 } else if cell.is_dotted() {
                     self.pair = ScmVal::Empty;
                 } else {
@@ -318,7 +331,7 @@ impl Iterator for ListPairIter {
                     .contains(&(RefCell::as_ptr(&cell) as *const ConsCell))
                 {
                     self.pair = ScmVal::Empty;
-                    return Some(ScmVal::Undefined);
+                    return Some(ScmVal::Cyclic);
                 } else if cell.borrow().is_dotted() {
                     self.pair = ScmVal::Empty;
                 } else {
@@ -355,7 +368,7 @@ impl ListValIter {
     }
 }
 
-// Terminates on cycles, returns undefined before none
+// Terminates on cycles returning ScmVal::Cyclic before None
 impl Iterator for ListValIter {
     type Item = ScmVal;
 
@@ -364,7 +377,7 @@ impl Iterator for ListValIter {
             return None;
         } else if self.seen.contains(&self.pair.clone()) {
             self.done = true;
-            return Some(ScmVal::Undefined);
+            return Some(ScmVal::Cyclic);
         } else {
             self.seen.insert(self.pair.clone());
         }

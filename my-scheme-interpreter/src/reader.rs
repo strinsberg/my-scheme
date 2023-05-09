@@ -53,6 +53,7 @@ impl StringReader {
             Token::LParen => self.read_list(),
             Token::VecOpen => self.read_vector(),
             Token::Quote => self.read_quote(),
+            Token::Cyclic => Ok(ScmVal::Cyclic),
             tk => Err(ScmErr::BadToken(self.scanner.line, tk)),
         }
     }

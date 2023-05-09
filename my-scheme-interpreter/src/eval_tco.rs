@@ -99,6 +99,7 @@ fn eval_tco(value: ScmVal, environment: Rc<RefCell<Env>>, is_top_level: bool) ->
                     Tco::No => return Ok(expr),
                 }
             }
+            ScmVal::Cyclic => Err(ScmErr::Syntax(expr)),
             // String, Bool, Char, Closure, Procedure all eval to themselves
             _ => Ok(expr),
         };

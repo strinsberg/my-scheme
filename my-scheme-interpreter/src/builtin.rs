@@ -33,6 +33,7 @@ pub enum Builtin {
     SetCar,
     SetCdr,
     IsList,
+    Length,
     // Vectors
     MakeVec,
     Vector,
@@ -49,7 +50,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 30] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 31] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -73,6 +74,7 @@ pub const ALL_BUILTINS: &'static [Builtin; 30] = &[
     Builtin::SetCar,
     Builtin::SetCdr,
     Builtin::IsList,
+    Builtin::Length,
     // Vectors
     Builtin::MakeVec,
     Builtin::Vector,

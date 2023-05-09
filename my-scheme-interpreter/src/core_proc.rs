@@ -33,6 +33,7 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::SetCar => set_car(args),
         Builtin::SetCdr => set_cdr(args),
         Builtin::IsList => is_list(args),
+        Builtin::Length => list_length(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -324,15 +325,37 @@ pub fn set_cdr(args: Vec<ScmVal>) -> ValResult {
 
 pub fn is_list(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (vec, dotted, cyclic) = ScmVal::list_to_vec(args[0].clone()).ok_or(
-            ScmErr::BadArgType("list?".to_owned(), "pair".to_owned(), args[0].clone()),
-        )?;
-        if vec.len() == 0 {
-            Ok(ScmVal::Boolean(true))
-        } else if dotted || cyclic {
+        let (_, dotted, cyclic) = match ScmVal::list_to_vec(args[0].clone()) {
+            Some(res) => res,
+            None => return Ok(ScmVal::Boolean(false)),
+        };
+
+        if dotted || cyclic {
             Ok(ScmVal::Boolean(false))
         } else {
             Ok(ScmVal::Boolean(true))
+        }
+    } else {
+        Err(ScmErr::Arity("list?".to_owned(), 1))
+    }
+}
+
+pub fn list_length(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        let (vec, dotted, cyclic) =
+            ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
+                "length".to_owned(),
+                "proper list".to_owned(),
+                args[0].clone(),
+            ))?;
+        if dotted || cyclic {
+            Err(ScmErr::BadArgType(
+                "length".to_owned(),
+                "proper list".to_owned(),
+                args[0].clone(),
+            ))
+        } else {
+            Ok(ScmVal::new_int(vec.len() as i64))
         }
     } else {
         Err(ScmErr::Arity("list?".to_owned(), 1))
