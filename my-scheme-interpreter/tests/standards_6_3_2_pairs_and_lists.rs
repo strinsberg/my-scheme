@@ -141,7 +141,6 @@ fn test_is_list() {
     help::eval_assert("(list? 10.5)", "#f");
 }
 
-// length
 #[test]
 fn test_length() {
     help::eval_assert("(length '(1 2 3 4))", "4");
@@ -156,8 +155,38 @@ fn test_length() {
     );
 }
 
-// append
-// reverse
+#[test]
+fn test_append() {
+    help::eval_assert("(append '(1 2 3 4) '(5 6 7))", "(1 2 3 4 5 6 7)");
+    help::eval_assert(
+        "(append '(1 2 3 4) '(5 6 7) (list 8 9))",
+        "(1 2 3 4 5 6 7 8 9)",
+    );
+    help::eval_assert(
+        "(let ((a '(1 2 3 4)) (b '(5 6 7)) (c (list 8 9))) (append a b c))",
+        "(1 2 3 4 5 6 7 8 9)",
+    );
+    // check that the stored lists are not altered
+    help::eval_assert(
+        "(let ((a '(1 2 3 4)) (b '(5 6 7)) (c (list 8 9))) (append a b c) a)",
+        "(1 2 3 4)",
+    );
+    help::eval_assert(
+        "(let ((a '(1 2 3 4)) (b '(5 6 7)) (c (list 8 9))) (append a b c) b)",
+        "(5 6 7)",
+    );
+    help::eval_assert(
+        "(let ((a '(1 2 3 4)) (b '(5 6 7)) (c (list 8 9))) (append a b c) c)",
+        "(8 9)",
+    );
+}
+
+#[test]
+fn test_reverse() {
+    help::eval_assert("(reverse '(1 2 3 4 5))", "(5 4 3 2 1)");
+    help::eval_assert("(reverse '(1 (2 3) 4 (5 (6))))", "((5 (6)) 4 (2 3) 1)");
+}
+
 // list-tail
 // list-ref
 

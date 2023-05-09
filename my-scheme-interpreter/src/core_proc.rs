@@ -34,6 +34,8 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::SetCdr => set_cdr(args),
         Builtin::IsList => is_list(args),
         Builtin::Length => list_length(args),
+        Builtin::Reverse => list_reverse(args),
+        Builtin::Append => list_append(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -356,6 +358,61 @@ pub fn list_length(args: Vec<ScmVal>) -> ValResult {
             ))
         } else {
             Ok(ScmVal::new_int(vec.len() as i64))
+        }
+    } else {
+        Err(ScmErr::Arity("list?".to_owned(), 1))
+    }
+}
+
+pub fn list_append(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        let shared = args[args.len() - 1].clone();
+        let mut appended = Vec::new();
+
+        for arg in args[..args.len() - 1].into_iter() {
+            let (arg_vec, dotted, cyclic) =
+                ScmVal::list_to_vec(arg.clone()).ok_or(ScmErr::BadArgType(
+                    "append".to_owned(),
+                    "proper list".to_owned(),
+                    args[0].clone(),
+                ))?;
+            if dotted || cyclic {
+                return Err(ScmErr::BadArgType(
+                    "append".to_owned(),
+                    "proper list".to_owned(),
+                    args[0].clone(),
+                ));
+            } else {
+                for a in arg_vec.into_iter() {
+                    appended.push(a)
+                }
+            }
+        }
+        Ok(ScmVal::vec_to_list(appended, shared))
+    } else {
+        Err(ScmErr::Arity("list?".to_owned(), 1))
+    }
+}
+
+pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 1 {
+        let (arg_vec, dotted, cyclic) =
+            ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
+                "reverse".to_owned(),
+                "proper list".to_owned(),
+                args[0].clone(),
+            ))?;
+        if dotted || cyclic {
+            return Err(ScmErr::BadArgType(
+                "length".to_owned(),
+                "proper list".to_owned(),
+                args[0].clone(),
+            ));
+        } else {
+            Ok(ScmVal::vec_to_list(
+                arg_vec.into_iter().rev().collect(),
+                ScmVal::Empty,
+            ))
         }
     } else {
         Err(ScmErr::Arity("list?".to_owned(), 1))
