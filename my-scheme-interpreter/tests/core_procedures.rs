@@ -463,3 +463,11 @@ fn test_vector_operations() {
 fn test_eval_mutable_list() {
     help::eval_assert("(eval (list '+ 1 2) (null-environment))", "3");
 }
+
+// Other //////////////////////////////////////////////////////////////////////
+
+#[test]
+fn test_redefining_keywords() {
+    help::eval_assert("(define if 4) if", "4");
+    help::eval_assert("(define (if x) (+ x 1)) (if 4)", "5");
+}

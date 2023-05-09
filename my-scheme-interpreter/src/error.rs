@@ -1,12 +1,9 @@
 use crate::scanner::Token;
-use crate::types::{Env, ScmVal};
-use std::cell::RefCell;
+use crate::types::ScmVal;
 use std::fmt;
-use std::rc::Rc;
 
 pub type ScmResult<T> = Result<T, ScmErr>;
 pub type ValResult = ScmResult<ScmVal>;
-pub type TcoResult = ScmResult<(ScmVal, Rc<RefCell<Env>>)>;
 pub type ScanResult = ScmResult<Token>;
 
 #[derive(Debug, Clone, PartialEq)]
