@@ -157,6 +157,9 @@ fn test_length() {
 
 #[test]
 fn test_append() {
+    help::eval_assert("(append '(1 2 3 4) '(5 6 . 7))", "(1 2 3 4 5 6 . 7)");
+    help::eval_assert("(append '() 'a)", "a");
+    help::eval_assert("(append '(1 (2)) '(3))", "(1 (2) 3)");
     help::eval_assert("(append '(1 2 3 4) '(5 6 7))", "(1 2 3 4 5 6 7)");
     help::eval_assert(
         "(append '(1 2 3 4) '(5 6 7) (list 8 9))",
