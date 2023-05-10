@@ -46,6 +46,9 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::VecLen => vector_length(args),
         Builtin::VecToList => vector_to_list(args),
         Builtin::VecFill => vector_fill(args),
+        // Error
+        Builtin::Error => user_error(args),
+        Builtin::ArgTypeError => user_arg_type_error(args),
         _ => panic!("unsupported builtin: {:?}", op),
     }
 }
@@ -700,4 +703,29 @@ pub fn vector_fill(args: Vec<ScmVal>) -> ValResult {
     };
 
     Ok(ScmVal::Empty)
+}
+
+// Errors /////////////////////////////////////////////////////////////////////
+fn user_error(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("error!".to_owned(), 3));
+    }
+
+    Err(ScmErr::Error(
+        args[0].to_string(),
+        args[1].to_string(),
+        args[2..].into(),
+    ))
+}
+
+fn user_arg_type_error(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 3 {
+        return Err(ScmErr::Arity("arg-type-error!".to_owned(), 3));
+    }
+
+    Err(ScmErr::BadArgType(
+        args[0].to_string(),
+        args[2].to_string(),
+        args[1].clone(),
+    ))
 }

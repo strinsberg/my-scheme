@@ -34,3 +34,22 @@ fn test_bad_arithmetic_errors() {
 fn test_bad_binding_error() {
     help::eval_bad_binding_error("(let ((4 99)) 99)", "4");
 }
+
+// User errors
+#[test]
+fn test_general_user_errors() {
+    help::eval_assert(
+        "(error! \"func\" \"you made a mistake\" 45 '(1 2 3))",
+        "Error in func: you made a mistake\nIrritants: 45 (1 2 3)",
+    );
+    help::eval_assert(
+        "(error! \"func\" \"you made a mistake\")",
+        "Error in func: you made a mistake",
+    );
+    help::eval_bad_arg_error(
+        "(arg-type-error! \"func\" 45 \"pair\")",
+        "func",
+        "pair",
+        "45",
+    );
+}

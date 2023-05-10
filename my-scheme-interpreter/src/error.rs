@@ -26,6 +26,7 @@ pub enum ScmErr {
     // General
     Syntax(ScmVal),
     InnerDefine,
+    Error(String, String, Vec<ScmVal>),
 }
 
 impl fmt::Display for ScmErr {
@@ -56,7 +57,7 @@ impl fmt::Display for ScmErr {
                 write!(f, "Error: undeclared symbol: {sym}")
             }
             ScmErr::Arity(name, n) => {
-                write!(f, "Error: {name} requires at least {n} arguments")
+                write!(f, "Error in {name}: requires at least {n} arguments")
             }
             ScmErr::BadArgType(name, kind, expr) => {
                 write!(f, "Error in {name}: {expr} is not a {kind}")
@@ -75,6 +76,21 @@ impl fmt::Display for ScmErr {
             }
             ScmErr::Syntax(expr) => {
                 write!(f, "Error: invalid syntax: {expr}")
+            }
+            ScmErr::Error(name, msg, irritants) => {
+                if irritants.len() == 0 {
+                    write!(f, "Error in {name}: {msg}")
+                } else {
+                    write!(
+                        f,
+                        "Error in {name}: {msg}\nIrritants: {}",
+                        irritants
+                            .iter()
+                            .map(|v| v.to_extern())
+                            .collect::<Vec<String>>()
+                            .join(" ")
+                    )
+                }
             }
             ScmErr::InnerDefine => {
                 write!(f, "Error: define only allowed at top-level")

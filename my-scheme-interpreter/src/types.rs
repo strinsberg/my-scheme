@@ -12,6 +12,13 @@ use std::rc::Rc;
 // not change anything else much. It is just a real pain to have to match on
 // both kinds because the cell access is different. Using a flag instead would
 // mean a small check only when we desired mutability.
+//
+// TODO even though it is not in the standard, implement some error reporting function.
+// Something like (error "reason" obj ...) would work, the only annoying thing
+// is that it would not allow my errors. So then it might be good to implement
+// extra error functions that use the error types so that we could implement
+// library procedures in scheme more easily. Some would be much easier in
+// scheme than they are in rust.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 

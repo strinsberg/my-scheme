@@ -51,10 +51,13 @@ pub enum Builtin {
     EQ,
     Eqv,
     BaseEnv,
+    // Errors
+    Error,
+    ArgTypeError,
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 35] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 37] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -96,6 +99,9 @@ pub const ALL_BUILTINS: &'static [Builtin; 35] = &[
     Builtin::EQ,
     Builtin::Eqv,
     Builtin::BaseEnv,
+    // errors
+    Builtin::Error,
+    Builtin::ArgTypeError,
 ];
 
 // NOTE any enum value that has the same name as the identifier does not need to
@@ -134,6 +140,9 @@ impl fmt::Display for Builtin {
             Builtin::EQ => "eq?",
             Builtin::Eqv => "eqv?",
             Builtin::BaseEnv => "null-environment",
+            //
+            Builtin::Error => "error!",
+            Builtin::ArgTypeError => "arg-type-error!",
             b => return write!(f, "{}", format!("{:?}", b).to_lowercase()),
         };
         write!(f, "{}", s)
