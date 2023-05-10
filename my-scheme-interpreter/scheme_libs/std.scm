@@ -20,7 +20,7 @@
   (letrec ((helper-rec
              (lambda (x i)
                (cond
-                 ((eqv? i 0)
+                 ((= i 0)
                   (if (null? x)
                     (range-error! name idx xs)
                     x))
@@ -67,6 +67,7 @@
 
 ;; Characters ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Add char checks here so that error messages say char=? not char->integer ???
 (define (char=? a b) (= (char->integer a) (char->integer b)))
 (define (char<? a b) (< (char->integer a) (char->integer b)))
 (define (char>? a b) (> (char->integer a) (char->integer b)))

@@ -24,3 +24,23 @@ fn test_is_string() {
     help::eval_assert("(string? 12)", "#f");
     help::eval_assert("(string? 10.5)", "#f");
 }
+
+#[test]
+fn test_string_length() {
+    // TODO Test for mutable strings
+    help::eval_assert("(string-length \"hello, world!\")", "13");
+    help::eval_assert("(string-length \"hello\")", "5");
+}
+
+#[test]
+fn test_string_ref() {
+    // TODO test for mutable strings
+    help::eval_assert("(string-ref \"hello, world!\" 0)", "#\\h");
+    help::eval_assert("(string-ref \"hello, world!\" 12)", "#\\!");
+    help::eval_range_error(
+        "(string-ref \"hello, world!\" 13)",
+        "string-ref",
+        "13",
+        "\"hello, world!\"",
+    );
+}

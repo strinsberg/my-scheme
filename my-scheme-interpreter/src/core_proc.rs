@@ -46,7 +46,7 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::NumGt => num_gt(args),
         Builtin::NumLeq => num_leq(args),
         Builtin::NumGeq => num_geq(args),
-        // Strings
+        // Symbols
         Builtin::SymToStr => symbol_to_string(args),
         Builtin::StrToSym => string_to_symbol(args),
         // Chars
@@ -61,6 +61,9 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::IsLower => is_lowercase(args),
         Builtin::ToUpper => to_uppercase(args),
         Builtin::ToLower => to_lowercase(args),
+        // Strings
+        Builtin::StrLen => string_length(args),
+        Builtin::StrRef => string_ref(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -735,6 +738,80 @@ pub fn num_geq(args: Vec<ScmVal>) -> ValResult {
         _ => Err(ScmErr::BadArgType(
             ">=".to_owned(),
             "number".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+// Strings ////////////////////////////////////////////////////////////////////
+
+pub fn string_length(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("string-length".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::StringMut(s) => Ok(ScmVal::new_int(s.borrow().chars.len() as i64)),
+        ScmVal::String(s) => Ok(ScmVal::new_int(s.chars.len() as i64)),
+        _ => Err(ScmErr::BadArgType(
+            "string-length".to_owned(),
+            "string".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn string_ref(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("string-ref".to_owned(), 2));
+    }
+
+    let index = match args[1].clone() {
+        ScmVal::Number(ScmNumber::Integer(i)) => match i {
+            0.. => i as usize,
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "string-ref".to_owned(),
+                    "exact non-negative integer".to_owned(),
+                    args[1].clone(),
+                ))
+            }
+        },
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "string-ref".to_owned(),
+                "exact non-negative integer".to_owned(),
+                args[0].clone(),
+            ))
+        }
+    };
+
+    match args[0].clone() {
+        ScmVal::StringMut(s) => {
+            if s.borrow().chars.len() > index {
+                Ok(ScmVal::Character(s.borrow().chars[index].clone()))
+            } else {
+                Err(ScmErr::RangeError(
+                    "string-ref".to_owned(),
+                    args[1].clone(),
+                    args[0].clone(),
+                ))
+            }
+        }
+        ScmVal::String(s) => {
+            if s.chars.len() > index {
+                Ok(ScmVal::Character(s.chars[index].clone()))
+            } else {
+                Err(ScmErr::RangeError(
+                    "string-ref".to_owned(),
+                    args[1].clone(),
+                    args[0].clone(),
+                ))
+            }
+        }
+        _ => Err(ScmErr::BadArgType(
+            "string-ref".to_owned(),
+            "string".to_owned(),
             args[0].clone(),
         )),
     }
