@@ -58,6 +58,8 @@ pub enum Builtin {
     ToUpper,
     ToLower,
     // Strings
+    MakeStr,
+    StrSet,
     StrLen,
     StrRef,
     // Vectors
@@ -80,7 +82,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 56] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 58] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -129,6 +131,8 @@ pub const ALL_BUILTINS: &'static [Builtin; 56] = &[
     Builtin::ToUpper,
     Builtin::ToLower,
     // Strings
+    Builtin::MakeStr,
+    Builtin::StrSet,
     Builtin::StrLen,
     Builtin::StrRef,
     // Vectors
@@ -195,6 +199,8 @@ impl fmt::Display for Builtin {
             Builtin::ToUpper => "char-upcase",
             Builtin::ToLower => "char-downcase",
             //
+            Builtin::MakeStr => "make-string",
+            Builtin::StrSet => "string-set!",
             Builtin::StrLen => "string-length",
             Builtin::StrRef => "string-ref",
             //

@@ -1,6 +1,7 @@
 use crate::builtin::Builtin;
 use crate::error::{ScmErr, ValResult};
 use crate::number::ScmNumber;
+use crate::string::ScmString;
 use crate::types::{Env, ScmVal};
 use std::rc::Rc;
 
@@ -62,6 +63,8 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::ToUpper => to_uppercase(args),
         Builtin::ToLower => to_lowercase(args),
         // Strings
+        Builtin::MakeStr => make_string(args),
+        Builtin::StrSet => string_set(args),
         Builtin::StrLen => string_length(args),
         Builtin::StrRef => string_ref(args),
         // Vectors
@@ -744,6 +747,106 @@ pub fn num_geq(args: Vec<ScmVal>) -> ValResult {
 }
 
 // Strings ////////////////////////////////////////////////////////////////////
+
+pub fn make_string(args: Vec<ScmVal>) -> ValResult {
+    let size = match args.len() {
+        1 | 2 => match args[0].clone() {
+            ScmVal::Number(ScmNumber::Integer(i)) => i,
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "make-string".to_owned(),
+                    "exact non-negative integer".to_owned(),
+                    args[0].clone(),
+                ))
+            }
+        },
+        _ => return Err(ScmErr::Arity("make-string".to_owned(), 1)),
+    };
+
+    if size < 0 {
+        return Err(ScmErr::BadArgType(
+            "make-string".to_owned(),
+            "exact non-negative integer".to_owned(),
+            args[0].clone(),
+        ));
+    }
+
+    let fill: u8 = match args.len() {
+        2 => match args[1].clone() {
+            ScmVal::Character(ch) => ch.to_byte(),
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "make-string".to_owned(),
+                    "char".to_owned(),
+                    args[1].clone(),
+                ))
+            }
+        },
+        _ => 0,
+    };
+
+    Ok(ScmVal::new_str_mut_from_scmstring(ScmString::from_bytes(
+        &vec![fill; size as usize],
+    )))
+}
+
+pub fn string_set(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 3 {
+        return Err(ScmErr::Arity("string-set!".to_owned(), 3));
+    }
+
+    let index = match args[1].clone() {
+        ScmVal::Number(ScmNumber::Integer(i)) => match i {
+            0.. => i as usize,
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "string-set!".to_owned(),
+                    "exact non-negative integer".to_owned(),
+                    args[1].clone(),
+                ))
+            }
+        },
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "string-set!".to_owned(),
+                "exact non-negative integer".to_owned(),
+                args[0].clone(),
+            ))
+        }
+    };
+
+    match args[0].clone() {
+        ScmVal::StringMut(s) => {
+            if s.borrow().chars.len() > index {
+                s.borrow_mut().chars[index] = match args[2].clone() {
+                    ScmVal::Character(ch) => ch.clone(),
+                    _ => {
+                        return Err(ScmErr::BadArgType(
+                            "string-set!".to_owned(),
+                            "mutable string".to_owned(),
+                            args[2].clone(),
+                        ))
+                    }
+                }
+            } else {
+                return Err(ScmErr::RangeError(
+                    "string-set!".to_owned(),
+                    args[1].clone(),
+                    args[0].clone(),
+                ));
+            }
+        }
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "string-set!".to_owned(),
+                "mutable string".to_owned(),
+                args[0].clone(),
+            ))
+        }
+    };
+
+    Ok(ScmVal::Empty)
+}
 
 pub fn string_length(args: Vec<ScmVal>) -> ValResult {
     if args.len() < 1 {

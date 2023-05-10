@@ -9,9 +9,23 @@ fn test_string_eval() {
 }
 
 #[test]
+fn test_make_string() {
+    help::eval_assert("(make-string 5)", "\"\\0\\0\\0\\0\\0\"");
+    help::eval_assert("(make-string 5 #\\a)", "\"aaaaa\"");
+}
+
+#[test]
+fn test_string_set() {
+    help::eval_assert(
+        "(define str (make-string 5 #\\a)) (string-set! str 2 #\\Q) str",
+        "\"aaQaa\"",
+    );
+}
+
+#[test]
 fn test_is_string() {
-    // TODO add test for mutable strings
     help::eval_assert("(string? \"hello, world\")", "#t");
+    help::eval_assert("(string? (make-string 5))", "#t");
     // is not string
     help::eval_assert("(string? #t)", "#f");
     help::eval_assert("(string? #\\G)", "#f");
@@ -27,16 +41,16 @@ fn test_is_string() {
 
 #[test]
 fn test_string_length() {
-    // TODO Test for mutable strings
     help::eval_assert("(string-length \"hello, world!\")", "13");
     help::eval_assert("(string-length \"hello\")", "5");
+    help::eval_assert("(string-length (make-string 99))", "99");
 }
 
 #[test]
 fn test_string_ref() {
-    // TODO test for mutable strings
     help::eval_assert("(string-ref \"hello, world!\" 0)", "#\\h");
     help::eval_assert("(string-ref \"hello, world!\" 12)", "#\\!");
+    help::eval_assert("(string-ref (make-string 5 #\\%) 3)", "#\\%");
     help::eval_range_error(
         "(string-ref \"hello, world!\" 13)",
         "string-ref",
@@ -54,6 +68,13 @@ fn test_string_equality() {
     help::eval_assert("(string-ci=? \"hello, world!\" \"hello, world!\")", "#t");
     help::eval_assert("(string-ci=? \"hello, World!\" \"hello, world!\")", "#t");
     help::eval_assert("(string-ci=? \"hello, World!\" \"hello\")", "#f");
+
+    help::eval_assert("(string=? (make-string 4 #\\R) (make-string 4 #\\R))", "#t");
+    help::eval_assert("(string=? (make-string 4 #\\T) (make-string 4 #\\R))", "#f");
+    help::eval_assert(
+        "(string=? (make-string 10 #\\R) (make-string 4 #\\R))",
+        "#f",
+    );
 }
 
 #[test]

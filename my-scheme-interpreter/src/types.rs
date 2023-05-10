@@ -70,6 +70,10 @@ impl ScmVal {
         ScmVal::String(Rc::new(string))
     }
 
+    pub fn new_str_mut_from_scmstring(string: ScmString) -> ScmVal {
+        ScmVal::StringMut(Rc::new(RefCell::new(string)))
+    }
+
     pub fn new_str(string: &str) -> ScmVal {
         ScmVal::String(Rc::new(ScmString::new(string)))
     }
