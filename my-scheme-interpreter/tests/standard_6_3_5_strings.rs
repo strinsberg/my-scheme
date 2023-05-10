@@ -56,6 +56,7 @@ fn test_string_equality() {
     help::eval_assert("(string-ci=? \"hello, World!\" \"hello\")", "#f");
 }
 
+#[test]
 fn test_string_compare() {
     help::eval_assert("(string<? \"hello\" \"hello\")", "#f");
     help::eval_assert("(string<? \"Hello\" \"hello\")", "#t");
@@ -64,8 +65,8 @@ fn test_string_compare() {
 
     help::eval_assert("(string<? \"he\" \"hello\")", "#t");
     help::eval_assert("(string<? \"hello\" \"he\")", "#f");
-    help::eval_assert("(string>? \"he\" \"hello\")", "#t");
-    help::eval_assert("(string>? \"hello\" \"he\")", "#f");
+    help::eval_assert("(string>? \"he\" \"hello\")", "#f");
+    help::eval_assert("(string>? \"hello\" \"he\")", "#t");
 
     help::eval_assert("(string<=? \"hello\" \"hello\")", "#t");
     help::eval_assert("(string<=? \"Hello\" \"hello\")", "#t");
@@ -74,18 +75,19 @@ fn test_string_compare() {
 
     help::eval_assert("(string<=? \"he\" \"hello\")", "#t");
     help::eval_assert("(string<=? \"hello\" \"he\")", "#f");
-    help::eval_assert("(string>=? \"he\" \"hello\")", "#t");
-    help::eval_assert("(string>=? \"hello\" \"he\")", "#f");
+    help::eval_assert("(string>=? \"he\" \"hello\")", "#f");
+    help::eval_assert("(string>=? \"hello\" \"he\")", "#t");
 }
 
+#[test]
 fn test_string_compare_ci() {
-    // We are a little lax here because the use of a helper for all of them
+    // We are a little lax here because the use of a helpers for all of them
     // means all we are really checking here is that strings are treated as
     // having equal case.
     help::eval_assert("(string-ci<? \"hello\" \"hello\")", "#f");
-    help::eval_assert("(string-ci<? \"Hello\" \"hello\")", "#t");
+    help::eval_assert("(string-ci<? \"Hello\" \"hello\")", "#f");
     help::eval_assert("(string-ci>? \"hello\" \"hello\")", "#f");
-    help::eval_assert("(string-ci>? \"hello\" \"Hello\")", "#t");
+    help::eval_assert("(string-ci>? \"hello\" \"Hello\")", "#f");
 
     help::eval_assert("(string-ci<=? \"hello\" \"hello\")", "#t");
     help::eval_assert("(string-ci<=? \"Hello\" \"hello\")", "#t");

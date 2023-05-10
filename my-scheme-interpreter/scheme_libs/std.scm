@@ -86,6 +86,11 @@
 
 ;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; These comparisson functions are a little gross, but they save having to
+;; write the same function 10 times. The extra parameters on the ordered ones
+;; determine what to return in cases where we get to the end of one or both or
+;; the strings.
+
 ;; Equality ;;
 (define (__string-compare-eq__ a b f)
   (if (= (string-length a) (string-length b))
@@ -102,26 +107,42 @@
 (define (string=? a b) (__string-compare-eq__ a b char=?))
 (define (string-ci=? a b) (__string-compare-eq__ a b char-ci=?))
 
-;; Ordering ;;
-(define (__string-compare-ord__ a b f e)
+;; Ordered ;;
+(define (__string-compare-ord__ a b f same a-larger b-larger)
   (letrec ((len-a (string-length a))
            (len-b (string-length b))
            (helper
              (lambda (i a b)
                (cond
-                 ((and (>= i len-a) (>= i len-b)) e)
-                 ((and (>= i len-a) (< i len-b)) #t)
-                 ((>= i len-b) #t)
+                 ((and (>= i len-a) (>= i len-b)) same)
+                 ((and (>= i len-a) (< i len-b)) a-larger)
+                 ((>= i len-b) b-larger)
                  ((f (string-ref a i) (string-ref b i)) #t)
                  (else (helper (+ i 1) a b))))))
     (helper 0 a b)))
 
-(define (string<? a b) (__string-compare-ord__ a b char<? #f))
-(define (string>? a b) (__string-compare-ord__ a b char>? #f))
-(define (string<=? a b) (__string-compare-ord__ a b char<=? #t))
-(define (string>=? a b) (__string-compare-ord__ a b char>=? #t))
+(define (string<? a b) (__string-compare-ord__ a b char<? #f #t #f))
+(define (string-ci<? a b) (__string-compare-ord__ a b char-ci<? #f #t #f))
+(define (string>? a b) (__string-compare-ord__ a b char>? #f #f #t))
+(define (string-ci>? a b) (__string-compare-ord__ a b char-ci>? #f #f #t))
 
-(define (string-ci<? a b) (__string-compare-ord__ a b char-ci<? #f))
-(define (string-ci>? a b) (__string-compare-ord__ a b char-ci>? #f))
-(define (string-ci<=? a b) (__string-compare-ord__ a b char-ci<=? #t))
-(define (string-ci>=? a b) (__string-compare-ord__ a b char-ci>=? #t))
+;; Ordered or Equal ;;
+(define (__string-compare-ord-eq__ a b gt eq same a-larger b-larger)
+  (letrec ((len-a (string-length a))
+           (len-b (string-length b))
+           (helper
+             (lambda (i a b)
+               (cond
+                 ((and (>= i len-a) (>= i len-b)) same)
+                 ((and (>= i len-a) (< i len-b)) a-larger)
+                 ((>= i len-b) b-larger)
+                 ((gt (string-ref a i) (string-ref b i)) #t)
+                 ((not (eq (string-ref a i) (string-ref b i))) #f)
+                 (else (helper (+ i 1) a b))))))
+    (helper 0 a b)))
+
+(define (string<=? a b) (__string-compare-ord-eq__ a b char<? char=? #t #t #f))
+(define (string-ci<=? a b) (__string-compare-ord-eq__ a b char-ci<? char-ci=? #t #t #f))
+(define (string>=? a b) (__string-compare-ord-eq__ a b char>? char=? #t #f #t))
+(define (string-ci>=? a b) (__string-compare-ord-eq__ a b char-ci>? char-ci=? #t #f #t))
+
