@@ -25,7 +25,7 @@ pub fn main() {
 
         match fs::write(
             &source_path,
-            format!("pub const {var_name}: &str = \"{contents}\";"),
+            format!("pub const {var_name}: &str = r#\"{contents}\"#;"),
         ) {
             Err(e) => panic!("failed to write scheme source: {f}, Error: {e}"),
             _ => (),

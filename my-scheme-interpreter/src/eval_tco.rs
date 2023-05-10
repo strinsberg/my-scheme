@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
 
+// TODO arity check closure applications to match the style of passed arguments.
 // TODO named let
 // TODO quasiquote(`)
 // TODO delay and force

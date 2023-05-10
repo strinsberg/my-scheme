@@ -1,12 +1,16 @@
 use crate::builtin::Builtin;
 use crate::error::{ScmErr, ValResult};
 use crate::number::ScmNumber;
-use crate::types::{Env, ListPairIter, ScmVal};
+use crate::types::{Env, ScmVal};
+use std::rc::Rc;
 
 // All builtin functions that are not syntactic keywords and are the basic building
 // blocks for all other functions. Syntactic keywords and things that require tail
 // call optimization or also return an environment will be in eval_tco as they are
 // special.
+//
+// TODO now that there are error routines for scheme that mirror what we have
+// in rust write whatever seems appropriate from here in scheme.
 
 // Apply Builtin //////////////////////////////////////////////////////////////
 
@@ -36,6 +40,9 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::Length => list_length(args),
         Builtin::Reverse => list_reverse(args),
         Builtin::Append => list_append(args),
+        // Strings
+        Builtin::SymToStr => symbol_to_string(args),
+        Builtin::StrToSym => string_to_symbol(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -423,6 +430,38 @@ pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
+// Symbols ////////////////////////////////////////////////////////////////////
+
+pub fn symbol_to_string(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("symbol->string".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Symbol(s) => Ok(ScmVal::String(s)),
+        _ => Err(ScmErr::BadArgType(
+            "symbol->string".to_owned(),
+            "symbol".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+pub fn string_to_symbol(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("string->symbol".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::String(s) => Ok(ScmVal::Symbol(s)),
+        ScmVal::StringMut(s) => Ok(ScmVal::Symbol(Rc::new((*s.borrow()).clone()))),
+        _ => Err(ScmErr::BadArgType(
+            "symbol->string".to_owned(),
+            "symbol".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
 // Vector /////////////////////////////////////////////////////////////////////
 
 pub fn vector(args: Vec<ScmVal>) -> ValResult {
@@ -609,6 +648,7 @@ pub fn vector_fill(args: Vec<ScmVal>) -> ValResult {
 }
 
 // Errors /////////////////////////////////////////////////////////////////////
+
 fn user_error(args: Vec<ScmVal>) -> ValResult {
     if args.len() < 2 {
         return Err(ScmErr::Arity("error!".to_owned(), 2));

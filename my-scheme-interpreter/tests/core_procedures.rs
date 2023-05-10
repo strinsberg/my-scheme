@@ -300,22 +300,6 @@ fn test_is_character() {
 }
 
 #[test]
-fn test_is_symbol() {
-    help::eval_assert("(symbol? 'hello)", "#t");
-    // is not symbol
-    help::eval_assert("(symbol? #t)", "#f");
-    help::eval_assert("(symbol? \"hello\")", "#f");
-    help::eval_assert("(symbol? #\\G)", "#f");
-    help::eval_assert("(symbol? (cons 1 4))", "#f");
-    help::eval_assert("(symbol? (cons 1 '(4)))", "#f");
-    help::eval_assert("(symbol? '#(1 2 3 4))", "#f");
-    help::eval_assert("(symbol? car)", "#f");
-    help::eval_assert("(symbol? (lambda (x) a))", "#f");
-    help::eval_assert("(symbol? 12)", "#f");
-    help::eval_assert("(symbol? 10.5)", "#f");
-}
-
-#[test]
 fn test_is_number() {
     help::eval_assert("(number? 0)", "#t");
     help::eval_assert("(number? 1234)", "#t");

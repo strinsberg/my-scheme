@@ -1,11 +1,16 @@
+;; my-scheme core library procedures ;;
+
+;; Equality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO this is not implemented properly yet
 (define equal?
   (lambda (a b)
     (eqv? a b)))
 
+
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (null? x) (eqv? x '()))
-
 (define (list . xs) xs)
 
 ;; Because errors do not propogate and list-ref uses list-tail this
@@ -31,7 +36,7 @@
   (let ((tail (list-tail-helper xs idx 'list-ref)))
     (if (pair? tail)
       (car tail)
-      (arg-type-error! 'list-ref tail \"proper list\"))))
+      (arg-type-error! 'list-ref tail "proper list"))))
 
 
 ;; Extra car,cdr, etc. helpers
