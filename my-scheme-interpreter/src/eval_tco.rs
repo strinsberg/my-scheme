@@ -383,7 +383,7 @@ fn eval_letrec(args: Vec<ScmVal>) -> ValResult {
             ScmVal::vec_to_list(new_body, ScmVal::Empty),
         ))
     } else {
-        Err(ScmErr::Arity("lambda".to_owned(), 2))
+        Err(ScmErr::Arity("letrec".to_owned(), 2))
     }
 }
 

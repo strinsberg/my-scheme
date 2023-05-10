@@ -8,6 +8,33 @@
 
 (define (list . xs) xs)
 
+;; Because errors do not propogate and list-ref uses list-tail this
+;; is list-tail but with an additional name parameter to give the right error
+;; when out of boounds.
+(define (list-tail-helper xs idx name)
+  (letrec ((helper-rec
+             (lambda (x i)
+               (cond
+                 ((eqv? i 0)
+                  (if (null? x)
+                    (range-error! name idx xs)
+                    x))
+                 ((not (pair? x)) (range-error! name idx xs))
+                 (else (helper-rec (cdr x) (- i 1)))))))
+    (helper-rec xs idx)))
+  
+
+(define (list-tail xs idx)
+  (list-tail-helper xs idx 'list-tail))
+
+(define (list-ref xs idx)
+  (let ((tail (list-tail-helper xs idx 'list-ref)))
+    (if (pair? tail)
+      (car tail)
+      (arg-type-error! 'list-ref tail \"proper list\"))))
+
+
+;; Extra car,cdr, etc. helpers
 (define caar (lambda (x) (car (car x))))
 (define caaar (lambda (x) (car (car (car x)))))
 (define caaaar (lambda (x) (car (car (car (car x))))))
@@ -27,6 +54,7 @@
 (define cadddr (lambda (x) (car (cdr (cdr (cdr x))))))
 
 (define caaddr (lambda (x) (car (car (cdr (cdr x))))))
+
 
 ;; Bool ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -36,8 +36,6 @@ pub enum Builtin {
     Length,
     Reverse,
     Append,
-    ListRef,
-    ListTail,
     // Vectors
     MakeVec,
     Vector,
@@ -54,10 +52,11 @@ pub enum Builtin {
     // Errors
     Error,
     ArgTypeError,
+    RangeError,
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 37] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 36] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -84,8 +83,6 @@ pub const ALL_BUILTINS: &'static [Builtin; 37] = &[
     Builtin::Length,
     Builtin::Reverse,
     Builtin::Append,
-    Builtin::ListRef,
-    Builtin::ListTail,
     // Vectors
     Builtin::MakeVec,
     Builtin::Vector,
@@ -102,6 +99,7 @@ pub const ALL_BUILTINS: &'static [Builtin; 37] = &[
     // errors
     Builtin::Error,
     Builtin::ArgTypeError,
+    Builtin::RangeError,
 ];
 
 // NOTE any enum value that has the same name as the identifier does not need to
@@ -127,8 +125,6 @@ impl fmt::Display for Builtin {
             Builtin::SetCar => "set-car!",
             Builtin::SetCdr => "set-cdr!",
             Builtin::IsList => "list?",
-            Builtin::ListRef => "list-ref",
-            Builtin::ListTail => "list-tail",
             // Vectors
             Builtin::MakeVec => "make-vector",
             Builtin::VecSet => "vector-set!",
@@ -143,6 +139,8 @@ impl fmt::Display for Builtin {
             //
             Builtin::Error => "error!",
             Builtin::ArgTypeError => "arg-type-error!",
+            Builtin::RangeError => "range-error!",
+            //
             b => return write!(f, "{}", format!("{:?}", b).to_lowercase()),
         };
         write!(f, "{}", s)

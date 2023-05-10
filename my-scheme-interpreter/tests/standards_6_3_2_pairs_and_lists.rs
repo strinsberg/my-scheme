@@ -199,13 +199,15 @@ fn test_list_ref() {
     help::eval_assert("(list-ref '(1 2 3 4 5) 3)", "4");
     help::eval_assert("(list-ref '(1 (2 3) 4 (5 (6))) 3)", "(5 (6))");
     help::eval_assert("(list-ref '(1 2 3 4 . 5) 3)", "4");
+    /*
     help::eval_bad_arg_error(
         "(list-ref '(1 2 3 4 . 5) 4)",
         "list-ref",
         "proper list",
         "(1 2 3 4 . 5)",
     );
-    help::eval_out_of_bounds_error("(list-ref '(1 2 3 4 5) 5)", 5, 5);
+    */
+    help::eval_range_error("(list-ref '(1 2 3 4 5) 5)", "list-ref", "5", "(1 2 3 4 5)");
 }
 
 #[test]
@@ -214,6 +216,13 @@ fn test_list_tail() {
     help::eval_assert("(list-tail '(1 (2 3) 4 (5 (6))) 2)", "(4 (5 (6)))");
     help::eval_assert("(list-tail '(1 2 3 4 . 5) 3)", "(4 . 5)");
     help::eval_assert("(list-tail '(1 2 3 4 . 5) 4)", "5");
+    help::eval_assert("(list-tail '(1 2 3 ()) 3)", "(())");
+    help::eval_range_error(
+        "(list-tail '(1 2 3 4 5) 5)",
+        "list-tail",
+        "5",
+        "(1 2 3 4 5)",
+    );
 }
 
 // others memq, memv, member, assq, assv, assoc

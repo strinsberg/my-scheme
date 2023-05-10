@@ -36,8 +36,6 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::Length => list_length(args),
         Builtin::Reverse => list_reverse(args),
         Builtin::Append => list_append(args),
-        Builtin::ListRef => list_ref(args),
-        Builtin::ListTail => list_tail(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -49,6 +47,7 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         // Error
         Builtin::Error => user_error(args),
         Builtin::ArgTypeError => user_arg_type_error(args),
+        Builtin::RangeError => user_range_error(args),
         _ => panic!("unsupported builtin: {:?}", op),
     }
 }
@@ -424,102 +423,6 @@ pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
-// TODO this is gross even with all the helpers, though maybe it is just error checking
-// that makes it so bad, but it would be way better with some scheme like helper
-pub fn list_ref(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 2 {
-        let idx = match args[1].clone() {
-            ScmVal::Number(ScmNumber::Integer(i)) => i as usize,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "list-ref".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[0].clone(),
-                ))
-            }
-        };
-        let (i, pair) = ListPairIter::new(args[0].clone())
-            .enumerate()
-            .take(idx + 1)
-            .last()
-            .ok_or(ScmErr::OutOfBounds(idx, 0))?;
-        if i == idx {
-            match pair {
-                ScmVal::Pair(cell) => Ok(cell.head.clone()),
-                ScmVal::PairMut(cell) => Ok(cell.borrow().head.clone()),
-                _ => Err(ScmErr::BadArgType(
-                    "list-ref".to_owned(),
-                    "proper list".to_owned(),
-                    args[0].clone(),
-                )),
-            }
-        } else if i == idx - 1 {
-            match pair {
-                ScmVal::Pair(cell) if cell.is_dotted() => Err(ScmErr::BadArgType(
-                    "list-ref".to_owned(),
-                    "proper list".to_owned(),
-                    args[0].clone(),
-                )),
-                ScmVal::PairMut(cell) if cell.borrow().is_dotted() => Err(ScmErr::BadArgType(
-                    "list-ref".to_owned(),
-                    "proper list".to_owned(),
-                    args[0].clone(),
-                )),
-                _ => Err(ScmErr::OutOfBounds(idx, i + 1)),
-            }
-        } else {
-            Err(ScmErr::OutOfBounds(idx, i + 1))
-        }
-    } else {
-        Err(ScmErr::Arity("list-ref".to_owned(), 1))
-    }
-}
-
-// TODO this is gross even with all the helpers, though maybe it is just error checking
-// that makes it so bad, but it would be way better with some scheme like helper
-pub fn list_tail(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 2 {
-        let idx = match args[1].clone() {
-            ScmVal::Number(ScmNumber::Integer(i)) => i as usize,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "list-tail".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[0].clone(),
-                ))
-            }
-        };
-        let (i, pair) = ListPairIter::new(args[0].clone())
-            .enumerate()
-            .take(idx + 1)
-            .last()
-            .ok_or(ScmErr::OutOfBounds(idx, 0))?;
-        if i == idx {
-            match pair.clone() {
-                ScmVal::Pair(_) => Ok(pair),
-                ScmVal::PairMut(_) => Ok(pair),
-                _ => Err(ScmErr::BadArgType(
-                    "list-ref".to_owned(),
-                    "proper list".to_owned(),
-                    args[0].clone(),
-                )),
-            }
-        } else if i == idx - 1 {
-            match pair {
-                ScmVal::Pair(cell) if cell.is_dotted() => Ok(cell.tail.clone()),
-                ScmVal::PairMut(cell) if cell.borrow().is_dotted() => {
-                    Ok(cell.borrow().tail.clone())
-                }
-                _ => Err(ScmErr::OutOfBounds(idx, i + 1)),
-            }
-        } else {
-            Err(ScmErr::OutOfBounds(idx, i + 1))
-        }
-    } else {
-        Err(ScmErr::Arity("list-tail".to_owned(), 1))
-    }
-}
-
 // Vector /////////////////////////////////////////////////////////////////////
 
 pub fn vector(args: Vec<ScmVal>) -> ValResult {
@@ -708,10 +611,10 @@ pub fn vector_fill(args: Vec<ScmVal>) -> ValResult {
 // Errors /////////////////////////////////////////////////////////////////////
 fn user_error(args: Vec<ScmVal>) -> ValResult {
     if args.len() < 2 {
-        return Err(ScmErr::Arity("error!".to_owned(), 3));
+        return Err(ScmErr::Arity("error!".to_owned(), 2));
     }
 
-    Err(ScmErr::Error(
+    Err(ScmErr::UserError(
         args[0].to_string(),
         args[1].to_string(),
         args[2..].into(),
@@ -727,5 +630,17 @@ fn user_arg_type_error(args: Vec<ScmVal>) -> ValResult {
         args[0].to_string(),
         args[2].to_string(),
         args[1].clone(),
+    ))
+}
+
+fn user_range_error(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 3 {
+        return Err(ScmErr::Arity("range-error!".to_owned(), 3));
+    }
+
+    Err(ScmErr::RangeError(
+        args[0].to_string(),
+        args[1].clone(),
+        args[2].clone(),
     ))
 }

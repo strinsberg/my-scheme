@@ -107,3 +107,17 @@ pub fn eval_out_of_bounds_error(code: &str, idx: usize, bound: usize) {
         expected
     );
 }
+
+pub fn eval_range_error(code: &str, name: &str, idx: &str, seq: &str) {
+    let result = Interpreter::new().init().eval_string(code);
+    let index = StringReader::new(idx).read().unwrap();
+    let sequence = StringReader::new(seq).read().unwrap();
+    let expected = ScmErr::RangeError(name.to_owned(), index, sequence).to_string();
+    assert!(
+        result == expected,
+        "\n*** Failed Range Error Assert ***\n----\nEvaluated: {}\n----\nActual:    {}\nExpected:  {}\n----\n",
+        code,
+        result,
+        expected
+    );
+}

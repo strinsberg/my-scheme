@@ -23,10 +23,11 @@ pub enum ScmErr {
     BadBinding(ScmVal),
     // seq errors
     OutOfBounds(usize, usize),
+    RangeError(String, ScmVal, ScmVal),
     // General
     Syntax(ScmVal),
     InnerDefine,
-    Error(String, String, Vec<ScmVal>),
+    UserError(String, String, Vec<ScmVal>),
 }
 
 impl fmt::Display for ScmErr {
@@ -74,10 +75,13 @@ impl fmt::Display for ScmErr {
                     "Error: index out of bounds: got {idx} when length is {len}"
                 )
             }
+            ScmErr::RangeError(name, idx, seq) => {
+                write!(f, "Error in {name}: {idx} is out of range for {seq}")
+            }
             ScmErr::Syntax(expr) => {
                 write!(f, "Error: invalid syntax: {expr}")
             }
-            ScmErr::Error(name, msg, irritants) => {
+            ScmErr::UserError(name, msg, irritants) => {
                 if irritants.len() == 0 {
                     write!(f, "Error in {name}: {msg}")
                 } else {
