@@ -36,6 +36,8 @@ pub enum Builtin {
     Length,
     Reverse,
     Append,
+    ListRef,
+    ListTail,
     // Vectors
     MakeVec,
     Vector,
@@ -52,7 +54,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 33] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 35] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -79,6 +81,8 @@ pub const ALL_BUILTINS: &'static [Builtin; 33] = &[
     Builtin::Length,
     Builtin::Reverse,
     Builtin::Append,
+    Builtin::ListRef,
+    Builtin::ListTail,
     // Vectors
     Builtin::MakeVec,
     Builtin::Vector,
@@ -117,6 +121,8 @@ impl fmt::Display for Builtin {
             Builtin::SetCar => "set-car!",
             Builtin::SetCdr => "set-cdr!",
             Builtin::IsList => "list?",
+            Builtin::ListRef => "list-ref",
+            Builtin::ListTail => "list-tail",
             // Vectors
             Builtin::MakeVec => "make-vector",
             Builtin::VecSet => "vector-set!",

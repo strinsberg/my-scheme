@@ -7,6 +7,12 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+// TODO can we adjust the const vs non-const memory to use flags in the memory
+// rather than a separate enum type. It would add memory overhead for pairs, but
+// not change anything else much. It is just a real pain to have to match on
+// both kinds because the cell access is different. Using a flag instead would
+// mean a small check only when we desired mutability.
+
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
