@@ -40,6 +40,12 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::Length => list_length(args),
         Builtin::Reverse => list_reverse(args),
         Builtin::Append => list_append(args),
+        // numbers
+        Builtin::NumEq => num_eq(args),
+        Builtin::NumLt => num_lt(args),
+        Builtin::NumGt => num_gt(args),
+        Builtin::NumLeq => num_leq(args),
+        Builtin::NumGeq => num_geq(args),
         // Strings
         Builtin::SymToStr => symbol_to_string(args),
         Builtin::StrToSym => string_to_symbol(args),
@@ -53,6 +59,8 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::IsUnsup => is_unsup(args),
         Builtin::IsUpper => is_uppercase(args),
         Builtin::IsLower => is_lowercase(args),
+        Builtin::ToUpper => to_uppercase(args),
+        Builtin::ToLower => to_lowercase(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -585,7 +593,7 @@ pub fn is_uppercase(args: Vec<ScmVal>) -> ValResult {
     }
 
     match args[0].clone() {
-        ScmVal::Character(ch) if ch.is_alpha() => Ok(ScmVal::Boolean(ch.is_upper_case())),
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_upper_case())),
         _ => Err(ScmErr::BadArgType(
             "char-upper-case?".to_owned(),
             "letter".to_owned(),
@@ -600,10 +608,133 @@ pub fn is_lowercase(args: Vec<ScmVal>) -> ValResult {
     }
 
     match args[0].clone() {
-        ScmVal::Character(ch) if ch.is_alpha() => Ok(ScmVal::Boolean(ch.is_lower_case())),
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_lower_case())),
         _ => Err(ScmErr::BadArgType(
             "char-lower-case?".to_owned(),
             "letter".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn to_uppercase(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-upcase".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Character(ch.to_upper_case())),
+        _ => Err(ScmErr::BadArgType(
+            "char-upcase".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn to_lowercase(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-downcase".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Character(ch.to_lower_case())),
+        _ => Err(ScmErr::BadArgType(
+            "char-downcase".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+// Numbers ////////////////////////////////////////////////////////////////////
+
+pub fn num_eq(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("=".to_owned(), 2));
+    }
+    match (args[0].clone(), args[1].clone()) {
+        (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 == num2)),
+        (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
+            "=".to_owned(),
+            "number".to_owned(),
+            args[1].clone(),
+        )),
+        _ => Err(ScmErr::BadArgType(
+            "=".to_owned(),
+            "number".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+pub fn num_lt(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("<".to_owned(), 2));
+    }
+    match (args[0].clone(), args[1].clone()) {
+        (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 < num2)),
+        (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
+            "<".to_owned(),
+            "number".to_owned(),
+            args[1].clone(),
+        )),
+        _ => Err(ScmErr::BadArgType(
+            "<".to_owned(),
+            "number".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+pub fn num_gt(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity(">".to_owned(), 2));
+    }
+    match (args[0].clone(), args[1].clone()) {
+        (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 > num2)),
+        (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
+            ">".to_owned(),
+            "number".to_owned(),
+            args[1].clone(),
+        )),
+        _ => Err(ScmErr::BadArgType(
+            ">".to_owned(),
+            "number".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+pub fn num_leq(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("<=".to_owned(), 2));
+    }
+    match (args[0].clone(), args[1].clone()) {
+        (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 <= num2)),
+        (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
+            "<=".to_owned(),
+            "number".to_owned(),
+            args[1].clone(),
+        )),
+        _ => Err(ScmErr::BadArgType(
+            "<=".to_owned(),
+            "number".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+pub fn num_geq(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 2 {
+        return Err(ScmErr::Arity(">=".to_owned(), 2));
+    }
+    match (args[0].clone(), args[1].clone()) {
+        (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 >= num2)),
+        (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
+            ">=".to_owned(),
+            "number".to_owned(),
+            args[1].clone(),
+        )),
+        _ => Err(ScmErr::BadArgType(
+            ">=".to_owned(),
+            "number".to_owned(),
             args[0].clone(),
         )),
     }

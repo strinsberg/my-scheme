@@ -152,25 +152,25 @@ impl ScmChar {
     }
 
     pub fn is_alpha(&self) -> bool {
-        (self.to_byte() as char).is_alphabetic()
+        (self.to_byte() as char).is_ascii_alphabetic()
     }
 
     pub fn is_alphanumeric(&self) -> bool {
-        (self.to_byte() as char).is_alphanumeric()
+        (self.to_byte() as char).is_ascii_alphanumeric()
     }
 
     pub fn is_numeric(&self) -> bool {
-        (self.to_byte() as char).is_numeric()
+        (self.to_byte() as char).is_ascii_digit()
     }
 
     pub fn is_whitespace(&self) -> bool {
         match self {
-            ScmChar::Null => true,
+            ScmChar::Null => false,
             ScmChar::Tab => true,
             ScmChar::LineFeed => true,
             ScmChar::Space => true,
-            ScmChar::Char(byte) => (*byte as char).is_whitespace(),
-            ScmChar::Unsupported => true, // should this be whitespce?
+            ScmChar::Char(byte) => (*byte as char).is_ascii_whitespace(),
+            ScmChar::Unsupported => false,
         }
     }
 
@@ -187,6 +187,14 @@ impl ScmChar {
 
     pub fn is_lower_case(&self) -> bool {
         self.to_byte() >= 'a' as u8 && self.to_byte() <= 'z' as u8
+    }
+
+    pub fn to_upper_case(&self) -> ScmChar {
+        ScmChar::from_char((self.to_byte() as char).to_ascii_uppercase())
+    }
+
+    pub fn to_lower_case(&self) -> ScmChar {
+        ScmChar::from_char((self.to_byte() as char).to_ascii_lowercase())
     }
 }
 

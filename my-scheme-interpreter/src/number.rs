@@ -4,8 +4,10 @@ use std::fmt;
 // Currently only has i64 and f64.
 
 // TODO testing
+// TODO the order will always put int before float this way... Implement it
+// yourself to ensure that ints can be converted and compared properly.
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ScmNumber {
     Integer(i64),
     Float(f64),

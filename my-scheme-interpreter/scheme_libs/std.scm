@@ -64,3 +64,27 @@
 ;; Bool ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (not x) (if x #f #t))
+
+;; Characters ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (char=? a b) (= (char->integer a) (char->integer b)))
+(define (char<? a b) (< (char->integer a) (char->integer b)))
+(define (char>? a b) (> (char->integer a) (char->integer b)))
+(define (char<=? a b) (<= (char->integer a) (char->integer b)))
+(define (char>=? a b) (>= (char->integer a) (char->integer b)))
+
+(define (char-ci=? a b)
+  (= (char->integer (char-downcase a))
+     (char->integer (char-downcase b))))
+(define (char-ci<? a b)
+  (< (char->integer (char-downcase a))
+     (char->integer (char-downcase b))))
+(define (char-ci>? a b)
+  (> (char->integer (char-downcase a))
+     (char->integer (char-downcase b))))
+(define (char-ci<=? a b)
+  (<= (char->integer (char-downcase a))
+      (char->integer (char-downcase b))))
+(define (char-ci>=? a b)
+  (>= (char->integer (char-downcase a))
+      (char->integer (char-downcase b))))

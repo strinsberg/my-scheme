@@ -95,12 +95,12 @@ fn test_is_numeric() {
 
 #[test]
 fn test_is_whitespace() {
-    help::eval_assert("(char-whitespace? #\\null)", "#t");
     help::eval_assert("(char-whitespace? #\\tab)", "#t");
     help::eval_assert("(char-whitespace? #\\newline)", "#t");
-    help::eval_assert("(char-whitespace? #\\unsup)", "#t");
     help::eval_assert("(char-whitespace? #\\space)", "#t");
     // not
+    help::eval_assert("(char-whitespace? #\\unsup)", "#f");
+    help::eval_assert("(char-whitespace? #\\null)", "#f");
     help::eval_assert("(char-whitespace? #\\A)", "#f");
     help::eval_assert("(char-whitespace? #\\Z)", "#f");
     help::eval_assert("(char-whitespace? #\\a)", "#f");
@@ -132,12 +132,12 @@ fn test_is_uppercase() {
     // not
     help::eval_assert("(char-upper-case? #\\a)", "#f");
     help::eval_assert("(char-upper-case? #\\z)", "#f");
-    help::eval_bad_arg_error(
-        "(char-upper-case? #\\0)",
-        "char-upper-case?",
-        "letter",
-        "#\\0",
-    );
+    help::eval_assert("(char-upper-case? #\\0)", "#f");
+    help::eval_assert("(char-upper-case? #\\9)", "#f");
+    help::eval_assert("(char-upper-case? #\\null)", "#f");
+    help::eval_assert("(char-upper-case? #\\tab)", "#f");
+    help::eval_assert("(char-upper-case? #\\newline)", "#f");
+    help::eval_assert("(char-upper-case? #\\space)", "#f");
 }
 
 #[test]
@@ -147,12 +147,12 @@ fn test_is_lowercase() {
     // not
     help::eval_assert("(char-lower-case? #\\A)", "#f");
     help::eval_assert("(char-lower-case? #\\Z)", "#f");
-    help::eval_bad_arg_error(
-        "(char-lower-case? #\\0)",
-        "char-lower-case?",
-        "letter",
-        "#\\0",
-    );
+    help::eval_assert("(char-lower-case? #\\0)", "#f");
+    help::eval_assert("(char-lower-case? #\\9)", "#f");
+    help::eval_assert("(char-lower-case? #\\null)", "#f");
+    help::eval_assert("(char-lower-case? #\\tab)", "#f");
+    help::eval_assert("(char-lower-case? #\\newline)", "#f");
+    help::eval_assert("(char-lower-case? #\\space)", "#f");
 }
 
 #[test]
@@ -169,4 +169,122 @@ fn test_is_unsup() {
     help::eval_assert("(char-unsup? #\\tab)", "#f");
     help::eval_assert("(char-unsup? #\\newline)", "#f");
     help::eval_assert("(char-unsup? #\\space)", "#f");
+}
+
+#[test]
+fn test_up_case() {
+    help::eval_assert("(char-upcase? #\\a)", "#\\A");
+    help::eval_assert("(char-upcase? #\\z)", "#\\Z");
+    help::eval_assert("(char-upcase? #\\A)", "#\\A");
+    help::eval_assert("(char-upcase? #\\Z)", "#\\Z");
+    help::eval_assert("(char-upcase? #\\0)", "#\\0");
+    help::eval_assert("(char-upcase? #\\9)", "#\\9");
+    help::eval_assert("(char-upcase? #\\%)", "#\\%");
+    help::eval_assert("(char-upcase? #\\null)", "#\\null");
+    help::eval_assert("(char-upcase? #\\tab)", "#\\tab");
+    help::eval_assert("(char-upcase? #\\newline)", "#\\newline");
+    help::eval_assert("(char-upcase? #\\unsup)", "#\\unsup");
+    help::eval_assert("(char-upcase? #\\space)", "#\\space");
+}
+
+#[test]
+fn test_down_case() {
+    help::eval_assert("(char-downcase? #\\a)", "#\\a");
+    help::eval_assert("(char-downcase? #\\z)", "#\\z");
+    help::eval_assert("(char-downcase? #\\A)", "#\\a");
+    help::eval_assert("(char-downcase? #\\Z)", "#\\z");
+    help::eval_assert("(char-downcase? #\\0)", "#\\0");
+    help::eval_assert("(char-downcase? #\\9)", "#\\9");
+    help::eval_assert("(char-downcase? #\\%)", "#\\%");
+    help::eval_assert("(char-downcase? #\\null)", "#\\null");
+    help::eval_assert("(char-downcase? #\\tab)", "#\\tab");
+    help::eval_assert("(char-downcase? #\\newline)", "#\\newline");
+    help::eval_assert("(char-downcase? #\\unsup)", "#\\unsup");
+    help::eval_assert("(char-downcase? #\\space)", "#\\space");
+}
+
+#[test]
+fn test_char_eq() {
+    help::eval_assert("(char=? #\\a #\\a)", "#t");
+    help::eval_assert("(char=? #\\A #\\a)", "#f");
+    help::eval_assert("(char=? #\\% #\\#)", "#f");
+    help::eval_assert("(char=? #\\space #\\space)", "#t");
+    help::eval_assert("(char=? #\\null #\\space)", "#f");
+}
+
+fn test_char_less() {
+    help::eval_assert("(char<? #\\a #\\a)", "#f");
+    help::eval_assert("(char<? #\\e #\\t)", "#t");
+    help::eval_assert("(char<? #\\o #\\k)", "#f");
+    help::eval_assert("(char<? #\\A #\\a)", "#t");
+    help::eval_assert("(char<? #\\A #\\A)", "#f");
+    help::eval_assert("(char<? #\\E #\\T)", "#t");
+    help::eval_assert("(char<? #\\O #\\K)", "#f");
+    help::eval_assert("(char<? #\\% #\\#)", "#f");
+    help::eval_assert("(char<? #\\space #\\!)", "#t");
+    help::eval_assert("(char<? #\\null #\\space)", "#t");
+}
+
+fn test_char_less_eq() {
+    help::eval_assert("(char<=? #\\a #\\a)", "#t");
+    help::eval_assert("(char<=? #\\e #\\t)", "#t");
+    help::eval_assert("(char<=? #\\o #\\k)", "#f");
+    help::eval_assert("(char<=? #\\A #\\a)", "#t");
+    help::eval_assert("(char<=? #\\A #\\A)", "#t");
+    help::eval_assert("(char<=? #\\E #\\T)", "#t");
+    help::eval_assert("(char<=? #\\O #\\K)", "#f");
+    help::eval_assert("(char<=? #\\% #\\#)", "#f");
+    help::eval_assert("(char<=? #\\space #\\!)", "#t");
+    help::eval_assert("(char<=? #\\null #\\space)", "#t");
+}
+
+fn test_char_greater() {
+    help::eval_assert("(char>? #\\a #\\a)", "#f");
+    help::eval_assert("(char>? #\\e #\\t)", "#f");
+    help::eval_assert("(char>? #\\o #\\k)", "#t");
+    help::eval_assert("(char>? #\\A #\\a)", "#f");
+    help::eval_assert("(char>? #\\A #\\A)", "#f");
+    help::eval_assert("(char>? #\\E #\\T)", "#f");
+    help::eval_assert("(char>? #\\O #\\K)", "#t");
+    help::eval_assert("(char>? #\\% #\\#)", "#t");
+    help::eval_assert("(char>? #\\space #\\!)", "#f");
+    help::eval_assert("(char>? #\\null #\\space)", "#f");
+}
+
+fn test_char_greater_eq() {
+    help::eval_assert("(char>=? #\\a #\\a)", "#t");
+    help::eval_assert("(char>=? #\\e #\\t)", "#f");
+    help::eval_assert("(char>=? #\\o #\\k)", "#t");
+    help::eval_assert("(char>=? #\\A #\\a)", "#t");
+    help::eval_assert("(char>=? #\\A #\\A)", "#f");
+    help::eval_assert("(char>=? #\\E #\\T)", "#f");
+    help::eval_assert("(char>=? #\\O #\\K)", "#t");
+    help::eval_assert("(char>=? #\\% #\\#)", "#t");
+    help::eval_assert("(char>=? #\\space #\\!)", "#f");
+    help::eval_assert("(char>=? #\\null #\\space)", "#f");
+}
+
+fn test_char_comp_ci() {
+    help::eval_assert("(char-ci=? #\\a #\\a)", "#t");
+    help::eval_assert("(char-ci=? #\\A #\\a)", "#t");
+
+    help::eval_assert("(char-ci>? #\\a #\\a)", "#f");
+    help::eval_assert("(char-ci>? #\\A #\\a)", "#f");
+    help::eval_assert("(char-ci>? #\\a #\\H)", "#f");
+    help::eval_assert("(char-ci>? #\\H #\\a)", "#t");
+
+    help::eval_assert("(char-ci<? #\\a #\\a)", "#f");
+    help::eval_assert("(char-ci<? #\\A #\\a)", "#f");
+    help::eval_assert("(char-ci<? #\\a #\\H)", "#t");
+    help::eval_assert("(char-ci<? #\\H #\\a)", "#f");
+
+    help::eval_assert("(char-ci>=? #\\a #\\a)", "#t");
+    help::eval_assert("(char-ci>=? #\\A #\\a)", "#t");
+    help::eval_assert("(char-ci>=? #\\a #\\H)", "#f");
+    help::eval_assert("(char-ci>=? #\\H #\\a)", "#t");
+
+    help::eval_assert("(char-ci<=? #\\a #\\a)", "#t");
+    help::eval_assert("(char-ci<=? #\\A #\\a)", "#t");
+    help::eval_assert("(char-ci<=? #\\a #\\H)", "#t");
+    help::eval_assert("(char-ci<=? #\\H #\\a)", "#f");
 }

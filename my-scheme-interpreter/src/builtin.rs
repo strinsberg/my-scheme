@@ -36,6 +36,12 @@ pub enum Builtin {
     Length,
     Reverse,
     Append,
+    // Numbers
+    NumEq,
+    NumLt,
+    NumGt,
+    NumLeq,
+    NumGeq,
     // Symbols
     SymToStr,
     StrToSym,
@@ -49,6 +55,8 @@ pub enum Builtin {
     IsUnsup,
     IsUpper,
     IsLower,
+    ToUpper,
+    ToLower,
     // Vectors
     MakeVec,
     Vector,
@@ -69,7 +77,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 47] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 54] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -96,6 +104,12 @@ pub const ALL_BUILTINS: &'static [Builtin; 47] = &[
     Builtin::Length,
     Builtin::Reverse,
     Builtin::Append,
+    // Numbers
+    Builtin::NumEq,
+    Builtin::NumLt,
+    Builtin::NumGt,
+    Builtin::NumLeq,
+    Builtin::NumGeq,
     // Symbols
     Builtin::SymToStr,
     Builtin::StrToSym,
@@ -109,6 +123,8 @@ pub const ALL_BUILTINS: &'static [Builtin; 47] = &[
     Builtin::IsUnsup,
     Builtin::IsUpper,
     Builtin::IsLower,
+    Builtin::ToUpper,
+    Builtin::ToLower,
     // Vectors
     Builtin::MakeVec,
     Builtin::Vector,
@@ -152,6 +168,12 @@ impl fmt::Display for Builtin {
             Builtin::SetCdr => "set-cdr!",
             Builtin::IsList => "list?",
             //
+            Builtin::NumEq => "=",
+            Builtin::NumLt => "<",
+            Builtin::NumGt => ">",
+            Builtin::NumLeq => "<=",
+            Builtin::NumGeq => ">=",
+            //
             Builtin::SymToStr => "symbol->string",
             Builtin::StrToSym => "string->symbol",
             //
@@ -164,6 +186,8 @@ impl fmt::Display for Builtin {
             Builtin::IsUnsup => "char-unsup?",
             Builtin::IsUpper => "char-upper-case?",
             Builtin::IsLower => "char-lower-case?",
+            Builtin::ToUpper => "char-upcase?",
+            Builtin::ToLower => "char-downcase?",
             //
             Builtin::MakeVec => "make-vector",
             Builtin::VecSet => "vector-set!",
