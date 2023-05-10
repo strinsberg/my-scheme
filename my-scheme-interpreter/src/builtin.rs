@@ -42,6 +42,13 @@ pub enum Builtin {
     // Characters
     CharToInt,
     IntToChar,
+    IsAlpha,
+    IsAplhaNum,
+    IsNumChar,
+    IsWhite,
+    IsUnsup,
+    IsUpper,
+    IsLower,
     // Vectors
     MakeVec,
     Vector,
@@ -62,7 +69,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 40] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 47] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -95,6 +102,13 @@ pub const ALL_BUILTINS: &'static [Builtin; 40] = &[
     // Chars
     Builtin::CharToInt,
     Builtin::IntToChar,
+    Builtin::IsAlpha,
+    Builtin::IsAplhaNum,
+    Builtin::IsNumChar,
+    Builtin::IsWhite,
+    Builtin::IsUnsup,
+    Builtin::IsUpper,
+    Builtin::IsLower,
     // Vectors
     Builtin::MakeVec,
     Builtin::Vector,
@@ -143,6 +157,13 @@ impl fmt::Display for Builtin {
             //
             Builtin::CharToInt => "char->integer",
             Builtin::IntToChar => "integer->char",
+            Builtin::IsAlpha => "char-alphabetic?",
+            Builtin::IsAplhaNum => "char-alphanumeric?",
+            Builtin::IsNumChar => "char-numeric?",
+            Builtin::IsWhite => "char-whitespace?",
+            Builtin::IsUnsup => "char-unsup?",
+            Builtin::IsUpper => "char-upper-case?",
+            Builtin::IsLower => "char-lower-case?",
             //
             Builtin::MakeVec => "make-vector",
             Builtin::VecSet => "vector-set!",

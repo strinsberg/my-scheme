@@ -46,6 +46,13 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         // Chars
         Builtin::CharToInt => char_to_int(args),
         Builtin::IntToChar => int_to_char(args),
+        Builtin::IsAlpha => is_alphabetic(args),
+        Builtin::IsNumChar => is_numeric(args),
+        Builtin::IsAplhaNum => is_alphanumeric(args),
+        Builtin::IsWhite => is_whitespace(args),
+        Builtin::IsUnsup => is_unsup(args),
+        Builtin::IsUpper => is_uppercase(args),
+        Builtin::IsLower => is_lowercase(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -492,6 +499,111 @@ pub fn int_to_char(args: Vec<ScmVal>) -> ValResult {
         _ => Err(ScmErr::BadArgType(
             "integer->char".to_owned(),
             "exact non-negative integer".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_alphabetic(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-alphabetic?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_alpha())),
+        _ => Err(ScmErr::BadArgType(
+            "char-alphabetic?".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_numeric(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-numeric?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_numeric())),
+        _ => Err(ScmErr::BadArgType(
+            "char-numeric?".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_alphanumeric(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-alphanumeric?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_alphanumeric())),
+        _ => Err(ScmErr::BadArgType(
+            "char-alphanumeric?".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_whitespace(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-whitespace?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_whitespace())),
+        _ => Err(ScmErr::BadArgType(
+            "char-whitespace?".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_unsup(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-unsup?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_unsup())),
+        _ => Err(ScmErr::BadArgType(
+            "char-unsup?".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_uppercase(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-upper-case?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) if ch.is_alpha() => Ok(ScmVal::Boolean(ch.is_upper_case())),
+        _ => Err(ScmErr::BadArgType(
+            "char-upper-case?".to_owned(),
+            "letter".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn is_lowercase(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char-lower-case?".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) if ch.is_alpha() => Ok(ScmVal::Boolean(ch.is_lower_case())),
+        _ => Err(ScmErr::BadArgType(
+            "char-lower-case?".to_owned(),
+            "letter".to_owned(),
             args[0].clone(),
         )),
     }

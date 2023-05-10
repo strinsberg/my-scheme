@@ -136,15 +136,57 @@ impl ScmChar {
         }
     }
 
-    pub fn to_int(&self) -> i64 {
+    pub fn to_byte(&self) -> u8 {
         match self {
             ScmChar::Null => 0,
             ScmChar::Tab => 9,
             ScmChar::LineFeed => 10,
             ScmChar::Space => 32,
-            ScmChar::Char(byte) => *byte as i64,
+            ScmChar::Char(byte) => *byte,
             ScmChar::Unsupported => 24,
         }
+    }
+
+    pub fn to_int(&self) -> i64 {
+        self.to_byte() as i64
+    }
+
+    pub fn is_alpha(&self) -> bool {
+        (self.to_byte() as char).is_alphabetic()
+    }
+
+    pub fn is_alphanumeric(&self) -> bool {
+        (self.to_byte() as char).is_alphanumeric()
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        (self.to_byte() as char).is_numeric()
+    }
+
+    pub fn is_whitespace(&self) -> bool {
+        match self {
+            ScmChar::Null => true,
+            ScmChar::Tab => true,
+            ScmChar::LineFeed => true,
+            ScmChar::Space => true,
+            ScmChar::Char(byte) => (*byte as char).is_whitespace(),
+            ScmChar::Unsupported => true, // should this be whitespce?
+        }
+    }
+
+    pub fn is_unsup(&self) -> bool {
+        match self {
+            ScmChar::Unsupported => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_upper_case(&self) -> bool {
+        self.to_byte() >= 'A' as u8 && self.to_byte() <= 'Z' as u8
+    }
+
+    pub fn is_lower_case(&self) -> bool {
+        self.to_byte() >= 'a' as u8 && self.to_byte() <= 'z' as u8
     }
 }
 

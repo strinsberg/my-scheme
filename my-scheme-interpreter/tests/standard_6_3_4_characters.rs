@@ -51,3 +51,106 @@ fn test_char_to_integer() {
     help::eval_assert("(char->integer #\\unsup)", "24");
     help::eval_assert("(char->integer #\\space)", "32");
 }
+
+#[test]
+fn test_is_alphabetic() {
+    // could make a loop and test them all?
+    help::eval_assert("(char-alphabetic? #\\A)", "#t");
+    help::eval_assert("(char-alphabetic? #\\Z)", "#t");
+    help::eval_assert("(char-alphabetic? #\\a)", "#t");
+    help::eval_assert("(char-alphabetic? #\\z)", "#t");
+    // not
+    help::eval_assert("(char-alphabetic? #\\0)", "#f");
+    help::eval_assert("(char-alphabetic? #\\9)", "#f");
+    help::eval_assert("(char-alphabetic? #\\null)", "#f");
+    help::eval_assert("(char-alphabetic? #\\tab)", "#f");
+    help::eval_assert("(char-alphabetic? #\\newline)", "#f");
+    help::eval_assert("(char-alphabetic? #\\unsup)", "#f");
+    help::eval_assert("(char-alphabetic? #\\space)", "#f");
+}
+
+#[test]
+fn test_is_numeric() {
+    help::eval_assert("(char-numeric? #\\0)", "#t");
+    help::eval_assert("(char-numeric? #\\1)", "#t");
+    help::eval_assert("(char-numeric? #\\2)", "#t");
+    help::eval_assert("(char-numeric? #\\3)", "#t");
+    help::eval_assert("(char-numeric? #\\4)", "#t");
+    help::eval_assert("(char-numeric? #\\5)", "#t");
+    help::eval_assert("(char-numeric? #\\6)", "#t");
+    help::eval_assert("(char-numeric? #\\7)", "#t");
+    help::eval_assert("(char-numeric? #\\8)", "#t");
+    help::eval_assert("(char-numeric? #\\9)", "#t");
+    // not
+    help::eval_assert("(char-numeric? #\\A)", "#f");
+    help::eval_assert("(char-numeric? #\\Z)", "#f");
+    help::eval_assert("(char-numeric? #\\a)", "#f");
+    help::eval_assert("(char-numeric? #\\z)", "#f");
+    help::eval_assert("(char-numeric? #\\null)", "#f");
+    help::eval_assert("(char-numeric? #\\tab)", "#f");
+    help::eval_assert("(char-numeric? #\\newline)", "#f");
+    help::eval_assert("(char-numeric? #\\unsup)", "#f");
+    help::eval_assert("(char-numeric? #\\space)", "#f");
+}
+
+#[test]
+fn test_is_whitespace() {
+    help::eval_assert("(char-whitespace? #\\null)", "#t");
+    help::eval_assert("(char-whitespace? #\\tab)", "#t");
+    help::eval_assert("(char-whitespace? #\\newline)", "#t");
+    help::eval_assert("(char-whitespace? #\\unsup)", "#t");
+    help::eval_assert("(char-whitespace? #\\space)", "#t");
+    // not
+    help::eval_assert("(char-whitespace? #\\A)", "#f");
+    help::eval_assert("(char-whitespace? #\\Z)", "#f");
+    help::eval_assert("(char-whitespace? #\\a)", "#f");
+    help::eval_assert("(char-whitespace? #\\z)", "#f");
+    help::eval_assert("(char-whitespace? #\\0)", "#f");
+    help::eval_assert("(char-whitespace? #\\9)", "#f");
+}
+
+#[test]
+fn test_is_alphanumeric() {
+    help::eval_assert("(char-alphanumeric? #\\A)", "#t");
+    help::eval_assert("(char-alphanumeric? #\\Z)", "#t");
+    help::eval_assert("(char-alphanumeric? #\\a)", "#t");
+    help::eval_assert("(char-alphanumeric? #\\z)", "#t");
+    help::eval_assert("(char-alphanumeric? #\\0)", "#t");
+    help::eval_assert("(char-alphanumeric? #\\9)", "#t");
+    // not
+    help::eval_assert("(char-alphanumeric? #\\null)", "#f");
+    help::eval_assert("(char-alphanumeric? #\\tab)", "#f");
+    help::eval_assert("(char-alphanumeric? #\\newline)", "#f");
+    help::eval_assert("(char-alphanumeric? #\\unsup)", "#f");
+    help::eval_assert("(char-alphanumeric? #\\space)", "#f");
+}
+
+#[test]
+fn test_is_uppercase() {
+    help::eval_assert("(char-upper-case? #\\A)", "#t");
+    help::eval_assert("(char-upper-case? #\\Z)", "#t");
+    // not
+    help::eval_assert("(char-upper-case? #\\a)", "#f");
+    help::eval_assert("(char-upper-case? #\\z)", "#f");
+    help::eval_bad_arg_error(
+        "(char-upper-case? #\\0)",
+        "char-upper-case?",
+        "letter",
+        "#\\0",
+    );
+}
+
+#[test]
+fn test_is_lowercase() {
+    help::eval_assert("(char-lower-case? #\\a)", "#t");
+    help::eval_assert("(char-lower-case? #\\z)", "#t");
+    // not
+    help::eval_assert("(char-lower-case? #\\A)", "#f");
+    help::eval_assert("(char-lower-case? #\\Z)", "#f");
+    help::eval_bad_arg_error(
+        "(char-lower-case? #\\0)",
+        "char-lower-case?",
+        "letter",
+        "#\\0",
+    );
+}
