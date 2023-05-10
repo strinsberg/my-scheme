@@ -43,6 +43,9 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         // Strings
         Builtin::SymToStr => symbol_to_string(args),
         Builtin::StrToSym => string_to_symbol(args),
+        // Chars
+        Builtin::CharToInt => char_to_int(args),
+        Builtin::IntToChar => int_to_char(args),
         // Vectors
         Builtin::MakeVec => make_vector(args),
         Builtin::Vector => vector(args),
@@ -457,6 +460,38 @@ pub fn string_to_symbol(args: Vec<ScmVal>) -> ValResult {
         _ => Err(ScmErr::BadArgType(
             "symbol->string".to_owned(),
             "symbol".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+// Chars //////////////////////////////////////////////////////////////////////
+
+pub fn char_to_int(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("char->integer".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Character(ch) => Ok(ScmVal::new_int(ch.to_int())),
+        _ => Err(ScmErr::BadArgType(
+            "char->integer".to_owned(),
+            "char".to_owned(),
+            args[0].clone(),
+        )),
+    }
+}
+
+pub fn int_to_char(args: Vec<ScmVal>) -> ValResult {
+    if args.len() < 1 {
+        return Err(ScmErr::Arity("integer->char".to_owned(), 1));
+    }
+
+    match args[0].clone() {
+        ScmVal::Number(ScmNumber::Integer(i)) => Ok(ScmVal::new_char((i as u8) as char)),
+        _ => Err(ScmErr::BadArgType(
+            "integer->char".to_owned(),
+            "exact non-negative integer".to_owned(),
             args[0].clone(),
         )),
     }

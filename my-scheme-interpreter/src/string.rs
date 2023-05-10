@@ -121,7 +121,7 @@ impl ScmChar {
             ScmChar::LineFeed => "\n".to_string(),
             ScmChar::Space => " ".to_string(),
             ScmChar::Char(byte) => format!("{}", *byte as char),
-            ScmChar::Unsupported => "#\\UNSUP".to_string(),
+            ScmChar::Unsupported => "".to_string(), // Should it be this or visible?
         }
     }
 
@@ -132,7 +132,18 @@ impl ScmChar {
             ScmChar::LineFeed => "#\\newline".to_string(),
             ScmChar::Space => "#\\space".to_string(),
             ScmChar::Char(byte) => format!("#\\{}", *byte as char),
-            ScmChar::Unsupported => "#\\UNSUP".to_string(),
+            ScmChar::Unsupported => "#\\unsup".to_string(),
+        }
+    }
+
+    pub fn to_int(&self) -> i64 {
+        match self {
+            ScmChar::Null => 0,
+            ScmChar::Tab => 9,
+            ScmChar::LineFeed => 10,
+            ScmChar::Space => 32,
+            ScmChar::Char(byte) => *byte as i64,
+            ScmChar::Unsupported => 24,
         }
     }
 }

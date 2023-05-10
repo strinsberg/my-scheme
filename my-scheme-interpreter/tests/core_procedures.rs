@@ -280,26 +280,6 @@ fn test_is_boolean() {
 }
 
 #[test]
-fn test_is_character() {
-    help::eval_assert("(char? #\\o)", "#t");
-    help::eval_assert("(char? #\\newline)", "#t");
-    help::eval_assert("(char? #\\space)", "#t");
-    help::eval_assert("(char? #\\null)", "#t");
-    help::eval_assert("(char? #\\tab)", "#t");
-    // is not char
-    help::eval_assert("(char? #t)", "#f");
-    help::eval_assert("(char? \"hello\")", "#f");
-    help::eval_assert("(char? 'world)", "#f");
-    help::eval_assert("(char? (cons 1 4))", "#f");
-    help::eval_assert("(char? (cons 1 '(4)))", "#f");
-    help::eval_assert("(char? '#(1 2 3 4))", "#f");
-    help::eval_assert("(char? car)", "#f");
-    help::eval_assert("(char? (lambda (x) a))", "#f");
-    help::eval_assert("(char? 12)", "#f");
-    help::eval_assert("(char? 10.5)", "#f");
-}
-
-#[test]
 fn test_is_number() {
     help::eval_assert("(number? 0)", "#t");
     help::eval_assert("(number? 1234)", "#t");

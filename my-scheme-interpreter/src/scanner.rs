@@ -144,6 +144,7 @@ impl Scanner {
                 "null" => Ok(Token::Character(ScmChar::Null)),
                 "space" => Ok(Token::Character(ScmChar::Space)),
                 "tab" => Ok(Token::Character(ScmChar::Tab)),
+                "unsup" => Ok(Token::Character(ScmChar::Unsupported)),
                 name => Err(ScmErr::BadIdentifier(self.line, format!("#\\{}", name))),
             }
 

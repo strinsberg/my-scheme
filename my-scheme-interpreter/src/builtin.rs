@@ -39,6 +39,9 @@ pub enum Builtin {
     // Symbols
     SymToStr,
     StrToSym,
+    // Characters
+    CharToInt,
+    IntToChar,
     // Vectors
     MakeVec,
     Vector,
@@ -59,7 +62,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 38] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 40] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -89,6 +92,9 @@ pub const ALL_BUILTINS: &'static [Builtin; 38] = &[
     // Symbols
     Builtin::SymToStr,
     Builtin::StrToSym,
+    // Chars
+    Builtin::CharToInt,
+    Builtin::IntToChar,
     // Vectors
     Builtin::MakeVec,
     Builtin::Vector,
@@ -134,7 +140,10 @@ impl fmt::Display for Builtin {
             //
             Builtin::SymToStr => "symbol->string",
             Builtin::StrToSym => "string->symbol",
-            // Vectors
+            //
+            Builtin::CharToInt => "char->integer",
+            Builtin::IntToChar => "integer->char",
+            //
             Builtin::MakeVec => "make-vector",
             Builtin::VecSet => "vector-set!",
             Builtin::VecRef => "vector-ref",
