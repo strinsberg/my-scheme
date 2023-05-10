@@ -154,3 +154,19 @@ fn test_is_lowercase() {
         "#\\0",
     );
 }
+
+#[test]
+fn test_is_unsup() {
+    help::eval_assert("(char-unsup? #\\unsup)", "#t");
+    // not
+    help::eval_assert("(char-unsup? #\\A)", "#f");
+    help::eval_assert("(char-unsup? #\\Z)", "#f");
+    help::eval_assert("(char-unsup? #\\a)", "#f");
+    help::eval_assert("(char-unsup? #\\z)", "#f");
+    help::eval_assert("(char-unsup? #\\0)", "#f");
+    help::eval_assert("(char-unsup? #\\9)", "#f");
+    help::eval_assert("(char-unsup? #\\null)", "#f");
+    help::eval_assert("(char-unsup? #\\tab)", "#f");
+    help::eval_assert("(char-unsup? #\\newline)", "#f");
+    help::eval_assert("(char-unsup? #\\space)", "#f");
+}

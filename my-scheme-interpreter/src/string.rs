@@ -121,7 +121,7 @@ impl ScmChar {
             ScmChar::LineFeed => "\n".to_string(),
             ScmChar::Space => " ".to_string(),
             ScmChar::Char(byte) => format!("{}", *byte as char),
-            ScmChar::Unsupported => "".to_string(), // Should it be this or visible?
+            ScmChar::Unsupported => "\x18".to_string(),
         }
     }
 
