@@ -23,6 +23,47 @@ fn test_string_set() {
 }
 
 #[test]
+fn test_string() {
+    help::eval_assert("(string #\\h #\\e #\\l #\\l #\\o)", "\"hello\"");
+}
+
+#[test]
+fn test_string_append() {
+    help::eval_assert(
+        "(string-append \"hello\" \", \" \"world!\")",
+        "\"hello, world!\"",
+    );
+}
+
+#[test]
+fn test_string_and_lists() {
+    help::eval_assert("(string->list \"hello\")", "(#\\h #\\e #\\l #\\l #\\o)");
+    help::eval_assert("(list->string '(#\\h #\\e #\\l #\\l #\\o))", "\"hello\"");
+}
+
+#[test]
+fn test_substring() {
+    help::eval_assert("(substring \"hello\" 0 0)", "\"\"");
+    help::eval_assert("(substring \"hello\" 4 4)", "\"\"");
+    help::eval_assert("(substring \"hello\" 0 5)", "\"hello\"");
+    help::eval_assert("(substring \"hello\" 4 5)", "\"o\"");
+}
+
+#[test]
+fn test_string_copy() {
+    help::eval_assert("(string-copy \"hello\")", "\"hello\"");
+    /* TODO This won't work until eq? is proper, but should confirm that these are
+     * not the same string.
+    help::eval_assert(
+        "(define str \"hello\")
+                       (define other (string-copy \"hello\"))
+                       (eq? str other)",
+        "#f",
+    );
+    */
+}
+
+#[test]
 fn test_is_string() {
     help::eval_assert("(string? \"hello, world\")", "#t");
     help::eval_assert("(string? (make-string 5))", "#t");

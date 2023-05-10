@@ -1,5 +1,6 @@
 ;; my-scheme core library procedures ;;
 
+
 ;; Equality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO this is not implemented properly yet
@@ -7,6 +8,14 @@
   (lambda (a b)
     (eqv? a b)))
 
+;; Functional ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO single list map for now and NOT TCO
+(define (map f xs)
+  (if (null? xs)
+    (list)
+    (cons (f (car xs))
+          (map f (cdr xs)))))
 
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -146,26 +155,36 @@
 (define (string-ci<=? a b) (__string-compare-ord-eq__ a b char-ci<? char-ci=? #t #f))
 (define (string-ci>=? a b) (__string-compare-ord-eq__ a b char-ci>? char-ci=? #f #t))
 
-;; String requires counting the list of arguments and making a new string with
-;; the necessary length. Then just loop again and set string positions to the
-;; correct ones. This and all those below would be much easier with
-;; for-each, map, or reduce and the addition of a string-push function to add
-;; chars to the end of the string.
+(define (string . xs)
+    (do ((new-string (make-string (length xs)))
+         (i 0 (+ i 1))
+         (ls xs (cdr ls)))
+        ((null? ls) new-string)
+      (string-set! new-string i (car ls))))
 
-;; For string append make a new string the same length as all the arguments
-;; then maintain a char idx and for each string loop through it and string-set!
-;; the position in the new string. requires string-set! and make-string.
+;; TODO this is the naive way of doing this for now
+(define (string-append . strings)
+  (apply string
+    (apply append
+           (map string->list strings))))
 
-;; String to list is just loop through the chars of the string and cons each of
-;; them onto a list. Doing this with a recursive helper will make it easier,
-;; but the string will have to be traversed backwards that way to keep it
-;; tail recursive and not have to call reverse on the list.
+(define (string->list str)
+  (let ((len (string-length str)))
+    (do ((i (- len 1) (- i 1))
+         (ls (list) (cons (string-ref str i) ls)))
+        ((= i -1) ls))))
 
-;; List to string is easy again, just make a new string and maintain an index
-;; as you loop through the list to string-set! the chars in the string.
+(define (list->string xs) (apply string xs))
 
-;; Substring is the same as the others. Make a new string of the desired length
-;; and loop through the string and set the appropriate chars in the new string.
+(define (substring str start end)
+    (do ((new-str (make-string (- end start)))
+         (i start (+ i 1)))
+        ((= i end) new-str)
+      (string-set! new-str (- i start) (string-ref str i))))
 
-;; String copy again is just loop through the string and set chars in the new
-;; string as needed.
+(define (string-copy str)
+  (let ((len (string-length str)))
+    (do ((new-str (make-string len))
+         (i 0 (+ i 1)))
+        ((= i len) new-str)
+      (string-set! new-str i (string-ref str i)))))

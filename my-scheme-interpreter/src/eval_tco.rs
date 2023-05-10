@@ -481,16 +481,38 @@ fn apply_closure(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<(ScmVal, 
 }
 
 // Apply a function to a list of values.
-// Only works right now if the second arg is a list and ignores additional args.
-// Not sure if this is the intended r5rs behaviour.
+// TODO this is not the proper behaviour as dictated by the standards. It should
+// take arguments and the final one has to be a list. The args are all consed into
+// the final list.
+// TODO this is also super inefficient converting the list to a vec and then
+// quoting each element so that it will not be evaluated on the next
+// evaluation. I am just creating a new list and passing it to be evaluated as a
+// function call, so the arguments will be evaluated on that function call, but
+// they should not be. Whatever makes the list needs to be evaluated, but the
+// contents do not. I.e. the old way if a list of lists were passed to apply
+// by another function it would error as those lists would be evalled as though
+// they were function calls. i.e. it sees (apply f '((1 2 3) (3 4 5)))
+// and produces (f (1 2 3) (3 4 5)) which is find if we call f right away.
+// The procedure should be evaluated before being passed to apply so maybe we
+// can match on it as either a closure or a builtin and apply it based on that
+// by passing the args to that procedure, but not sure that would be a tail call.
 fn user_apply(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 2 {
         let func = args[0].clone();
         let list = match args[1].clone() {
-            ScmVal::Pair(p) => ScmVal::Pair(p),
+            ScmVal::Pair(_) | ScmVal::PairMut(_) => args[1].clone(),
             e => return Err(ScmErr::BadArgType("apply".to_owned(), "pair".to_owned(), e)),
         };
-        Ok(ScmVal::cons(func, list))
+        // This is a hack
+        let (vec, _, _) = ScmVal::list_to_vec(list.clone()).unwrap();
+        let quoted = vec
+            .into_iter()
+            .map(|v| ScmVal::vec_to_list(vec![ScmVal::new_sym("quote"), v], ScmVal::Empty))
+            .collect();
+        Ok(ScmVal::cons(
+            func,
+            ScmVal::vec_to_list(quoted, ScmVal::Empty),
+        ))
     } else {
         Err(ScmErr::Arity("apply".to_owned(), 2))
     }
