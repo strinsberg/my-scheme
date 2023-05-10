@@ -173,34 +173,34 @@ fn test_is_unsup() {
 
 #[test]
 fn test_up_case() {
-    help::eval_assert("(char-upcase? #\\a)", "#\\A");
-    help::eval_assert("(char-upcase? #\\z)", "#\\Z");
-    help::eval_assert("(char-upcase? #\\A)", "#\\A");
-    help::eval_assert("(char-upcase? #\\Z)", "#\\Z");
-    help::eval_assert("(char-upcase? #\\0)", "#\\0");
-    help::eval_assert("(char-upcase? #\\9)", "#\\9");
-    help::eval_assert("(char-upcase? #\\%)", "#\\%");
-    help::eval_assert("(char-upcase? #\\null)", "#\\null");
-    help::eval_assert("(char-upcase? #\\tab)", "#\\tab");
-    help::eval_assert("(char-upcase? #\\newline)", "#\\newline");
-    help::eval_assert("(char-upcase? #\\unsup)", "#\\unsup");
-    help::eval_assert("(char-upcase? #\\space)", "#\\space");
+    help::eval_assert("(char-upcase #\\a)", "#\\A");
+    help::eval_assert("(char-upcase #\\z)", "#\\Z");
+    help::eval_assert("(char-upcase #\\A)", "#\\A");
+    help::eval_assert("(char-upcase #\\Z)", "#\\Z");
+    help::eval_assert("(char-upcase #\\0)", "#\\0");
+    help::eval_assert("(char-upcase #\\9)", "#\\9");
+    help::eval_assert("(char-upcase #\\%)", "#\\%");
+    help::eval_assert("(char-upcase #\\null)", "#\\null");
+    help::eval_assert("(char-upcase #\\tab)", "#\\tab");
+    help::eval_assert("(char-upcase #\\newline)", "#\\newline");
+    help::eval_assert("(char-upcase #\\unsup)", "#\\unsup");
+    help::eval_assert("(char-upcase #\\space)", "#\\space");
 }
 
 #[test]
 fn test_down_case() {
-    help::eval_assert("(char-downcase? #\\a)", "#\\a");
-    help::eval_assert("(char-downcase? #\\z)", "#\\z");
-    help::eval_assert("(char-downcase? #\\A)", "#\\a");
-    help::eval_assert("(char-downcase? #\\Z)", "#\\z");
-    help::eval_assert("(char-downcase? #\\0)", "#\\0");
-    help::eval_assert("(char-downcase? #\\9)", "#\\9");
-    help::eval_assert("(char-downcase? #\\%)", "#\\%");
-    help::eval_assert("(char-downcase? #\\null)", "#\\null");
-    help::eval_assert("(char-downcase? #\\tab)", "#\\tab");
-    help::eval_assert("(char-downcase? #\\newline)", "#\\newline");
-    help::eval_assert("(char-downcase? #\\unsup)", "#\\unsup");
-    help::eval_assert("(char-downcase? #\\space)", "#\\space");
+    help::eval_assert("(char-downcase #\\a)", "#\\a");
+    help::eval_assert("(char-downcase #\\z)", "#\\z");
+    help::eval_assert("(char-downcase #\\A)", "#\\a");
+    help::eval_assert("(char-downcase #\\Z)", "#\\z");
+    help::eval_assert("(char-downcase #\\0)", "#\\0");
+    help::eval_assert("(char-downcase #\\9)", "#\\9");
+    help::eval_assert("(char-downcase #\\%)", "#\\%");
+    help::eval_assert("(char-downcase #\\null)", "#\\null");
+    help::eval_assert("(char-downcase #\\tab)", "#\\tab");
+    help::eval_assert("(char-downcase #\\newline)", "#\\newline");
+    help::eval_assert("(char-downcase #\\unsup)", "#\\unsup");
+    help::eval_assert("(char-downcase #\\space)", "#\\space");
 }
 
 #[test]

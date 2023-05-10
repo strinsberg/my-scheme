@@ -192,8 +192,8 @@ impl fmt::Display for Builtin {
             Builtin::IsUnsup => "char-unsup?",
             Builtin::IsUpper => "char-upper-case?",
             Builtin::IsLower => "char-lower-case?",
-            Builtin::ToUpper => "char-upcase?",
-            Builtin::ToLower => "char-downcase?",
+            Builtin::ToUpper => "char-upcase",
+            Builtin::ToLower => "char-downcase",
             //
             Builtin::StrLen => "string-length",
             Builtin::StrRef => "string-ref",

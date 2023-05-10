@@ -44,3 +44,51 @@ fn test_string_ref() {
         "\"hello, world!\"",
     );
 }
+
+#[test]
+fn test_string_equality() {
+    help::eval_assert("(string=? \"hello, world!\" \"hello, world!\")", "#t");
+    help::eval_assert("(string=? \"hello, World!\" \"hello, world!\")", "#f");
+    help::eval_assert("(string=? \"hello, World!\" \"hello\")", "#f");
+
+    help::eval_assert("(string-ci=? \"hello, world!\" \"hello, world!\")", "#t");
+    help::eval_assert("(string-ci=? \"hello, World!\" \"hello, world!\")", "#t");
+    help::eval_assert("(string-ci=? \"hello, World!\" \"hello\")", "#f");
+}
+
+fn test_string_compare() {
+    help::eval_assert("(string<? \"hello\" \"hello\")", "#f");
+    help::eval_assert("(string<? \"Hello\" \"hello\")", "#t");
+    help::eval_assert("(string>? \"hello\" \"hello\")", "#f");
+    help::eval_assert("(string>? \"hello\" \"Hello\")", "#t");
+
+    help::eval_assert("(string<? \"he\" \"hello\")", "#t");
+    help::eval_assert("(string<? \"hello\" \"he\")", "#f");
+    help::eval_assert("(string>? \"he\" \"hello\")", "#t");
+    help::eval_assert("(string>? \"hello\" \"he\")", "#f");
+
+    help::eval_assert("(string<=? \"hello\" \"hello\")", "#t");
+    help::eval_assert("(string<=? \"Hello\" \"hello\")", "#t");
+    help::eval_assert("(string>=? \"hello\" \"hello\")", "#t");
+    help::eval_assert("(string>=? \"hello\" \"Hello\")", "#t");
+
+    help::eval_assert("(string<=? \"he\" \"hello\")", "#t");
+    help::eval_assert("(string<=? \"hello\" \"he\")", "#f");
+    help::eval_assert("(string>=? \"he\" \"hello\")", "#t");
+    help::eval_assert("(string>=? \"hello\" \"he\")", "#f");
+}
+
+fn test_string_compare_ci() {
+    // We are a little lax here because the use of a helper for all of them
+    // means all we are really checking here is that strings are treated as
+    // having equal case.
+    help::eval_assert("(string-ci<? \"hello\" \"hello\")", "#f");
+    help::eval_assert("(string-ci<? \"Hello\" \"hello\")", "#t");
+    help::eval_assert("(string-ci>? \"hello\" \"hello\")", "#f");
+    help::eval_assert("(string-ci>? \"hello\" \"Hello\")", "#t");
+
+    help::eval_assert("(string-ci<=? \"hello\" \"hello\")", "#t");
+    help::eval_assert("(string-ci<=? \"Hello\" \"hello\")", "#t");
+    help::eval_assert("(string-ci>=? \"hello\" \"hello\")", "#t");
+    help::eval_assert("(string-ci>=? \"hello\" \"Hello\")", "#t");
+}
