@@ -95,10 +95,45 @@
 
 ;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; These comparisson functions are a little gross, but they save having to
-;; write the same function 10 times. The extra parameters on the ordered ones
-;; determine what to return in cases where we get to the end of one or both or
-;; the strings.
+(define (string . xs)
+    (do ((new-string (make-string (length xs)))
+         (i 0 (+ i 1))
+         (ls xs (cdr ls)))
+        ((null? ls) new-string)
+      (string-set! new-string i (car ls))))
+
+;; TODO this is the naive way of doing this for now
+(define (string-append . strings)
+  (apply string
+    (apply append
+           (map string->list strings))))
+
+(define (string->list str)
+  (let ((len (string-length str)))
+    (do ((i (- len 1) (- i 1))
+         (ls (list) (cons (string-ref str i) ls)))
+        ((= i -1) ls))))
+
+(define (list->string xs) (apply string xs))
+
+(define (substring str start end)
+    (do ((new-str (make-string (- end start)))
+         (i start (+ i 1)))
+        ((= i end) new-str)
+      (string-set! new-str (- i start) (string-ref str i))))
+
+(define (string-copy str)
+  (let ((len (string-length str)))
+    (do ((new-str (make-string len))
+         (i 0 (+ i 1)))
+        ((= i len) new-str)
+      (string-set! new-str i (string-ref str i)))))
+
+(define (string-fill! str ch)
+  (do ((len (string-length str))
+       (i 0 (+ i 1)))
+      ((= i len) '())
+    (string-set! str i ch)))
 
 ;; Equality ;;
 (define (__string-compare-eq__ a b f)
@@ -155,36 +190,18 @@
 (define (string-ci<=? a b) (__string-compare-ord-eq__ a b char-ci<? char-ci=? #t #f))
 (define (string-ci>=? a b) (__string-compare-ord-eq__ a b char-ci>? char-ci=? #f #t))
 
-(define (string . xs)
-    (do ((new-string (make-string (length xs)))
-         (i 0 (+ i 1))
-         (ls xs (cdr ls)))
-        ((null? ls) new-string)
-      (string-set! new-string i (car ls))))
+;; Vectors ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO this is the naive way of doing this for now
-(define (string-append . strings)
-  (apply string
-    (apply append
-           (map string->list strings))))
+(define (list->vector xs) (apply vector xs))
 
-(define (string->list str)
-  (let ((len (string-length str)))
+(define (vector->list vec)
+  (let ((len (vector-length vec)))
     (do ((i (- len 1) (- i 1))
-         (ls (list) (cons (string-ref str i) ls)))
+         (ls (list) (cons (vector-ref vec i) ls)))
         ((= i -1) ls))))
 
-(define (list->string xs) (apply string xs))
-
-(define (substring str start end)
-    (do ((new-str (make-string (- end start)))
-         (i start (+ i 1)))
-        ((= i end) new-str)
-      (string-set! new-str (- i start) (string-ref str i))))
-
-(define (string-copy str)
-  (let ((len (string-length str)))
-    (do ((new-str (make-string len))
-         (i 0 (+ i 1)))
-        ((= i len) new-str)
-      (string-set! new-str i (string-ref str i)))))
+(define (vector-fill! vec obj)
+  (do ((len (vector-length vec))
+       (i 0 (+ i 1)))
+      ((= i len) '())
+    (vector-set! vec i obj)))

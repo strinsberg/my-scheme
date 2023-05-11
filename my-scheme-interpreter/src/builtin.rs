@@ -68,8 +68,6 @@ pub enum Builtin {
     VecSet,
     VecRef,
     VecLen,
-    VecToList,
-    VecFill,
     // TODO no push, pop, and concat/append in the standards???
     // other
     EQ,
@@ -82,7 +80,7 @@ pub enum Builtin {
 }
 
 // NOTE when you add elements update the size
-pub const ALL_BUILTINS: &'static [Builtin; 58] = &[
+pub const ALL_BUILTINS: &'static [Builtin; 56] = &[
     Builtin::Cons,
     Builtin::Car,
     Builtin::Cdr,
@@ -141,8 +139,6 @@ pub const ALL_BUILTINS: &'static [Builtin; 58] = &[
     Builtin::VecSet,
     Builtin::VecRef,
     Builtin::VecLen,
-    Builtin::VecToList,
-    Builtin::VecFill,
     // TODO no push, pop, and concat/append in the standards???
     // other
     Builtin::EQ,
@@ -208,8 +204,6 @@ impl fmt::Display for Builtin {
             Builtin::VecSet => "vector-set!",
             Builtin::VecRef => "vector-ref",
             Builtin::VecLen => "vector-length",
-            Builtin::VecToList => "vector->list",
-            Builtin::VecFill => "vector-fill!",
             //
             Builtin::EQ => "eq?",
             Builtin::Eqv => "eqv?",

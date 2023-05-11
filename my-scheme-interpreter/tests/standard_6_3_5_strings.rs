@@ -156,3 +156,11 @@ fn test_string_compare_ci() {
     help::eval_assert("(string-ci>=? \"hello\" \"hello\")", "#t");
     help::eval_assert("(string-ci>=? \"hello\" \"Hello\")", "#t");
 }
+
+#[test]
+fn test_string_fill() {
+    help::eval_assert(
+        "(define V (make-string 5)) (string-fill! V #\\f) V",
+        "\"fffff\"",
+    );
+}

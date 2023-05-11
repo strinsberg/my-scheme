@@ -73,8 +73,6 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
         Builtin::VecSet => vector_set(args),
         Builtin::VecRef => vector_ref(args),
         Builtin::VecLen => vector_length(args),
-        Builtin::VecToList => vector_to_list(args),
-        Builtin::VecFill => vector_fill(args),
         // Error
         Builtin::Error => user_error(args),
         Builtin::ArgTypeError => user_arg_type_error(args),
@@ -1064,45 +1062,6 @@ pub fn vector_ref(args: Vec<ScmVal>) -> ValResult {
             args[0].clone(),
         )),
     }
-}
-
-pub fn vector_to_list(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("vector->list".to_owned(), 2));
-    }
-
-    match args[0].clone() {
-        ScmVal::VectorMut(vec) => Ok(ScmVal::vec_to_list(vec.borrow().clone(), ScmVal::Empty)),
-        ScmVal::Vector(vec) => Ok(ScmVal::vec_to_list((*vec).clone(), ScmVal::Empty)),
-        _ => Err(ScmErr::BadArgType(
-            "vector->list".to_owned(),
-            "vector".to_owned(),
-            args[0].clone(),
-        )),
-    }
-}
-
-pub fn vector_fill(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("vector-fill".to_owned(), 2));
-    }
-
-    match args[0].clone() {
-        ScmVal::VectorMut(vec) => {
-            vec.borrow_mut()
-                .iter_mut()
-                .for_each(|x| *x = args[1].clone());
-        }
-        _ => {
-            return Err(ScmErr::BadArgType(
-                "vector-fill!".to_owned(),
-                "mutable vector".to_owned(),
-                args[0].clone(),
-            ))
-        }
-    };
-
-    Ok(ScmVal::Empty)
 }
 
 // Errors /////////////////////////////////////////////////////////////////////

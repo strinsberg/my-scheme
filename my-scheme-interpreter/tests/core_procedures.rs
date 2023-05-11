@@ -299,24 +299,6 @@ fn test_is_number() {
 }
 
 #[test]
-fn test_is_vector() {
-    // TODO test immutable vector
-    help::eval_assert("(vector? '#(1 2 3 4))", "#t");
-    // is not vector
-    help::eval_assert("(vector? \"hello, world\")", "#f");
-    help::eval_assert("(vector? '())", "#f");
-    help::eval_assert("(vector? #t)", "#f");
-    help::eval_assert("(vector? #\\G)", "#f");
-    help::eval_assert("(vector? (cons 3 4))", "#f");
-    help::eval_assert("(vector? '(1 2 3 4))", "#f");
-    help::eval_assert("(vector? car)", "#f");
-    help::eval_assert("(vector? (lambda (x) a))", "#f");
-    help::eval_assert("(vector? 'waldo)", "#f");
-    help::eval_assert("(vector? 12)", "#f");
-    help::eval_assert("(vector? 10.5)", "#f");
-}
-
-#[test]
 fn test_is_procedure() {
     help::eval_assert("(procedure? car)", "#t");
     help::eval_assert("(procedure? (lambda (x) a))", "#t");
@@ -398,29 +380,6 @@ fn test_case() {
     help::eval_assert(
         "(case (* 2 3) ((1 2 3 4 5) 'first) ((a b c d) 'second) (else 'third 'fourth))",
         "fourth",
-    );
-}
-
-// Vectors ////////////////////////////////////////////////////////////////////
-
-#[test]
-fn test_vector_operations() {
-    help::eval_assert("(vector 1 2 3 4 5)", "#(1 2 3 4 5)");
-    help::eval_assert("(vector-length '#(1 2 3 4 5))", "5");
-    help::eval_assert("(vector-length (vector 1 2 5))", "3");
-    help::eval_assert("(make-vector 5)", "#(0 0 0 0 0)");
-    help::eval_assert("(make-vector 5 'a)", "#(a a a a a)");
-    help::eval_assert(
-        "(let ((vec (vector 1 2 3 4 5))) (vector-set! vec 2 '(1 2 3)) vec)",
-        "#(1 2 (1 2 3) 4 5)",
-    );
-    help::eval_assert("(vector-ref '#(1 2 3 4 5) 2)", "3");
-    help::eval_assert("(vector-ref (vector 1 2 3 4 5) 4)", "5");
-    help::eval_assert("(vector->list (vector 1 2 3 4 5))", "(1 2 3 4 5)");
-    help::eval_assert("(vector->list '#(1 #(2 3) 4 5))", "(1 #(2 3) 4 5)");
-    help::eval_assert(
-        "(let ((vec (vector 1 2 3 4 5))) (vector-fill! vec 'a) vec)",
-        "#(a a a a a)",
     );
 }
 
