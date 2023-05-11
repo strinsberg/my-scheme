@@ -10,21 +10,27 @@
 
 ;; Functional ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; This is a somewhat naive implementation, but I needed to figure out how to
-;; make it work. If map-single is made tail recursive and we can get rid of the reverse.
-;; Also, it likely will not error nicely if the list sizes are off, and I do not
-;; know what it will do if it were passed nothing.
+;; This might be optimizable still, but this is a pretty standard way of
+;; doing a map and a little tricky when you have to have multiple lists to
+;; apply it to. Also, does not check for arity or that all lists are the same
+;; size.
 (define (map f . lists)
   (letrec ((map-single
-             (lambda (f xs)
+             (lambda (f xs acc)
                 (if (null? xs)
-                  (list)
-                  (cons (f (car xs))
-                        (map f (cdr xs)))))))
-    (do ((ls lists (map-single cdr ls))
-         (result '() (cons (apply f (map-single car ls)) result)))
-      ((null? (car ls)) (reverse result)))))
-
+                  (reverse acc)
+                  (map-single f
+                              (cdr xs)
+                              (cons (f (car xs)) acc)))))
+           (map-multi
+             (lambda (f lists acc)
+               (if (null? (car lists))
+                 (reverse acc)
+                 (map-multi f
+                            (map-single cdr lists '())
+                            (cons (apply f (map-single car lists '()))
+                                  acc))))))
+    (map-multi f lists '())))
 
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
