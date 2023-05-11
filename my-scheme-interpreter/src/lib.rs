@@ -8,5 +8,6 @@ pub mod number;
 pub mod reader;
 pub mod scanner;
 pub mod scheme_libs;
+//pub mod stack_eval; // uncomment to work on the eval that might support continuations
 pub mod string;
 pub mod types;
