@@ -456,7 +456,7 @@ fn apply_closure(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<(ScmVal, 
             if args.len() >= params.len() {
                 Env::bind_in_new_env(Rc::clone(&closure.env), params.clone(), args)?
             } else {
-                return Err(ScmErr::Arity("closure".to_owned(), 2));
+                return Err(ScmErr::Arity("closure".to_owned(), params.len()));
             }
         }
         Formals::Rest(params, symbol) => {

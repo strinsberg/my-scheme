@@ -10,12 +10,21 @@
 
 ;; Functional ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO single list map for now and NOT TCO
-(define (map f xs)
-  (if (null? xs)
-    (list)
-    (cons (f (car xs))
-          (map f (cdr xs)))))
+;; This is a somewhat naive implementation, but I needed to figure out how to
+;; make it work. If map-single is made tail recursive and we can get rid of the reverse.
+;; Also, it likely will not error nicely if the list sizes are off, and I do not
+;; know what it will do if it were passed nothing.
+(define (map f . lists)
+  (letrec ((map-single
+             (lambda (f xs)
+                (if (null? xs)
+                  (list)
+                  (cons (f (car xs))
+                        (map f (cdr xs)))))))
+    (do ((ls lists (map-single cdr ls))
+         (result '() (cons (apply f (map-single car ls)) result)))
+      ((null? (car ls)) (reverse result)))))
+
 
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -205,3 +214,18 @@
        (i 0 (+ i 1)))
       ((= i len) '())
     (vector-set! vec i obj)))
+
+;; Just an extra function I cooked up for something I did not need it for.
+;; Maybe not robust yet, but it has a test and works for a standard case.
+(define (vector-transpose V)
+  ;; Still need to ensure all vectors are the same length, but it will error
+  ;; anyway if they are not
+  (let ((m (vector-length V))
+        (n (vector-length (vector-ref V 0))))
+    (do ((i 0 (+ i 1))
+         (outer (make-vector n)))
+        ((= i n) outer)
+      (do ((j 0 (+ j 1))
+           (inner (make-vector m)))
+          ((= j m) (vector-set! outer i inner))
+        (vector-set! inner j (vector-ref (vector-ref V j) i))))))

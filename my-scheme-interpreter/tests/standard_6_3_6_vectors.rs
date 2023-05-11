@@ -60,3 +60,11 @@ fn test_vector_fill() {
         "#(a a a a a)",
     );
 }
+
+#[test]
+fn test_vector_transpose() {
+    help::eval_assert(
+        "(vector-transpose '#(#(1 2) #(3 4) #(5 6)))",
+        "#(#(1 3 5) #(2 4 6))",
+    );
+}
