@@ -32,6 +32,24 @@
                                   acc))))))
     (map-multi f lists '())))
 
+;; Same strategy as map, but with no accumulators and we return '()
+(define (for-each f . lists)
+  (letrec ((for-each-single
+             (lambda (f xs)
+                (if (null? xs)
+                  '()
+                  (begin
+                    (f (car xs))
+                    (for-each-single f (cdr xs))))))
+           (for-each-multi
+             (lambda (f lists)
+               (if (null? (car lists))
+                 '()
+                 (begin
+                   (apply f (map car lists))
+                   (for-each-multi f (map cdr lists)))))))
+    (for-each-multi f lists)))
+
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (null? x) (eqv? x '()))
@@ -117,7 +135,14 @@
         ((null? ls) new-string)
       (string-set! new-string i (car ls))))
 
-;; TODO this is the naive way of doing this for now
+;; This is a kind of naive way of doing this, it is probably possible to get
+;; the total length of each of the strings and make a new string that long
+;; and then take each string and copy each char to the new string in the
+;; right place. I am not sure how much more efficient it would but it would
+;; could reduce us from 3 iterations over each string to 1. Maybe also a string
+;; push could make it easy and more efficient. Then we could make an str function
+;; like clojure that turns every value into a string and appends them together.
+;; we could also make a string join quite easily too with string-push.
 (define (string-append . strings)
   (apply string
     (apply append

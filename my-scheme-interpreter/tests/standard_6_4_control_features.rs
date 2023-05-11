@@ -26,3 +26,21 @@ fn test_map() {
         "(3 6 9 12)",
     );
 }
+
+#[test]
+fn test_for_each() {
+    help::eval_assert(
+        "(let ((v (make-vector 5)))
+            (for-each (lambda (i) (vector-set! v i (+ i 1)))
+                      '(0 1 2 3 4))
+            v)",
+        "#(1 2 3 4 5)",
+    );
+    help::eval_assert(
+        "(let ((v (make-vector 5)))
+            (for-each (lambda (i x y) (vector-set! v i (+ x y)))
+                      '(0 1 2 3 4) '(1 2 3 4 5) '(1 2 3 4 5))
+            v)",
+        "#(2 4 6 8 10)",
+    );
+}
