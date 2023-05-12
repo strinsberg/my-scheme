@@ -67,6 +67,52 @@ pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     }
 }
 
+// Transforms a let* expression into a let expression.
+// Example: (let* ((a 1) (b 2)) (+ a b)) => (let ((a 1)) (let* ((b 2)) (+ a b)))
+//
+// TODO this feels horribly inefficient with all the to and from vecs, and I don't
+// really like transforming it into something that will have to be transformed
+// again and again into so many nested lets/closures.
+pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
+    if args.len() >= 2 {
+        let (bindings, dot, cycle) =
+            ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::Syntax(args[0].clone()))?;
+        if dot || cycle {
+            return Err(ScmErr::Syntax(args[0].clone()));
+        }
+
+        let num_bind = bindings.len();
+        match num_bind {
+            2.. => {
+                let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
+                let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+                let let_star_bind = ScmVal::vec_to_list(bindings[1..].into(), ScmVal::Empty);
+                let let_star =
+                    ScmVal::vec_to_list(vec![ScmVal::new_sym("let*"), let_star_bind], body);
+                println!("{let_bind}, {let_star}");
+                Ok(ScmVal::vec_to_list(
+                    vec![ScmVal::new_sym("let"), let_bind, let_star],
+                    ScmVal::Empty,
+                ))
+            }
+            1 => {
+                let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
+                let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+                Ok(ScmVal::vec_to_list(
+                    vec![ScmVal::new_sym("let"), let_bind],
+                    body,
+                ))
+            }
+            _ => Ok(ScmVal::new_pair(
+                ScmVal::new_sym("begin"),
+                ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty),
+            )),
+        }
+    } else {
+        Err(ScmErr::Arity("let".to_owned(), 2))
+    }
+}
+
 // Transforms a letrec expression into a let expression.
 // Example: (letrec ((a 1) (b 2)) (+ a b)) =>
 //          (let ((a <undefined>) (b <undefined>))

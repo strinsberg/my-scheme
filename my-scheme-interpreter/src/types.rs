@@ -12,6 +12,8 @@ use std::rc::Rc;
 // not change anything else much. It is just a real pain to have to match on
 // both kinds because the cell access is different. Using a flag instead would
 // mean a small check only when we desired mutability.
+// TODO the special forms should be in an Rc in the ScmVal so that their size
+// does not affect the size of ScmVal.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 
@@ -21,8 +23,8 @@ pub enum SpecialForm {
     Set(Rc<ScmVal>),
     And(Vec<ScmVal>),
     Or(Vec<ScmVal>),
-    //Cond(Vec<ScmVal>),
-    //Case(Vec<ScmVal>),
+    Cond(Vec<ScmVal>, bool, Vec<ScmVal>),
+    Case(Rc<ScmVal>, Vec<ScmVal>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

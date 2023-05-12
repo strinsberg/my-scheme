@@ -2,6 +2,7 @@ use crate::eval_tco::eval_forms;
 use crate::reader::StringReader;
 use crate::scheme_libs::std::SCM_LIB_STD;
 use crate::types::Env;
+use crate::vm::Vm;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -40,8 +41,9 @@ impl Interpreter {
             panic!("not initialized");
         }
 
+        let mut vm = Vm::new(self.env.clone());
         match StringReader::new(text).read_forms() {
-            Ok(forms) => match eval_forms(forms, Rc::clone(&self.env)) {
+            Ok(forms) => match vm.eval_forms(forms) {
                 Ok(val) => val.to_extern(),
                 Err(e) => format!("{e}"),
             },
