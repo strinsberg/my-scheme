@@ -1,10 +1,19 @@
-use crate::builtin::Builtin;
 use crate::core_proc as proc;
-use crate::error::{ScmErr, ScmResult, ValResult};
+use crate::error::{ScmErr, ValResult};
 use crate::eval_helpers as evh;
-use crate::types::{Closure, ConsCell, Env, Formals, ScmVal};
+use crate::types::{Closure, Env, ScmVal};
 use std::cell::RefCell;
 use std::rc::Rc;
+
+// TODO since all of the action in the eval function is accessing the vm internals
+// it should be quite easy to move all of the bigger sections to their own methods
+// without the same shenanigans that we had to use last time.
+// TODO add derived expressions. They may need to be either re-written as
+// transformations or made into special forms.
+// TODO add an eval for multiple forms.
+// TODO Get rid of mutable pairs and use the mutable flag in the ConsCell.
+// TODO replace the interpreters evaluator with this one and run the full tests suite.
+// TODO implement a continuation
 
 type OpStackRc = Rc<Stack<VmOp>>;
 type ResStackRc = Rc<Stack<ScmVal>>;
@@ -49,18 +58,10 @@ impl Vm {
             match op {
                 VmOp::Eval(expr) => match expr.clone() {
                     /*** Eval Symbol ***********************************/
-                    ScmVal::Symbol(name) => {
-                        let value = match self.env.borrow().lookup(expr) {
-                            Some(val) => val,
-                            None => return Err(ScmErr::Undeclared(name.to_string())),
-                        };
-                        self.push_res(value);
-                    }
+                    ScmVal::Symbol(name) => self.eval_symbol(expr, &name.to_string())?,
 
                     /*** Eval Pair ***********************************/
                     ScmVal::Pair(cell) => {
-                        println!("{}", expr.clone());
-                        // TODO do this inside of each match
                         let (args_vec, dot, cycle) = ScmVal::list_to_vec(cell.tail.clone())
                             .ok_or(ScmErr::Syntax(expr.clone()))?;
 
@@ -208,6 +209,17 @@ impl Vm {
         Ok(self.res_stack.value.clone())
     }
 
+    /*** Evaluation Helpers ***/
+
+    fn eval_symbol(&mut self, expr: ScmVal, name: &str) -> Result<(), ScmErr> {
+        let value = match self.env.borrow().lookup(expr) {
+            Some(val) => val,
+            None => return Err(ScmErr::Undeclared(name.to_string())),
+        };
+        self.push_res(value);
+        Ok(())
+    }
+
     /*** Stack Helpers ***/
 
     fn init_stacks(&mut self) {
@@ -304,6 +316,7 @@ where
 mod tests {
     use super::*;
     use crate::reader::StringReader;
+    use crate::types::Formals;
 
     #[test]
     fn test_eval_symbol() {
