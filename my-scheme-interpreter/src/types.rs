@@ -30,6 +30,7 @@ pub enum ScmVal {
     StringMut(Rc<RefCell<ScmString>>),
     Vector(Rc<Vec<ScmVal>>),
     VectorMut(Rc<RefCell<Vec<ScmVal>>>),
+    If(Vec<ScmVal>),
     Undefined,
     Cyclic,
     Empty,
