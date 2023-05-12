@@ -22,7 +22,7 @@ pub enum ScmVal {
     Character(ScmChar),
     Symbol(Rc<ScmString>),
     Closure(Rc<Closure>),
-    Core(Builtin),
+    Core(Builtin, u8),
     PairMut(Rc<RefCell<ConsCell>>),
     Pair(Rc<ConsCell>),
     Env(Rc<RefCell<Env>>),
@@ -31,6 +31,7 @@ pub enum ScmVal {
     Vector(Rc<Vec<ScmVal>>),
     VectorMut(Rc<RefCell<Vec<ScmVal>>>),
     If(Vec<ScmVal>),
+    Set(Rc<ScmVal>),
     Undefined,
     Cyclic,
     Empty,
@@ -165,7 +166,7 @@ impl ScmVal {
             ScmVal::String(val) => val.to_extern(),
             ScmVal::StringMut(val) => val.borrow().to_extern(),
             ScmVal::Closure(val) => ScmVal::extern_closure(val.name.clone()),
-            ScmVal::Core(val) => format!("#<procedure {}>", val),
+            ScmVal::Core(val, _) => format!("#<procedure {}>", val),
             ScmVal::Pair(_) => ScmVal::extern_list(self.clone()),
             ScmVal::PairMut(_) => ScmVal::extern_list(self.clone()),
             ScmVal::Env(_) => format!("#<environment>"),
@@ -269,6 +270,7 @@ fn display_vec_mut(f: &mut fmt::Formatter, vec: Rc<RefCell<Vec<ScmVal>>>) -> fmt
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsCell {
+    pub mutable: bool,
     pub head: ScmVal,
     pub tail: ScmVal,
 }
@@ -276,6 +278,7 @@ pub struct ConsCell {
 impl ConsCell {
     pub fn default() -> ConsCell {
         ConsCell {
+            mutable: false,
             head: ScmVal::Empty,
             tail: ScmVal::Empty,
         }
@@ -283,6 +286,7 @@ impl ConsCell {
 
     pub fn new(head: ScmVal, tail: ScmVal) -> ConsCell {
         ConsCell {
+            mutable: false, // TODO make a way to set this
             head: head,
             tail: tail,
         }
@@ -456,6 +460,8 @@ impl Closure {
             body: body,
         }
     }
+
+    // TODO add a way to get the required arity from the formals
 }
 
 // Environment ////////////////////////////////////////////////////////////////

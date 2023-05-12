@@ -85,7 +85,7 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
 
 pub fn is_core_proc(val: ScmVal) -> bool {
     match val {
-        ScmVal::Core(b) => match b {
+        ScmVal::Core(b, _) => match b {
             Builtin::Apply | Builtin::Eval => false,
             _ => true,
         },
@@ -312,7 +312,7 @@ pub fn is_vector(args: Vec<ScmVal>) -> ValResult {
 pub fn is_procedure(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Core(_) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::Core(_, _) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {

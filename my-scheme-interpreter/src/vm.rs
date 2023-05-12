@@ -1,16 +1,28 @@
 use crate::builtin::Builtin;
 use crate::core_proc as proc;
 use crate::error::{ScmErr, ScmResult, ValResult};
+use crate::eval_helpers as evh;
 use crate::types::{Closure, ConsCell, Env, Formals, ScmVal};
 use std::cell::RefCell;
-use std::iter::zip;
 use std::rc::Rc;
-
-// Virtual Machine ////////////////////////////////////////////////////////////
 
 type OpStackRc = Rc<Stack<VmOp>>;
 type ResStackRc = Rc<Stack<ScmVal>>;
 type EnvRc = Rc<RefCell<Env>>;
+
+// Virtual Machine ////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq)]
+enum VmOp {
+    Eval(ScmVal),
+    Apply(ScmVal, usize),
+    SetOpStack(EnvRc),
+    SetResStack(EnvRc),
+    SetEnv(EnvRc),
+    ApplyRes(usize),
+    Discard,
+    Halt,
+}
 
 pub struct Vm {
     op_stack: OpStackRc,
@@ -27,6 +39,7 @@ impl Vm {
         }
     }
 
+    // Evaluate a single form
     pub fn eval(&mut self, expr: ScmVal) -> ValResult {
         self.init_stacks();
         self.op_stack = Stack::push(Rc::clone(&self.op_stack), VmOp::Eval(expr));
@@ -35,6 +48,7 @@ impl Vm {
             let op = self.pop_op();
             match op {
                 VmOp::Eval(expr) => match expr.clone() {
+                    /*** Eval Symbol ***********************************/
                     ScmVal::Symbol(name) => {
                         let value = match self.env.borrow().lookup(expr) {
                             Some(val) => val,
@@ -42,61 +56,151 @@ impl Vm {
                         };
                         self.push_res(value);
                     }
+
+                    /*** Eval Pair ***********************************/
                     ScmVal::Pair(cell) => {
+                        println!("{}", expr.clone());
+                        // TODO do this inside of each match
                         let (args_vec, dot, cycle) = ScmVal::list_to_vec(cell.tail.clone())
                             .ok_or(ScmErr::Syntax(expr.clone()))?;
 
                         match cell.head.clone() {
                             ScmVal::Symbol(name) => match name.to_string().as_str() {
+                                // TODO change this so that we lookup first and then match
+                                // on the string of the name if it is not found. Then the
+                                // args can be turned into a vector only if they are needed.
                                 "if" => {
                                     self.arity(args_vec.len(), 2, "if")?;
-                                    self.push_op(VmOp::Apply(ScmVal::If(args_vec[1..].into())));
+                                    self.push_op(VmOp::Apply(
+                                        ScmVal::If(args_vec[1..].into()),
+                                        args_vec.len() - 1,
+                                    ));
                                     self.push_op(VmOp::Eval(args_vec[0].clone()));
                                 }
-                                _ => return Err(ScmErr::Syntax(expr)),
+                                "lambda" => {
+                                    self.push_res(evh::make_closure(
+                                        args_vec,
+                                        Rc::clone(&self.env),
+                                    )?);
+                                }
+                                "let" => {
+                                    self.push_op(VmOp::Eval(evh::transform_let(
+                                        args_vec,
+                                        Rc::clone(&self.env),
+                                    )?));
+                                }
+                                "letrec" => {
+                                    self.push_op(VmOp::Eval(evh::transform_letrec(args_vec)?));
+                                }
+                                "set!" => {
+                                    self.arity(args_vec.len(), 2, "set!")?;
+                                    self.push_op(VmOp::Apply(
+                                        ScmVal::Set(Rc::new(args_vec[0].clone())),
+                                        args_vec.len() - 1,
+                                    ));
+                                    self.push_op(VmOp::Eval(args_vec[1].clone()));
+                                }
+                                _ => {
+                                    let value = match self.env.borrow().lookup(cell.head.clone()) {
+                                        Some(val) => val,
+                                        None => return Err(ScmErr::Undeclared(name.to_string())),
+                                    };
+                                    self.push_op(VmOp::Eval(ScmVal::cons(
+                                        value,
+                                        cell.tail.clone(),
+                                    )));
+                                }
                             },
+                            ScmVal::Core(_, n) => {
+                                self.arity(args_vec.len(), n as usize, &cell.head.to_string())?;
+                                self.push_op(VmOp::Apply(cell.head.clone(), args_vec.len()));
+                                // NOTE these get evalled right to left, but end up
+                                // on the res_stack left to right
+                                args_vec
+                                    .iter()
+                                    .for_each(|v| self.push_op(VmOp::Eval(v.clone())));
+                            }
+                            ScmVal::Pair(_) => {
+                                // cell in here is from above
+                                self.push_op(VmOp::ApplyRes(args_vec.len()));
+                                self.push_op(VmOp::Eval(cell.head.clone()));
+                                args_vec
+                                    .iter()
+                                    .for_each(|v| self.push_op(VmOp::Eval(v.clone())));
+                            }
+                            ScmVal::Closure(_) => {
+                                self.push_op(VmOp::Apply(cell.head.clone(), args_vec.len()));
+                                args_vec
+                                    .iter()
+                                    .for_each(|v| self.push_op(VmOp::Eval(v.clone())));
+                            }
                             _ => return Err(ScmErr::Syntax(expr)),
                         }
                     }
-                    ScmVal::Vector(_) | ScmVal::VectorMut(_) | ScmVal::Cyclic => {}
+
+                    /*** Eval The Rest **********************************/
+                    ScmVal::Vector(_) | ScmVal::VectorMut(_) | ScmVal::Cyclic => {
+                        return Err(ScmErr::Syntax(expr))
+                    }
                     _ => self.push_res(expr),
                 },
-                VmOp::Apply(val) => {
-                    match val.clone() {
-                        ScmVal::If(args) => {
-                            let cond = self.pop_res();
-                            match proc::is_true(cond) {
-                                true => self.push_op(VmOp::Eval(args[0].clone())),
-                                false => match args.len() {
-                                    2.. => self.push_op(VmOp::Eval(args[1].clone())),
-                                    _ => self.push_res(ScmVal::Empty),
-                                },
-                            }
+
+                VmOp::Apply(val, n) => match val.clone() {
+                    /*** Apply Special Forms **********************************/
+                    ScmVal::If(args) => {
+                        let cond = self.pop_res();
+                        match proc::is_true(cond) {
+                            true => self.push_op(VmOp::Eval(args[0].clone())),
+                            false => match args.len() {
+                                2.. => self.push_op(VmOp::Eval(args[1].clone())),
+                                _ => self.push_res(ScmVal::Empty),
+                            },
                         }
-                        _ => return Err(ScmErr::Syntax(val)),
                     }
-                    // In here we take the value we have and apply it to the top
-                    // level of arguments.
-                    //
-                    // If the application value was the special if form
-                    // first we check res_stack.value to see if it is true/false
-                    // pop the result stack
-                    // then we put Eval(branch) onto the op_stack
-                    //
-                    // For a closure when you apply the procedure to it's arguments
-                    // First push a SetEnv(current_env) onto the OpStack
-                    // Then set the env to the captured env
-                    // Then pop the number of args the closure needs and add
-                    // them to the env for the right params
-                    // Then we need to eval and discard all the body expressions
-                    // in order. The last has to be tco, which it will be because
-                    // all argument eval and body eval will be off of the stack
-                    // by the time we get to the final body expression.
-                }
+                    ScmVal::Set(key) => {
+                        let val = match self.pop_res() {
+                            ScmVal::Closure(c) => ScmVal::new_closure(Closure::new(
+                                &key.to_string(),
+                                Rc::clone(&c.env),
+                                c.params.clone(),
+                                c.body.clone(),
+                            )),
+                            v => v,
+                        };
+                        self.env.borrow_mut().set((*key).clone(), val)?;
+                        self.push_res(ScmVal::Empty);
+                    }
+
+                    /*** Apply Procedures **********************************/
+                    ScmVal::Core(b, _) => {
+                        let args = self.pop_n_res(n);
+                        self.push_res(proc::apply_core_proc(b, args)?);
+                    }
+                    ScmVal::Closure(c) => {
+                        self.push_op(VmOp::SetEnv(Rc::clone(&self.env)));
+                        self.env = evh::bind_closure_args(c.clone(), self.pop_n_res(n))?;
+                        self.push_op(VmOp::Eval(c.body[c.body.len() - 1].clone()));
+                        c.body[..c.body.len() - 1].iter().rev().for_each(|expr| {
+                            self.push_op(VmOp::Discard);
+                            self.push_op(VmOp::Eval(expr.clone()));
+                        })
+                    }
+                    _ => return Err(ScmErr::Syntax(val)),
+                },
+
+                /*** Other Vm Ops *********************/
                 VmOp::SetOpStack(val) => {}
                 VmOp::SetResStack(val) => {}
-                VmOp::SetEnv(env) => {}
-                VmOp::Discard => break,
+                VmOp::SetEnv(env) => {
+                    self.env = env;
+                }
+                VmOp::ApplyRes(n) => {
+                    let proc = self.pop_res();
+                    self.push_op(VmOp::Apply(proc, n));
+                }
+                VmOp::Discard => {
+                    self.pop_res();
+                }
                 VmOp::Halt => break,
             }
         }
@@ -105,6 +209,7 @@ impl Vm {
     }
 
     /*** Stack Helpers ***/
+
     fn init_stacks(&mut self) {
         self.op_stack = Stack::push(Stack::new_rc(VmOp::Halt, None), VmOp::Halt);
         self.res_stack = Stack::push(Stack::new_rc(ScmVal::Empty, None), ScmVal::Empty);
@@ -119,6 +224,14 @@ impl Vm {
             }
             None => panic!("popped an empty op stack"),
         }
+    }
+
+    fn pop_n_res(&mut self, n: usize) -> Vec<ScmVal> {
+        let mut args = Vec::new();
+        for _ in 0..n {
+            args.push(self.pop_res());
+        }
+        args
     }
 
     fn pop_res(&mut self) -> ScmVal {
@@ -149,19 +262,6 @@ impl Vm {
             Ok(())
         }
     }
-}
-
-// Vm Operations //////////////////////////////////////////////////////////////
-
-#[derive(Debug, Clone, PartialEq)]
-enum VmOp {
-    Eval(ScmVal),
-    Apply(ScmVal),
-    SetOpStack(EnvRc),
-    SetResStack(EnvRc),
-    SetEnv(EnvRc),
-    Discard,
-    Halt,
 }
 
 // Stack //////////////////////////////////////////////////////////////////////
@@ -223,16 +323,137 @@ mod tests {
         let env = Rc::new(RefCell::new(Env::new()));
         let mut vm = Vm::new(Rc::clone(&env));
 
-        let if_stmt = StringReader::new("(if #t 1 0)").read().unwrap();
-        assert_eq!(vm.eval(if_stmt), Ok(ScmVal::new_int(1)));
+        let expr = StringReader::new("(if #t 1 0)").read().unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(1)));
 
-        let if_stmt = StringReader::new("(if #f 1 0)").read().unwrap();
-        assert_eq!(vm.eval(if_stmt), Ok(ScmVal::new_int(0)));
+        let expr = StringReader::new("(if #f 1 0)").read().unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(0)));
 
-        let if_stmt = StringReader::new("(if #t 1)").read().unwrap();
-        assert_eq!(vm.eval(if_stmt), Ok(ScmVal::new_int(1)));
+        let expr = StringReader::new("(if #t 1)").read().unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(1)));
 
-        let if_stmt = StringReader::new("(if #f 1)").read().unwrap();
-        assert_eq!(vm.eval(if_stmt), Ok(ScmVal::Empty));
+        let expr = StringReader::new("(if #f 1)").read().unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::Empty));
+    }
+
+    #[test]
+    fn test_eval_builtin() {
+        let env = Env::new_null_rc();
+        let mut vm = Vm::new(Rc::clone(&env));
+
+        let expr = StringReader::new("(cons 1 2)").read().unwrap();
+        assert_eq!(
+            vm.eval(expr),
+            Ok(ScmVal::cons(ScmVal::new_int(1), ScmVal::new_int(2)))
+        );
+    }
+
+    #[test]
+    fn test_eval_lambda() {
+        let env = Env::new_null_rc();
+        let mut vm = Vm::new(Rc::clone(&env));
+
+        let expr = StringReader::new("(lambda (x) 1 2)").read().unwrap();
+        assert_eq!(
+            vm.eval(expr),
+            Ok(ScmVal::Closure(Rc::new(Closure::new(
+                "no-name",
+                Rc::clone(&env),
+                Formals::Fixed(vec![ScmVal::new_sym("x")]),
+                vec![ScmVal::new_int(1), ScmVal::new_int(2)]
+            ))))
+        );
+    }
+
+    #[test]
+    fn test_apply_lambda() {
+        let env = Env::new_null_rc();
+        let mut vm = Vm::new(Rc::clone(&env));
+
+        let expr = StringReader::new("((lambda (x) (cons x 2)) 1)")
+            .read()
+            .unwrap();
+        assert_eq!(
+            vm.eval(expr),
+            Ok(ScmVal::cons(ScmVal::new_int(1), ScmVal::new_int(2)))
+        );
+
+        let expr = StringReader::new("((lambda (x) 77 88 (cons x 2)) 1)")
+            .read()
+            .unwrap();
+        assert_eq!(
+            vm.eval(expr),
+            Ok(ScmVal::cons(ScmVal::new_int(1), ScmVal::new_int(2)))
+        );
+
+        let expr = StringReader::new("((lambda (x) (cons x 2)) 1 2 3 4)")
+            .read()
+            .unwrap();
+        assert_eq!(
+            vm.eval(expr),
+            Ok(ScmVal::cons(ScmVal::new_int(1), ScmVal::new_int(2)))
+        );
+
+        let expr = StringReader::new("((lambda x (cons 1 x)) 2 3 4)")
+            .read()
+            .unwrap();
+        assert_eq!(
+            vm.eval(expr),
+            Ok(ScmVal::cons(
+                ScmVal::new_int(1),
+                ScmVal::cons(
+                    ScmVal::new_int(2),
+                    ScmVal::cons(
+                        ScmVal::new_int(3),
+                        ScmVal::cons(ScmVal::new_int(4), ScmVal::Empty)
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_eval_let() {
+        let env = Env::new_null_rc();
+        let mut vm = Vm::new(Rc::clone(&env));
+
+        let expr = StringReader::new("(let ((a 5)) a)").read().unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(5)));
+
+        let expr = StringReader::new("(let ((a 5) (b 6)) 77 88 (+ a b))")
+            .read()
+            .unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(11)));
+
+        let expr = StringReader::new("(let ((a (+ 3 4)) (b 6)) 77 88 (+ a b))")
+            .read()
+            .unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(13)));
+
+        let expr = StringReader::new("(let ((f (lambda (x) (+ x 1))) (b 6)) (f b))")
+            .read()
+            .unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(7)));
+    }
+
+    #[test]
+    fn test_eval_letrec() {
+        let env = Env::new_null_rc();
+        let mut vm = Vm::new(Rc::clone(&env));
+
+        let expr = StringReader::new("(letrec ((a 5)) a)").read().unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(5)));
+
+        let expr = StringReader::new("(letrec ((f (lambda (x) (+ x 1))) (b 6)) (f b))")
+            .read()
+            .unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(7)));
+
+        let expr = StringReader::new(
+            "(letrec ((f (lambda (x) (g x 1))) (g (lambda (x y) (- x y))) (b 10)) (f b))",
+        )
+        .read()
+        .unwrap();
+        assert_eq!(vm.eval(expr), Ok(ScmVal::new_int(9)));
     }
 }

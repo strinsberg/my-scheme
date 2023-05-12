@@ -133,7 +133,7 @@ fn eval_pair(
             Ok((expr, new_env, Tco::Yes))
         }
         // Core procs check for eval or apply first an then apply the proc to evaluated arguments
-        ScmVal::Core(b) => {
+        ScmVal::Core(b, _) => {
             let args = eval_args(cell.tail, expr, Rc::clone(&env))?;
             match b {
                 // These NEED their results evaluated with TCO

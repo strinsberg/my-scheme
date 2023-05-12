@@ -2,6 +2,7 @@ pub mod builtin;
 pub mod core_proc;
 pub mod env_impl;
 pub mod error;
+pub mod eval_helpers;
 pub mod eval_tco;
 pub mod interpreter;
 pub mod number;
