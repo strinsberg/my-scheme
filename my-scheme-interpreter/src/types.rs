@@ -19,6 +19,10 @@ use std::rc::Rc;
 pub enum SpecialForm {
     If(Vec<ScmVal>),
     Set(Rc<ScmVal>),
+    And(Vec<ScmVal>),
+    Or(Vec<ScmVal>),
+    //Cond(Vec<ScmVal>),
+    //Case(Vec<ScmVal>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

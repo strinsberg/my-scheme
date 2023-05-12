@@ -90,6 +90,76 @@ pub fn transform_letrec(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
+// Eval a do statment by restructuring it into a letrec and evaluating it.
+// Would benefit from a nice macro.
+pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
+    // (do ((var init step) ...)
+    //    (cond result)
+    //  commands ...)
+    //  =>
+    //  (letrec ((loop (lambda (var ...)
+    //                   (if cond
+    //                       result
+    //                       (begin commands ...
+    //                              (loop step ...))))))
+    //    (loop init)))
+    if args.len() < 2 {
+        return Err(ScmErr::Arity("do".to_owned(), 2));
+    }
+
+    // Get lists of params, their initial values, and their step expressions
+    let (vars, inits, steps) = unbind_do(args[0].clone())?;
+
+    // Get the condition and result separated
+    let (test_vec, _, _) = ScmVal::list_to_vec(args[1].clone()).ok_or(ScmErr::BadArgType(
+        "do test".to_owned(),
+        "pair".to_owned(),
+        args[1].clone(),
+    ))?;
+    if test_vec.len() < 1 {
+        return Err(ScmErr::Arity("do test".to_owned(), 1));
+    }
+    let cond = test_vec[0].clone();
+    let result = if test_vec.len() > 1 {
+        test_vec[1].clone()
+    } else {
+        ScmVal::Empty
+    };
+
+    // Build the false branch with begin, commands, and recursive call to loop
+    let loop_rec = ScmVal::cons(ScmVal::new_sym("loop"), steps);
+    let mut commands: Vec<ScmVal> = args[2..].into();
+    commands.push(loop_rec);
+    let begin = ScmVal::cons(
+        ScmVal::new_sym("begin"),
+        ScmVal::vec_to_list(commands, ScmVal::Empty),
+    );
+
+    // Build the if statement with the condition, result, and begin branch
+    let if_stmt = ScmVal::vec_to_list(
+        vec![ScmVal::new_sym("if"), cond, result, begin],
+        ScmVal::Empty,
+    );
+
+    // Build the the loop binding
+    let lambda = ScmVal::vec_to_list(
+        vec![ScmVal::new_sym("lambda"), vars, if_stmt],
+        ScmVal::Empty,
+    );
+    let loop_bind = ScmVal::vec_to_list(vec![ScmVal::new_sym("loop"), lambda], ScmVal::Empty);
+    let bindings = ScmVal::cons(loop_bind, ScmVal::Empty);
+
+    // Build the letrec
+    let call = ScmVal::cons(ScmVal::new_sym("loop"), inits);
+    let letrec = ScmVal::vec_to_list(
+        vec![ScmVal::new_sym("letrec"), bindings, call],
+        ScmVal::Empty,
+    );
+
+    // Return the new expression to be evaluated
+    Ok(letrec)
+}
+
 // Binding Helpers ////////////////////////////////////////////////////////////
 
 pub fn bind_closure_args(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<Rc<RefCell<Env>>> {
