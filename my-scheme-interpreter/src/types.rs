@@ -16,6 +16,12 @@ use std::rc::Rc;
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpecialForm {
+    If(Vec<ScmVal>),
+    Set(Rc<ScmVal>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScmVal {
     Number(ScmNumber),
     Boolean(bool),
@@ -30,8 +36,7 @@ pub enum ScmVal {
     StringMut(Rc<RefCell<ScmString>>),
     Vector(Rc<Vec<ScmVal>>),
     VectorMut(Rc<RefCell<Vec<ScmVal>>>),
-    If(Vec<ScmVal>),
-    Set(Rc<ScmVal>),
+    Special(SpecialForm),
     Undefined,
     Cyclic,
     Empty,
