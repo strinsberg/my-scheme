@@ -10,6 +10,8 @@ pub fn main() {
     let env = Env::new_null_rc();
     let mut vm = Vm::new(env);
 
+    // TODO test something that would blow the stack if it was not tail recursive
+    // and prove we have done tail call optimization.
     let code = "(define (f) 13) (f)";
 
     let forms = StringReader::new(code).read_forms().unwrap();

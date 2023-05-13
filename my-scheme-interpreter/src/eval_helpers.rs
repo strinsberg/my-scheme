@@ -1,7 +1,5 @@
-use crate::builtin::Builtin;
-use crate::core_proc as proc;
 use crate::error::{ScmErr, ScmResult, ValResult};
-use crate::types::{Closure, ConsCell, Env, Formals, ScmVal};
+use crate::types::{Closure, Env, Formals, ScmVal};
 use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;

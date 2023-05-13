@@ -84,7 +84,7 @@ pub const ALL_BUILTINS: &'static [(Builtin, u8); 56] = &[
     (Builtin::Cons, 2),
     (Builtin::Car, 1),
     (Builtin::Cdr, 1),
-    (Builtin::Eval, 2),
+    (Builtin::Eval, 1),
     (Builtin::Apply, 2),
     // arithmetic
     (Builtin::Sum, 1),
