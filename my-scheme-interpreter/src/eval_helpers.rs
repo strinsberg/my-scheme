@@ -11,28 +11,29 @@ use std::rc::Rc;
 pub fn make_closure(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let params = args[0].clone();
-        let formals =
-            match params {
-                ScmVal::Symbol(_) => Formals::Collect(params),
-                ScmVal::Pair(_) | ScmVal::PairMut(_) => {
-                    let (vec, dotted, _) = ScmVal::list_to_vec(&params).ok_or(
-                        ScmErr::BadArgType("lambda".to_owned(), "pair".to_owned(), args[0].clone()),
-                    )?;
-                    if dotted {
-                        Formals::Rest(vec[..vec.len() - 1].into(), vec[vec.len() - 1].clone())
-                    } else {
-                        Formals::Fixed(vec)
-                    }
+        let formals = match params {
+            ScmVal::Symbol(_) => Formals::Collect(params),
+            ScmVal::NewPair(_) => {
+                let (vec, dotted) = ScmVal::list_to_vec(&params).ok_or(ScmErr::BadArgType(
+                    "lambda".to_owned(),
+                    "pair".to_owned(),
+                    args[0].clone(),
+                ))?;
+                if dotted {
+                    Formals::Rest(vec[..vec.len() - 1].into(), vec[vec.len() - 1].clone())
+                } else {
+                    Formals::Fixed(vec)
                 }
-                ScmVal::Empty => Formals::Fixed(vec![]),
-                _ => {
-                    return Err(ScmErr::BadArgType(
-                        "lambda".to_owned(),
-                        "pair".to_owned(),
-                        args[0].clone(),
-                    ))
-                }
-            };
+            }
+            ScmVal::Empty => Formals::Fixed(vec![]),
+            _ => {
+                return Err(ScmErr::BadArgType(
+                    "lambda".to_owned(),
+                    "pair".to_owned(),
+                    args[0].clone(),
+                ))
+            }
+        };
 
         Ok(ScmVal::new_closure(Closure::new(
             "no-name",
@@ -73,9 +74,9 @@ pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // again and again into so many nested lets/closures.
 pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 2 {
-        let (bindings, dot, cycle) =
+        let (bindings, dot) =
             ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::Syntax(args[0].clone()))?;
-        if dot || cycle {
+        if dot {
             return Err(ScmErr::Syntax(args[0].clone()));
         }
 
@@ -155,7 +156,7 @@ pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
     let (vars, inits, steps) = unbind_do(args[0].clone())?;
 
     // Get the condition and result separated
-    let (test_vec, _, _) = ScmVal::list_to_vec(&args[1]).ok_or(ScmErr::BadArgType(
+    let (test_vec, _) = ScmVal::list_to_vec(&args[1]).ok_or(ScmErr::BadArgType(
         "do test".to_owned(),
         "pair".to_owned(),
         args[1].clone(),
@@ -243,7 +244,7 @@ pub fn bind_closure_args(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<R
 
 fn unbind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
     // Get a vector of binding lists. i.e. ((sym pair) ...) => [(sym pair) ...]
-    let (vec, _, _) = ScmVal::list_to_vec(&list).ok_or(ScmErr::BadArgType(
+    let (vec, _) = ScmVal::list_to_vec(&list).ok_or(ScmErr::BadArgType(
         "let/letrec".to_owned(),
         "pair".to_owned(),
         list.clone(),
@@ -253,7 +254,7 @@ fn unbind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
     let bindings_vec: ScmResult<Vec<(ScmVal, ScmVal)>> = vec
         .into_iter()
         .map(|p| {
-            let (binding, _, _) = ScmVal::list_to_vec(&p).ok_or(ScmErr::BadArgType(
+            let (binding, _) = ScmVal::list_to_vec(&p).ok_or(ScmErr::BadArgType(
                 "let/letrec bindings".to_owned(),
                 "pair".to_owned(),
                 p.clone(),
@@ -297,7 +298,7 @@ fn letrec_bind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
 
 fn unbind_do(list: ScmVal) -> ScmResult<(ScmVal, ScmVal, ScmVal)> {
     // Get a vector of binding lists. i.e. ((var init step) ...) => [(var init step) ...]
-    let (vec, _, _) = ScmVal::list_to_vec(&list).ok_or(ScmErr::BadArgType(
+    let (vec, _) = ScmVal::list_to_vec(&list).ok_or(ScmErr::BadArgType(
         "do".to_owned(),
         "pair".to_owned(),
         list.clone(),
@@ -307,7 +308,7 @@ fn unbind_do(list: ScmVal) -> ScmResult<(ScmVal, ScmVal, ScmVal)> {
     let bindings_vec: ScmResult<Vec<(ScmVal, ScmVal, ScmVal)>> = vec
         .into_iter()
         .map(|p| {
-            let (binding, _, _) = ScmVal::list_to_vec(&p).ok_or(ScmErr::BadArgType(
+            let (binding, _) = ScmVal::list_to_vec(&p).ok_or(ScmErr::BadArgType(
                 "do bindings".to_owned(),
                 "pair".to_owned(),
                 p.clone(),

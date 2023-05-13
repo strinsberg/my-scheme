@@ -116,8 +116,7 @@ pub fn cons(args: Vec<ScmVal>) -> ValResult {
 pub fn car(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(cell) => Ok(cell.head.clone()),
-            ScmVal::PairMut(cell) => Ok(cell.borrow().head.clone()),
+            ScmVal::NewPair(cell) => Ok(cell.clone_head()),
             _ => Err(ScmErr::BadArgType(
                 "car".to_owned(),
                 "pair".to_owned(),
@@ -132,8 +131,7 @@ pub fn car(args: Vec<ScmVal>) -> ValResult {
 pub fn cdr(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(cell) => Ok(cell.tail.clone()),
-            ScmVal::PairMut(cell) => Ok(cell.borrow().tail.clone()),
+            ScmVal::NewPair(cell) => Ok(cell.clone_tail()),
             _ => Err(ScmErr::BadArgType(
                 "cdr".to_owned(),
                 "pair".to_owned(),
@@ -287,7 +285,7 @@ pub fn is_string(args: Vec<ScmVal>) -> ValResult {
 pub fn is_pair(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Pair(_) | ScmVal::PairMut(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::NewPair(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {
@@ -322,7 +320,10 @@ pub fn is_procedure(args: Vec<ScmVal>) -> ValResult {
 pub fn set_car(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 2 {
         match args[0].clone() {
-            ScmVal::PairMut(cell) => cell.borrow_mut().head = args[1].clone(),
+            ScmVal::NewPair(cell) if cell.mutable => {
+                cell.set_head(args[1].clone())
+                    .expect("cell should be mutable");
+            }
             _ => {
                 return Err(ScmErr::BadArgType(
                     "set-car!".to_owned(),
@@ -340,7 +341,10 @@ pub fn set_car(args: Vec<ScmVal>) -> ValResult {
 pub fn set_cdr(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 2 {
         match args[0].clone() {
-            ScmVal::PairMut(cell) => cell.borrow_mut().tail = args[1].clone(),
+            ScmVal::NewPair(cell) if cell.mutable => {
+                cell.set_tail(args[1].clone())
+                    .expect("cell should be mutable");
+            }
             _ => {
                 return Err(ScmErr::BadArgType(
                     "set-cdr!".to_owned(),
@@ -355,14 +359,15 @@ pub fn set_cdr(args: Vec<ScmVal>) -> ValResult {
     Ok(ScmVal::Empty)
 }
 
+// TODO no longer checks for cyclic
 pub fn is_list(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (_, dotted, cyclic) = match ScmVal::list_to_vec(&args[0]) {
+        let (_, dotted) = match ScmVal::list_to_vec(&args[0]) {
             Some(res) => res,
             None => return Ok(ScmVal::Boolean(false)),
         };
 
-        if dotted || cyclic {
+        if dotted {
             Ok(ScmVal::Boolean(false))
         } else {
             Ok(ScmVal::Boolean(true))
@@ -372,14 +377,16 @@ pub fn is_list(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
+// TODO no longer checks for cyclic
+// TODO can we combine a helper to do both is_list check and return length
 pub fn list_length(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (vec, dotted, cyclic) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+        let (vec, dotted) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
             "length".to_owned(),
             "proper list".to_owned(),
             args[0].clone(),
         ))?;
-        if dotted || cyclic {
+        if dotted {
             Err(ScmErr::BadArgType(
                 "length".to_owned(),
                 "proper list".to_owned(),
@@ -393,18 +400,19 @@ pub fn list_length(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
+// TODO no longer checks cyclic
 pub fn list_append(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         let shared = args[args.len() - 1].clone();
         let mut appended = Vec::new();
 
         for arg in args[..args.len() - 1].into_iter() {
-            let (arg_vec, dotted, cyclic) = ScmVal::list_to_vec(&arg).ok_or(ScmErr::BadArgType(
+            let (arg_vec, dotted) = ScmVal::list_to_vec(&arg).ok_or(ScmErr::BadArgType(
                 "append".to_owned(),
                 "proper list".to_owned(),
                 args[0].clone(),
             ))?;
-            if dotted || cyclic {
+            if dotted {
                 return Err(ScmErr::BadArgType(
                     "append".to_owned(),
                     "proper list".to_owned(),
@@ -422,14 +430,15 @@ pub fn list_append(args: Vec<ScmVal>) -> ValResult {
     }
 }
 
+// TODO no longer checks cyclic
 pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (arg_vec, dotted, cyclic) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+        let (arg_vec, dotted) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
             "reverse".to_owned(),
             "proper list".to_owned(),
             args[0].clone(),
         ))?;
-        if dotted || cyclic {
+        if dotted {
             return Err(ScmErr::BadArgType(
                 "reverse".to_owned(),
                 "proper list".to_owned(),

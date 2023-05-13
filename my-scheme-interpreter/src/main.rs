@@ -15,5 +15,8 @@ pub fn main() {
     let code = "(define (f) 13) (f)";
 
     let forms = StringReader::new(code).read_forms().unwrap();
-    println!("{}", vm.eval_forms(forms).unwrap());
+    match vm.eval_forms(forms) {
+        Ok(val) => println!("{}", val),
+        Err(e) => println!("{}", e),
+    }
 }

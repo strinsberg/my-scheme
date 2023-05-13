@@ -3,7 +3,7 @@ use crate::core_proc as proc;
 use crate::error::{ScmErr, ValResult};
 use crate::eval_helpers as evh;
 use crate::number::ScmNumber;
-use crate::types::{Closure, ConsCell, Env, ScmVal, SpecialForm};
+use crate::types::{Cell, Closure, Env, ScmVal, SpecialForm};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -102,11 +102,8 @@ impl Vm {
             match op {
                 VmOp::Eval(ref expr) => match expr {
                     ScmVal::Symbol(name) => self.eval_symbol(expr, &name.to_string())?,
-                    ScmVal::Pair(cell) => {
+                    ScmVal::NewPair(cell) => {
                         self.eval_pair(Rc::clone(cell))?;
-                    }
-                    ScmVal::PairMut(cell) => {
-                        self.eval_pair(Rc::new(cell.borrow().clone()))?;
                     }
                     ScmVal::Number(_)
                     | ScmVal::Boolean(_)
@@ -160,10 +157,12 @@ impl Vm {
                 }
                 VmOp::UnpackRes(name) => {
                     let list = self.pop_res();
-                    let (args, dot, cycle) = ScmVal::list_to_vec(&list).ok_or(
-                        ScmErr::BadArgType(name.clone(), "list".to_owned(), list.clone()),
-                    )?;
-                    if dot || cycle {
+                    let (args, dot) = ScmVal::list_to_vec(&list).ok_or(ScmErr::BadArgType(
+                        name.clone(),
+                        "list".to_owned(),
+                        list.clone(),
+                    ))?;
+                    if dot {
                         return Err(ScmErr::BadArgType(
                             name.clone(),
                             "list".to_owned(),
@@ -195,16 +194,17 @@ impl Vm {
         Ok(())
     }
 
-    fn eval_pair(&mut self, cell: Rc<ConsCell>) -> Result<(), ScmErr> {
-        match cell.head.clone() {
+    // TODO no longer checks for cyclic
+    fn eval_pair(&mut self, cell: Rc<Cell>) -> Result<(), ScmErr> {
+        match cell.clone_head() {
             ScmVal::Symbol(name) => {
                 self.eval_special(cell, &name.to_string())?;
             }
             head => {
-                let (args, dot, cycle) = ScmVal::list_to_vec(&cell.tail)
-                    .ok_or(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))))?;
-                if dot || cycle {
-                    return Err(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))));
+                let (args, dot) = ScmVal::list_to_vec(&cell.clone_tail())
+                    .ok_or(ScmErr::Syntax(ScmVal::NewPair(Rc::clone(&cell))))?;
+                if dot {
+                    return Err(ScmErr::Syntax(ScmVal::NewPair(Rc::clone(&cell))));
                 }
 
                 match head {
@@ -225,36 +225,37 @@ impl Vm {
                     }
                     ScmVal::Core(b, n) => {
                         self.arity(args.len(), n as usize, &b.to_string())?;
-                        self.push_op(VmOp::Apply(cell.head.clone(), args.len()));
+                        self.push_op(VmOp::Apply(cell.clone_head(), args.len()));
                         self.eval_many(args);
                     }
-                    ScmVal::Pair(_) | ScmVal::PairMut(_) => {
+                    ScmVal::NewPair(_) => {
                         self.push_op(VmOp::ApplyRes(args.len()));
-                        self.push_op(VmOp::Eval(cell.head.clone()));
+                        self.push_op(VmOp::Eval(cell.clone_head()));
                         self.eval_many(args);
                     }
                     ScmVal::Closure(_) => {
-                        self.push_op(VmOp::Apply(cell.head.clone(), args.len()));
+                        self.push_op(VmOp::Apply(cell.clone_head(), args.len()));
                         self.eval_many(args);
                     }
-                    _ => return Err(ScmErr::Syntax(ScmVal::Pair(cell.clone()))),
+                    _ => return Err(ScmErr::Syntax(ScmVal::NewPair(cell.clone()))),
                 }
             }
         }
         Ok(())
     }
 
-    fn eval_special(&mut self, cell: Rc<ConsCell>, name: &str) -> Result<(), ScmErr> {
-        let lookup = self.env.borrow().lookup(&cell.head);
+    // TODO no longer checks for cyclic
+    fn eval_special(&mut self, cell: Rc<Cell>, name: &str) -> Result<(), ScmErr> {
+        let lookup = self.env.borrow().lookup(&cell.clone_head());
         match lookup {
             Some(val) => {
-                self.push_op(VmOp::Eval(ScmVal::cons(val.clone(), cell.tail.clone())));
+                self.push_op(VmOp::Eval(ScmVal::cons(val.clone(), cell.clone_tail())));
             }
             None => {
-                let (mut args, dot, cycle) = ScmVal::list_to_vec(&cell.tail)
-                    .ok_or(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))))?;
-                if dot || cycle {
-                    return Err(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))));
+                let (mut args, dot) = ScmVal::list_to_vec(&cell.clone_tail())
+                    .ok_or(ScmErr::Syntax(ScmVal::NewPair(Rc::clone(&cell))))?;
+                if dot {
+                    return Err(ScmErr::Syntax(ScmVal::NewPair(Rc::clone(&cell))));
                 }
                 let num_args = args.len();
 
@@ -267,7 +268,7 @@ impl Vm {
                     "if" => {
                         self.arity(args.len(), 2, "if")?;
                         self.push_op(VmOp::Apply(
-                            ScmVal::Special(SpecialForm::If(args[1..].into())),
+                            ScmVal::new_if(args[1..].into()),
                             args.len() - 1,
                         ));
                         self.push_op(VmOp::Eval(args[0].clone()));
@@ -286,13 +287,10 @@ impl Vm {
                     }
                     "set!" => {
                         self.arity(args.len(), 2, "set!")?;
-                        self.push_op(VmOp::Apply(
-                            ScmVal::Special(SpecialForm::Set(Rc::new(args[0].clone()))),
-                            1,
-                        ));
+                        self.push_op(VmOp::Apply(ScmVal::new_set(args[0].clone()), 1));
                         self.push_op(VmOp::Eval(args[1].clone()));
                     }
-                    "begin" => self.eval_body(args),
+                    "begin" => self.eval_body(&args),
                     "do" => self.push_op(VmOp::Eval(evh::transform_do(args)?)),
 
                     // These are not in separate methods because they tread args and mutable
@@ -304,7 +302,7 @@ impl Vm {
                             let first = args[0].clone();
                             args.reverse();
                             args.pop();
-                            self.push_op(VmOp::Apply(ScmVal::Special(SpecialForm::And(args)), 1));
+                            self.push_op(VmOp::Apply(ScmVal::new_and(args), 1));
                             self.push_op(VmOp::Eval(first));
                         }
                         1 => self.push_op(VmOp::Eval(args[0].clone())),
@@ -315,7 +313,7 @@ impl Vm {
                             let first = args[0].clone();
                             args.reverse();
                             args.pop();
-                            self.push_op(VmOp::Apply(ScmVal::Special(SpecialForm::Or(args)), 1));
+                            self.push_op(VmOp::Apply(ScmVal::new_or(args), 1));
                             self.push_op(VmOp::Eval(first));
                         }
                         1 => self.push_op(VmOp::Eval(args[0].clone())),
@@ -325,14 +323,11 @@ impl Vm {
                         self.arity(num_args, 1, "cond")?;
                         let (test, arrow, branch) = self.separate_cond_clause(args[0].clone())?;
                         if test == ScmVal::new_sym("else") {
-                            self.eval_body(branch);
+                            self.eval_body(&branch);
                         } else {
                             args.reverse();
                             args.pop();
-                            self.push_op(VmOp::Apply(
-                                ScmVal::Special(SpecialForm::Cond(branch, arrow, args)),
-                                1,
-                            ));
+                            self.push_op(VmOp::Apply(ScmVal::new_cond(branch, arrow, args), 1));
                             self.push_op(VmOp::Eval(test));
                         }
                     }
@@ -341,10 +336,7 @@ impl Vm {
                         let first = args[0].clone();
                         args.reverse();
                         args.pop();
-                        self.push_op(VmOp::Apply(
-                            ScmVal::Special(SpecialForm::Case(Rc::new(ScmVal::Undefined), args)),
-                            1,
-                        ));
+                        self.push_op(VmOp::Apply(ScmVal::new_case(ScmVal::Undefined, args), 1));
                         self.push_op(VmOp::Eval(first));
                     }
                     _ => return Err(ScmErr::Undeclared(name.to_string())),
@@ -354,7 +346,7 @@ impl Vm {
         Ok(())
     }
 
-    fn eval_body(&mut self, args: Vec<ScmVal>) {
+    fn eval_body(&mut self, args: &Vec<ScmVal>) {
         self.push_op(VmOp::Eval(args[args.len() - 1].clone()));
         args[..args.len() - 1].iter().rev().for_each(|expr| {
             self.push_op(VmOp::Discard);
@@ -380,21 +372,11 @@ impl Vm {
                 self.env
                     .borrow_mut()
                     .insert(first.clone(), ScmVal::Undefined)?;
-                self.push_op(VmOp::Apply(
-                    ScmVal::Special(SpecialForm::Set(Rc::new(first))),
-                    num_args - 1,
-                ));
+                self.push_op(VmOp::Apply(ScmVal::new_set(first), num_args - 1));
                 self.push_op(VmOp::Eval(args[1].clone()));
             }
-            ScmVal::Pair(cell) => {
-                self.define_to_lambda(args[1..].into(), cell.head.clone(), cell.tail.clone());
-            }
-            ScmVal::PairMut(cell) => {
-                self.define_to_lambda(
-                    args[1..].into(),
-                    cell.borrow().head.clone(),
-                    cell.borrow().tail.clone(),
-                );
+            ScmVal::NewPair(cell) => {
+                self.define_to_lambda(args[1..].into(), cell.clone_head(), cell.clone_tail());
             }
             _ => {
                 return Err(ScmErr::BadArgType(
@@ -430,15 +412,15 @@ impl Vm {
             ScmVal::Closure(c) => {
                 self.push_op(VmOp::SetEnv(Rc::clone(&self.env)));
                 self.env = evh::bind_closure_args(c.clone(), self.pop_n_res(num_args))?;
-                self.eval_body(c.body.clone());
+                self.eval_body(&c.body);
             }
             _ => return Err(ScmErr::Syntax(val)),
         }
         Ok(())
     }
 
-    fn apply_special(&mut self, form: SpecialForm) -> Result<(), ScmErr> {
-        match form {
+    fn apply_special(&mut self, form: Box<SpecialForm>) -> Result<(), ScmErr> {
+        match *form {
             SpecialForm::If(args) => {
                 let cond = self.pop_res();
                 match proc::is_true(cond) {
@@ -459,7 +441,7 @@ impl Vm {
                     )),
                     v => v,
                 };
-                self.env.borrow_mut().set((*key).clone(), val)?;
+                self.env.borrow_mut().set(key.clone(), val)?;
                 self.push_res(ScmVal::Empty);
             }
             SpecialForm::And(mut args) => {
@@ -471,7 +453,7 @@ impl Vm {
                             // args is reversed so we want the last element
                             let first = args[num_args - 1].clone();
                             args.pop();
-                            self.push_op(VmOp::Apply(ScmVal::Special(SpecialForm::And(args)), 1));
+                            self.push_op(VmOp::Apply(ScmVal::new_and(args), 1));
                             self.push_op(VmOp::Eval(first));
                         }
                         1 => self.push_op(VmOp::Eval(args[0].clone())),
@@ -489,7 +471,7 @@ impl Vm {
                         2.. => {
                             let first = args[num_args - 1].clone();
                             args.pop();
-                            self.push_op(VmOp::Apply(ScmVal::Special(SpecialForm::Or(args)), 1));
+                            self.push_op(VmOp::Apply(ScmVal::new_or(args), 1));
                             self.push_op(VmOp::Eval(first));
                         }
                         1 => self.push_op(VmOp::Eval(args[0].clone())),
@@ -508,44 +490,35 @@ impl Vm {
                         self.push_op(VmOp::ApplyRes(1));
                         self.push_op(VmOp::Eval(body[0].clone()));
                     } else {
-                        self.eval_body(body);
+                        self.eval_body(&body);
                     }
                 } else if num_args >= 1 {
                     let (test, arrow, branch) =
                         self.separate_cond_clause(args[num_args - 1].clone())?;
                     if test == ScmVal::new_sym("else") {
-                        self.eval_body(branch);
+                        self.eval_body(&branch);
                     } else {
                         args.pop();
-                        self.push_op(VmOp::Apply(
-                            ScmVal::Special(SpecialForm::Cond(branch, arrow, args)),
-                            1,
-                        ));
+                        self.push_op(VmOp::Apply(ScmVal::new_cond(branch, arrow, args), 1));
                         self.push_op(VmOp::Eval(test));
                     }
                 } else {
                     self.push_res(ScmVal::Empty);
                 }
             }
-            SpecialForm::Case(val, mut args) => match *val {
+            SpecialForm::Case(val, mut args) => match val {
                 ScmVal::Undefined => {
                     let case = self.pop_res();
-                    self.push_op(VmOp::Apply(
-                        ScmVal::Special(SpecialForm::Case(Rc::new(case), args)),
-                        1,
-                    ));
+                    self.push_op(VmOp::Apply(ScmVal::new_case(case, args), 1));
                 }
                 _ => {
                     let (cases, is_else, branch) =
                         self.separate_case_clause(args[args.len() - 1].clone())?;
-                    if is_else || cases.iter().any(|c| *c == (*val)) {
-                        self.eval_body(branch);
+                    if is_else || cases.iter().any(|c| *c == val) {
+                        self.eval_body(&branch);
                     } else {
                         args.pop();
-                        self.push_op(VmOp::Apply(
-                            ScmVal::Special(SpecialForm::Case(val, args)),
-                            1,
-                        ));
+                        self.push_op(VmOp::Apply(ScmVal::new_case(val, args), 1));
                     }
                 }
             },
@@ -554,8 +527,8 @@ impl Vm {
     }
 
     fn separate_cond_clause(&self, expr: ScmVal) -> Result<(ScmVal, bool, Vec<ScmVal>), ScmErr> {
-        let (args, dot, cycle) = ScmVal::list_to_vec(&expr).ok_or(ScmErr::Syntax(expr.clone()))?;
-        if dot || cycle {
+        let (args, dot) = ScmVal::list_to_vec(&expr).ok_or(ScmErr::Syntax(expr.clone()))?;
+        if dot {
             return Err(ScmErr::Syntax(expr));
         }
         let num_args = args.len();
@@ -576,8 +549,8 @@ impl Vm {
         &self,
         expr: ScmVal,
     ) -> Result<(Vec<ScmVal>, bool, Vec<ScmVal>), ScmErr> {
-        let (args, dot, cycle) = ScmVal::list_to_vec(&expr).ok_or(ScmErr::Syntax(expr.clone()))?;
-        if dot || cycle {
+        let (args, dot) = ScmVal::list_to_vec(&expr).ok_or(ScmErr::Syntax(expr.clone()))?;
+        if dot {
             return Err(ScmErr::Syntax(expr));
         }
         let num_args = args.len();
@@ -586,9 +559,9 @@ impl Vm {
                 if args[0].clone() == ScmVal::new_sym("else") {
                     Ok((vec![], true, args[1..].into()))
                 } else {
-                    let (cases, dot, cycle) =
+                    let (cases, dot) =
                         ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::Syntax(expr.clone()))?;
-                    if dot || cycle {
+                    if dot {
                         return Err(ScmErr::Syntax(expr));
                     }
                     Ok((cases, false, args[1..].into()))
