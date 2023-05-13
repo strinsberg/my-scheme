@@ -27,6 +27,24 @@ use std::rc::Rc;
 // TODO a lot of the errors are just Syntax errors, which are not informative at
 // all in many cases, especially if they do not hold the entire expression.
 // TODO quasiquote, named let.
+//
+// TODO arity check closure applications to match the style of passed arguments.
+// TODO arity is now checked before passing arguments to helpers and core procs,
+// or it should be. Ensure all arity issues are checked by the vm before calling
+// helpers and remove the arity checks from the helpers.
+// TODO begin has two forms, one that is at the top level and is allowed to have
+// defines inside it (I think). Currently, that will cause an error.
+// TODO define is still allowed inside forms.
+//
+// TODO Macros -- note that I am not sure when macros should be expanded. It is
+// relatively clear that they must be done at eval time since they are themselves
+// evaluated, but perhaps top level expressions could be traversed once to expand
+// any macros before evaluating the expression. This would keep macros from
+// being present in a lambda body and having to be transformed every single call.
+// Though perhaps this approach could be used when evaluating a lambda or any
+// structure that might save code to be called later. Just macro expand the body
+// when saving it. Then each call would use the full code. Probably macro expanding
+// has to be recursive until there are no more macros to expand.
 
 type OpStackRc = Rc<Stack<VmOp>>;
 type ResStackRc = Rc<Stack<ScmVal>>;

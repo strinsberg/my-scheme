@@ -9,9 +9,6 @@ use std::rc::Rc;
 // blocks for all other functions. Syntactic keywords and things that require tail
 // call optimization or also return an environment will be in eval_tco as they are
 // special.
-//
-// TODO now that there are error routines for scheme that mirror what we have
-// in rust write whatever seems appropriate from here in scheme.
 
 // Apply Builtin //////////////////////////////////////////////////////////////
 
