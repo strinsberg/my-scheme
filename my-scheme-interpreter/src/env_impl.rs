@@ -112,7 +112,12 @@ impl Env {
     pub fn new_builtin_env() -> Rc<RefCell<Env>> {
         let pairs = ALL_BUILTINS
             .iter()
-            .map(|b| (ScmVal::new_sym(&format!("{b}")), ScmVal::Core(b.clone())))
+            .map(|(b, n)| {
+                (
+                    ScmVal::new_sym(&format!("{b}")),
+                    ScmVal::Core(b.clone(), *n),
+                )
+            })
             .collect();
         Rc::new(RefCell::new(
             Env::new_with_bindings(pairs).expect("builtin env should not have any bad keys"),

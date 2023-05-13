@@ -79,7 +79,7 @@ impl fmt::Debug for ScmString {
         let s = self
             .chars
             .iter()
-            .map(|ch| format!("{:?}", ch))
+            .map(|ch| format!("{}", ch.to_extern()))
             .collect::<Vec<String>>()
             .join(", ");
         write!(f, "ScmString[{}]", s)

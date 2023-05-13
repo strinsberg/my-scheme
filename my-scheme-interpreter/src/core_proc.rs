@@ -9,9 +9,6 @@ use std::rc::Rc;
 // blocks for all other functions. Syntactic keywords and things that require tail
 // call optimization or also return an environment will be in eval_tco as they are
 // special.
-//
-// TODO now that there are error routines for scheme that mirror what we have
-// in rust write whatever seems appropriate from here in scheme.
 
 // Apply Builtin //////////////////////////////////////////////////////////////
 
@@ -85,7 +82,7 @@ pub fn apply_core_proc(op: Builtin, args: Vec<ScmVal>) -> ValResult {
 
 pub fn is_core_proc(val: ScmVal) -> bool {
     match val {
-        ScmVal::Core(b) => match b {
+        ScmVal::Core(b, _) => match b {
             Builtin::Apply | Builtin::Eval => false,
             _ => true,
         },
@@ -312,7 +309,7 @@ pub fn is_vector(args: Vec<ScmVal>) -> ValResult {
 pub fn is_procedure(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Core(_) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::Core(_, _) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {

@@ -1,12 +1,8 @@
-use crate::eval_tco::eval_forms;
 use crate::reader::StringReader;
 use crate::scheme_libs::std::SCM_LIB_STD;
 use crate::types::Env;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::vm::Vm;
 
-// TODO test some errors in here for eval_string.
-//
 // TODO other libraries need to be loadable with require or something. Since some
 // are supposed to be built in, but not loaded at startup, there will have to
 // be a builtin called Builtin::Require or something and it will have to explicitly
@@ -14,24 +10,23 @@ use std::rc::Rc;
 // like define this will only be callable at the top level I guess.
 
 pub struct Interpreter {
-    env: Rc<RefCell<Env>>,
     ready: bool,
+    vm: Vm,
 }
 
 impl Interpreter {
     // Create a new interpreter with an empty environment
     pub fn new() -> Interpreter {
         Interpreter {
-            env: Env::new_null_rc(),
             ready: false,
+            vm: Vm::new(Env::new_null_rc()),
         }
     }
 
     // Initialize the interpreter.
-    // Loads the base environment and the standard library.
     pub fn init(mut self) -> Interpreter {
         self.ready = true;
-        self.setup_env();
+        self.load_std();
         self
     }
 
@@ -41,7 +36,7 @@ impl Interpreter {
         }
 
         match StringReader::new(text).read_forms() {
-            Ok(forms) => match eval_forms(forms, Rc::clone(&self.env)) {
+            Ok(forms) => match self.vm.eval_forms(forms) {
                 Ok(val) => val.to_extern(),
                 Err(e) => format!("{e}"),
             },
@@ -49,13 +44,14 @@ impl Interpreter {
         }
     }
 
-    fn setup_env(&mut self) {
+    fn load_std(&mut self) {
         let lib_std_str = StringReader::new(SCM_LIB_STD)
             .read_forms()
             .expect("failed to read SCM_LIB_STD: Err: {e}");
 
         // Eval scheme standard lib with the base env to add all defines to interpreter env
-        eval_forms(lib_std_str, Rc::clone(&self.env))
+        self.vm
+            .eval_forms(lib_std_str)
             .expect("failed to eval SCM_LIB_STD: Err: {e}");
     }
 }
