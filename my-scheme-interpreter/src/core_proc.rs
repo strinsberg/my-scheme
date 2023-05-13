@@ -357,7 +357,7 @@ pub fn set_cdr(args: Vec<ScmVal>) -> ValResult {
 
 pub fn is_list(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (_, dotted, cyclic) = match ScmVal::list_to_vec(args[0].clone()) {
+        let (_, dotted, cyclic) = match ScmVal::list_to_vec(&args[0]) {
             Some(res) => res,
             None => return Ok(ScmVal::Boolean(false)),
         };
@@ -374,12 +374,11 @@ pub fn is_list(args: Vec<ScmVal>) -> ValResult {
 
 pub fn list_length(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (vec, dotted, cyclic) =
-            ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
-                "length".to_owned(),
-                "proper list".to_owned(),
-                args[0].clone(),
-            ))?;
+        let (vec, dotted, cyclic) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+            "length".to_owned(),
+            "proper list".to_owned(),
+            args[0].clone(),
+        ))?;
         if dotted || cyclic {
             Err(ScmErr::BadArgType(
                 "length".to_owned(),
@@ -400,12 +399,11 @@ pub fn list_append(args: Vec<ScmVal>) -> ValResult {
         let mut appended = Vec::new();
 
         for arg in args[..args.len() - 1].into_iter() {
-            let (arg_vec, dotted, cyclic) =
-                ScmVal::list_to_vec(arg.clone()).ok_or(ScmErr::BadArgType(
-                    "append".to_owned(),
-                    "proper list".to_owned(),
-                    args[0].clone(),
-                ))?;
+            let (arg_vec, dotted, cyclic) = ScmVal::list_to_vec(&arg).ok_or(ScmErr::BadArgType(
+                "append".to_owned(),
+                "proper list".to_owned(),
+                args[0].clone(),
+            ))?;
             if dotted || cyclic {
                 return Err(ScmErr::BadArgType(
                     "append".to_owned(),
@@ -426,12 +424,11 @@ pub fn list_append(args: Vec<ScmVal>) -> ValResult {
 
 pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
-        let (arg_vec, dotted, cyclic) =
-            ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::BadArgType(
-                "reverse".to_owned(),
-                "proper list".to_owned(),
-                args[0].clone(),
-            ))?;
+        let (arg_vec, dotted, cyclic) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+            "reverse".to_owned(),
+            "proper list".to_owned(),
+            args[0].clone(),
+        ))?;
         if dotted || cyclic {
             return Err(ScmErr::BadArgType(
                 "reverse".to_owned(),

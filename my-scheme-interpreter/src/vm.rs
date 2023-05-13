@@ -93,17 +93,17 @@ impl Vm {
         self.eval(forms[forms.len() - 1].clone())
     }
 
-    pub fn eval(&mut self, expr: ScmVal) -> ValResult {
+    pub fn eval(&mut self, form: ScmVal) -> ValResult {
         self.init_stacks();
-        self.op_stack = Stack::push(Rc::clone(&self.op_stack), VmOp::Eval(expr));
+        self.op_stack = Stack::push(Rc::clone(&self.op_stack), VmOp::Eval(form));
 
         loop {
             let op = self.pop_op();
             match op {
-                VmOp::Eval(expr) => match expr.clone() {
+                VmOp::Eval(ref expr) => match expr {
                     ScmVal::Symbol(name) => self.eval_symbol(expr, &name.to_string())?,
                     ScmVal::Pair(cell) => {
-                        self.eval_pair(cell)?;
+                        self.eval_pair(Rc::clone(cell))?;
                     }
                     ScmVal::PairMut(cell) => {
                         self.eval_pair(Rc::new(cell.borrow().clone()))?;
@@ -117,8 +117,8 @@ impl Vm {
                     | ScmVal::String(_)
                     | ScmVal::StringMut(_)
                     | ScmVal::Undefined
-                    | ScmVal::Empty => self.push_res(expr),
-                    _ => return Err(ScmErr::Syntax(expr)),
+                    | ScmVal::Empty => self.push_res(expr.clone()),
+                    _ => return Err(ScmErr::Syntax(expr.clone())),
                 },
                 VmOp::Apply(val, n) => {
                     self.apply(val, n)?;
@@ -160,7 +160,7 @@ impl Vm {
                 }
                 VmOp::UnpackRes(name) => {
                     let list = self.pop_res();
-                    let (args, dot, cycle) = ScmVal::list_to_vec(list.clone()).ok_or(
+                    let (args, dot, cycle) = ScmVal::list_to_vec(&list).ok_or(
                         ScmErr::BadArgType(name.clone(), "list".to_owned(), list.clone()),
                     )?;
                     if dot || cycle {
@@ -186,7 +186,7 @@ impl Vm {
 
     /*** Evaluation Helpers ***/
 
-    fn eval_symbol(&mut self, expr: ScmVal, name: &str) -> Result<(), ScmErr> {
+    fn eval_symbol(&mut self, expr: &ScmVal, name: &str) -> Result<(), ScmErr> {
         let value = match self.env.borrow().lookup(expr) {
             Some(val) => val,
             None => return Err(ScmErr::Undeclared(name.to_string())),
@@ -201,7 +201,7 @@ impl Vm {
                 self.eval_special(cell, &name.to_string())?;
             }
             head => {
-                let (args, dot, cycle) = ScmVal::list_to_vec(cell.tail.clone())
+                let (args, dot, cycle) = ScmVal::list_to_vec(&cell.tail)
                     .ok_or(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))))?;
                 if dot || cycle {
                     return Err(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))));
@@ -245,13 +245,13 @@ impl Vm {
     }
 
     fn eval_special(&mut self, cell: Rc<ConsCell>, name: &str) -> Result<(), ScmErr> {
-        let lookup = self.env.borrow().lookup(cell.head.clone());
+        let lookup = self.env.borrow().lookup(&cell.head);
         match lookup {
             Some(val) => {
                 self.push_op(VmOp::Eval(ScmVal::cons(val.clone(), cell.tail.clone())));
             }
             None => {
-                let (mut args, dot, cycle) = ScmVal::list_to_vec(cell.tail.clone())
+                let (mut args, dot, cycle) = ScmVal::list_to_vec(&cell.tail)
                     .ok_or(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))))?;
                 if dot || cycle {
                     return Err(ScmErr::Syntax(ScmVal::Pair(Rc::clone(&cell))));
@@ -554,8 +554,7 @@ impl Vm {
     }
 
     fn separate_cond_clause(&self, expr: ScmVal) -> Result<(ScmVal, bool, Vec<ScmVal>), ScmErr> {
-        let (args, dot, cycle) =
-            ScmVal::list_to_vec(expr.clone()).ok_or(ScmErr::Syntax(expr.clone()))?;
+        let (args, dot, cycle) = ScmVal::list_to_vec(&expr).ok_or(ScmErr::Syntax(expr.clone()))?;
         if dot || cycle {
             return Err(ScmErr::Syntax(expr));
         }
@@ -577,8 +576,7 @@ impl Vm {
         &self,
         expr: ScmVal,
     ) -> Result<(Vec<ScmVal>, bool, Vec<ScmVal>), ScmErr> {
-        let (args, dot, cycle) =
-            ScmVal::list_to_vec(expr.clone()).ok_or(ScmErr::Syntax(expr.clone()))?;
+        let (args, dot, cycle) = ScmVal::list_to_vec(&expr).ok_or(ScmErr::Syntax(expr.clone()))?;
         if dot || cycle {
             return Err(ScmErr::Syntax(expr));
         }
@@ -589,7 +587,7 @@ impl Vm {
                     Ok((vec![], true, args[1..].into()))
                 } else {
                     let (cases, dot, cycle) =
-                        ScmVal::list_to_vec(args[0].clone()).ok_or(ScmErr::Syntax(expr.clone()))?;
+                        ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::Syntax(expr.clone()))?;
                     if dot || cycle {
                         return Err(ScmErr::Syntax(expr));
                     }

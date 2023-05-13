@@ -116,9 +116,9 @@ impl ScmVal {
             .fold(end, |acc, v| ScmVal::new_pair_mut(v, acc))
     }
 
-    pub fn list_to_vec(val: ScmVal) -> Option<(Vec<ScmVal>, bool, bool)> {
+    pub fn list_to_vec(val: &ScmVal) -> Option<(Vec<ScmVal>, bool, bool)> {
         let iter = match val {
-            ScmVal::Pair(_) | ScmVal::PairMut(_) => ListPairIter::new(val),
+            ScmVal::Pair(_) | ScmVal::PairMut(_) => ListPairIter::new(val.clone()),
             ScmVal::Empty => return Some((vec![], false, false)),
             _ => return None,
         };
@@ -193,8 +193,8 @@ impl ScmVal {
     }
 
     fn extern_list(val: ScmVal) -> String {
-        let (vec, dotted, cyclic) =
-            ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
+        let (vec, dotted, cyclic) = ScmVal::list_to_vec(&val)
+            .expect("extern list should only be passed a pair or pair-mut");
         let strings: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
         ScmVal::format_list(&strings, dotted, cyclic)
     }
@@ -257,7 +257,7 @@ impl fmt::Display for ScmVal {
 
 fn display_list(f: &mut fmt::Formatter, val: ScmVal) -> fmt::Result {
     let (vec, dotted, cyclic) =
-        ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
+        ScmVal::list_to_vec(&val).expect("extern list should only be passed a pair or pair-mut");
     let strings: Vec<String> = vec.iter().map(|v| v.to_string()).collect();
     write!(f, "{}", ScmVal::format_list(&strings, dotted, cyclic))
 }

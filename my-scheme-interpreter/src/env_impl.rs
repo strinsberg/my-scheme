@@ -55,7 +55,7 @@ impl Env {
     }
 
     // Returns the value for the first time the key is found in any scope.
-    pub fn lookup(&self, key: ScmVal) -> Option<ScmVal> {
+    pub fn lookup(&self, key: &ScmVal) -> Option<ScmVal> {
         match self.scope.get(&key) {
             Some(val) => Some(val.clone()),
             None => match self.next {
@@ -140,7 +140,7 @@ mod tests {
     #[test]
     fn test_construct() {
         let env = Env::new();
-        assert_eq!(env.lookup(ScmVal::new_sym("hello")), None);
+        assert_eq!(env.lookup(&ScmVal::new_sym("hello")), None);
     }
 
     #[test]
@@ -152,15 +152,15 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(
-            env.lookup(ScmVal::new_sym("hello")),
+            env.lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(22))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("world")),
+            env.lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_int(99))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("steve")),
+            env.lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(345))
         );
     }
@@ -175,15 +175,15 @@ mod tests {
         env.insert(ScmVal::new_sym("steve"), ScmVal::new_int(345))
             .unwrap();
         assert_eq!(
-            env.lookup(ScmVal::new_sym("hello")),
+            env.lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(22))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("world")),
+            env.lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_int(99))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("steve")),
+            env.lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(345))
         );
     }
@@ -198,15 +198,15 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(
-            env.lookup(ScmVal::new_sym("hello")),
+            env.lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(22))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("world")),
+            env.lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_int(99))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("steve")),
+            env.lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(345))
         );
     }
@@ -226,15 +226,15 @@ mod tests {
         env.set(ScmVal::new_sym("steve"), ScmVal::new_int(987))
             .unwrap();
         assert_eq!(
-            env.lookup(ScmVal::new_sym("hello")),
+            env.lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(0))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("world")),
+            env.lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_int(100))
         );
         assert_eq!(
-            env.lookup(ScmVal::new_sym("steve")),
+            env.lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(987))
         );
     }
@@ -259,27 +259,27 @@ mod tests {
             .unwrap();
         }
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("hello")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(22))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("world")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_int(99))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("steve")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(345))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("student")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("student")),
             Some(ScmVal::new_int(45))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("wants")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("wants")),
             Some(ScmVal::new_int(87))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("cake")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("cake")),
             Some(ScmVal::new_int(31))
         );
     }
@@ -310,37 +310,37 @@ mod tests {
         }
         // Check all through the top env
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("hello")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(555))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("world")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_float(0.234))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("steve")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(345))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("student")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("student")),
             Some(ScmVal::new_int(45))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("wants")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("wants")),
             Some(ScmVal::new_int(87))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("cake")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("cake")),
             Some(ScmVal::new_int(31))
         );
         // Check shadow and set in base env
         let env_rc = new_env_rc.borrow().next.clone().unwrap();
         assert_eq!(
-            env_rc.borrow().lookup(ScmVal::new_sym("hello")),
+            env_rc.borrow().lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(22))
         );
         assert_eq!(
-            env_rc.borrow().lookup(ScmVal::new_sym("world")),
+            env_rc.borrow().lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_float(0.234))
         );
     }
@@ -369,27 +369,27 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("hello")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("hello")),
             Some(ScmVal::new_int(22))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("world")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("world")),
             Some(ScmVal::new_int(99))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("steve")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("steve")),
             Some(ScmVal::new_int(345))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("student")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("student")),
             Some(ScmVal::new_int(45))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("wants")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("wants")),
             Some(ScmVal::new_int(87))
         );
         assert_eq!(
-            new_env_rc.borrow().lookup(ScmVal::new_sym("cake")),
+            new_env_rc.borrow().lookup(&ScmVal::new_sym("cake")),
             Some(ScmVal::new_int(31))
         );
     }
