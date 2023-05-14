@@ -45,11 +45,11 @@ impl StringReader {
 
     fn read_helper(&mut self, token: Token) -> ValResult {
         match token {
-            Token::Identifier(s) => Ok(ScmVal::Symbol(Rc::new(s))),
+            Token::Identifier(s) => Ok(ScmVal::sym_from_scm_str(s)),
             Token::Boolean(b) => Ok(ScmVal::Boolean(b)),
             Token::Number(num) => Ok(ScmVal::Number(num)),
             Token::Character(ch) => Ok(ScmVal::Character(ch)),
-            Token::String(s) => Ok(ScmVal::new_str_from_scmstring(s)),
+            Token::String(s) => Ok(ScmVal::from_scm_str(s, false)),
             Token::LParen => self.read_list(),
             Token::VecOpen => self.read_vector(),
             Token::Quote => self.read_quote(),

@@ -35,14 +35,12 @@ pub enum ScmVal {
     Number(ScmNumber),
     Core(Builtin, u8),
     // Atoms that use Rc
-    Symbol(Rc<ScmString>),
+    NewSymbol(Rc<StringRef>),
     Closure(Rc<Closure>),
     // Collections
     NewPair(Rc<Cell>),
-    String(Rc<ScmString>),
-    StringMut(Rc<RefCell<ScmString>>),
-    Vector(Rc<Vec<ScmVal>>),
-    VectorMut(Rc<RefCell<Vec<ScmVal>>>),
+    NewString(Rc<StringRef>),
+    NewVec(Rc<VecRef>),
     Env(Rc<RefCell<Env>>),
     Empty,
     // Other
@@ -55,7 +53,14 @@ impl ScmVal {
     // Constructor Helpers //
 
     pub fn new_sym(string: &str) -> ScmVal {
-        ScmVal::Symbol(Rc::new(ScmString::new(string)))
+        ScmVal::NewSymbol(Rc::new(StringRef::new(string)))
+    }
+
+    pub fn sym_from_scm_str(string: ScmString) -> ScmVal {
+        ScmVal::NewSymbol(Rc::new(StringRef {
+            mutable: false,
+            string: RefCell::new(string),
+        }))
     }
 
     pub fn new_char(ch: char) -> ScmVal {
@@ -78,32 +83,31 @@ impl ScmVal {
         ScmVal::NewPair(Rc::new(Cell::new_mut(head, tail)))
     }
 
-    pub fn new_str_mut(string: &str) -> ScmVal {
-        ScmVal::StringMut(Rc::new(RefCell::new(ScmString::new(string))))
-    }
-
-    pub fn new_str_from_scmstring(string: ScmString) -> ScmVal {
-        ScmVal::String(Rc::new(string))
-    }
-
-    pub fn new_str_mut_from_scmstring(string: ScmString) -> ScmVal {
-        ScmVal::StringMut(Rc::new(RefCell::new(string)))
-    }
-
     pub fn new_str(string: &str) -> ScmVal {
-        ScmVal::String(Rc::new(ScmString::new(string)))
+        ScmVal::NewString(Rc::new(StringRef::new(string)))
+    }
+
+    pub fn new_str_mut(string: &str) -> ScmVal {
+        ScmVal::NewString(Rc::new(StringRef::new_mut(string)))
+    }
+
+    pub fn from_scm_str(string: ScmString, mutable: bool) -> ScmVal {
+        ScmVal::NewString(Rc::new(StringRef {
+            mutable: mutable,
+            string: RefCell::new(string),
+        }))
     }
 
     pub fn new_closure(closure: Closure) -> ScmVal {
         ScmVal::Closure(Rc::new(closure))
     }
 
-    pub fn new_vec_mut(vec: Vec<ScmVal>) -> ScmVal {
-        ScmVal::VectorMut(Rc::new(RefCell::new(vec)))
+    pub fn new_vec(vec: Vec<ScmVal>) -> ScmVal {
+        ScmVal::NewVec(Rc::new(VecRef::new(vec)))
     }
 
-    pub fn new_vec(vec: Vec<ScmVal>) -> ScmVal {
-        ScmVal::Vector(Rc::new(vec))
+    pub fn new_vec_mut(vec: Vec<ScmVal>) -> ScmVal {
+        ScmVal::NewVec(Rc::new(VecRef::new_mut(vec)))
     }
 
     pub fn new_if(args: Vec<ScmVal>) -> ScmVal {
@@ -148,6 +152,7 @@ impl ScmVal {
             .fold(end, |acc, v| ScmVal::new_pair_mut(v, acc))
     }
 
+    // Iterate a pair and return a vetor of the elements.
     pub fn list_to_vec(val: &ScmVal) -> Option<(Vec<ScmVal>, bool)> {
         match val {
             ScmVal::NewPair(cell) => {
@@ -168,6 +173,7 @@ impl ScmVal {
         }
     }
 
+    // If the list is immutable it will keep it immutable
     pub fn cons(val: ScmVal, rest: ScmVal) -> ScmVal {
         match rest {
             ScmVal::NewPair(ref cell) if !cell.mutable => ScmVal::new_pair(val, rest),
@@ -182,15 +188,13 @@ impl ScmVal {
             ScmVal::Number(val) => val.to_string(),
             ScmVal::Boolean(val) => format!("#{}", if *val { "t" } else { "f" }),
             ScmVal::Character(val) => val.to_extern(),
-            ScmVal::Symbol(val) => val.to_string(),
-            ScmVal::String(val) => val.to_extern(),
-            ScmVal::StringMut(val) => val.borrow().to_extern(),
+            ScmVal::NewSymbol(val) => val.to_string(),
+            ScmVal::NewString(val) => val.string.borrow().to_extern(),
             ScmVal::Closure(val) => ScmVal::extern_closure(val.name.clone()),
             ScmVal::Core(val, _) => format!("#<procedure {}>", val),
             ScmVal::NewPair(_) => ScmVal::extern_list(self.clone()),
             ScmVal::Env(_) => format!("#<environment>"),
-            ScmVal::Vector(val) => ScmVal::extern_vec(Rc::clone(val)),
-            ScmVal::VectorMut(val) => ScmVal::extern_vec_mut(Rc::clone(val)),
+            ScmVal::NewVec(val) => ScmVal::extern_vec(Rc::clone(val)),
             ScmVal::Empty => "()".to_string(),
             ScmVal::Cyclic => "#cyclic#".to_string(),
             val => format!("{:?}", val),
@@ -224,13 +228,8 @@ impl ScmVal {
         }
     }
 
-    fn extern_vec(vec: Rc<Vec<ScmVal>>) -> String {
-        let vec_string: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
-        format!("#({})", vec_string.join(" "))
-    }
-
-    fn extern_vec_mut(vec: Rc<RefCell<Vec<ScmVal>>>) -> String {
-        let vec_string: Vec<String> = vec.borrow().iter().map(|v| v.to_extern()).collect();
+    fn extern_vec(vec: Rc<VecRef>) -> String {
+        let vec_string: Vec<String> = vec.vec.borrow().iter().map(|v| v.to_extern()).collect();
         format!("#({})", vec_string.join(" "))
     }
 }
@@ -240,7 +239,7 @@ impl ScmVal {
 impl Hash for ScmVal {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            ScmVal::Symbol(val) => val.hash(state),
+            ScmVal::NewSymbol(val) => val.string.borrow().hash(state),
             _ => panic!("cannot hash anything but symbols"),
         }
     }
@@ -254,11 +253,9 @@ impl Hash for ScmVal {
 impl fmt::Display for ScmVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ScmVal::String(val) => write!(f, "{}", val),
-            ScmVal::StringMut(val) => write!(f, "{}", val.borrow()),
+            ScmVal::NewString(val) => write!(f, "{}", val.to_string()),
             ScmVal::NewPair(_) => display_list(f, self.clone()),
-            ScmVal::Vector(val) => display_vec(f, Rc::clone(val)),
-            ScmVal::VectorMut(val) => display_vec_mut(f, Rc::clone(val)),
+            ScmVal::NewVec(val) => display_vec(f, Rc::clone(val)),
             ScmVal::Empty => write!(f, "()"),
             val => write!(f, "{}", val.to_extern()),
         }
@@ -272,13 +269,8 @@ fn display_list(f: &mut fmt::Formatter, val: ScmVal) -> fmt::Result {
     write!(f, "{}", ScmVal::format_list(&strings, dotted))
 }
 
-fn display_vec(f: &mut fmt::Formatter, vec: Rc<Vec<ScmVal>>) -> fmt::Result {
-    let vec_string: Vec<String> = vec.iter().map(|v| v.to_string()).collect();
-    write!(f, "#({})", vec_string.join(" "))
-}
-
-fn display_vec_mut(f: &mut fmt::Formatter, vec: Rc<RefCell<Vec<ScmVal>>>) -> fmt::Result {
-    let vec_string: Vec<String> = vec.borrow().iter().map(|v| v.to_string()).collect();
+fn display_vec(f: &mut fmt::Formatter, vec: Rc<VecRef>) -> fmt::Result {
+    let vec_string: Vec<String> = vec.vec.borrow().iter().map(|v| v.to_string()).collect();
     write!(f, "#({})", vec_string.join(" "))
 }
 
@@ -464,6 +456,106 @@ impl Closure {
     }
 
     // TODO add a way to get the required arity from the formals
+}
+
+// String Wrapper /////////////////////////////////////////////////////////////
+
+// Like Cell we use a RefCell inside to allow mutability, while keeping the
+// ScmVal as just one variant. Could possibly add this to string as is or try
+// and integrate it into the struct in there, though they feel as though they
+// have different purposes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StringRef {
+    pub mutable: bool,
+    pub string: RefCell<ScmString>,
+}
+
+impl StringRef {
+    pub fn new(val: &str) -> StringRef {
+        StringRef {
+            mutable: false,
+            string: RefCell::new(ScmString::new(val)),
+        }
+    }
+
+    pub fn new_mut(val: &str) -> StringRef {
+        StringRef {
+            mutable: true,
+            string: RefCell::new(ScmString::new(val)),
+        }
+    }
+
+    pub fn set_char(&self, ch: ScmChar, idx: usize) -> bool {
+        if self.mutable && idx < self.len() {
+            self.string.borrow_mut().chars[idx] = ch;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_char(&self, idx: usize) -> Option<ScmChar> {
+        if idx < self.len() {
+            Some(self.string.borrow_mut().chars[idx].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.string.borrow().chars.len()
+    }
+
+    pub fn to_string(&self) -> String {
+        self.string.borrow().to_string()
+    }
+}
+
+// Vector Wrapper /////////////////////////////////////////////////////////////
+
+// Like Cell we use a RefCell inside to allow mutability, while keeping the
+// ScmVal as just one variant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VecRef {
+    pub mutable: bool,
+    pub vec: RefCell<Vec<ScmVal>>,
+}
+
+impl VecRef {
+    pub fn new(vec: Vec<ScmVal>) -> VecRef {
+        VecRef {
+            mutable: false,
+            vec: RefCell::new(vec),
+        }
+    }
+
+    pub fn new_mut(vec: Vec<ScmVal>) -> VecRef {
+        VecRef {
+            mutable: true,
+            vec: RefCell::new(vec),
+        }
+    }
+
+    pub fn set(&self, val: ScmVal, idx: usize) -> bool {
+        if self.mutable && idx < self.len() {
+            self.vec.borrow_mut()[idx] = val;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get(&self, idx: usize) -> Option<ScmVal> {
+        if idx < self.len() {
+            Some(self.vec.borrow_mut()[idx].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.vec.borrow().len()
+    }
 }
 
 // Environment ////////////////////////////////////////////////////////////////

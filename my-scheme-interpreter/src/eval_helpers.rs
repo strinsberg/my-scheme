@@ -12,7 +12,7 @@ pub fn make_closure(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
     if args.len() >= 2 {
         let params = args[0].clone();
         let formals = match params {
-            ScmVal::Symbol(_) => Formals::Collect(params),
+            ScmVal::NewSymbol(_) => Formals::Collect(params),
             ScmVal::NewPair(_) => {
                 let (vec, dotted) = ScmVal::list_to_vec(&params).ok_or(ScmErr::BadArgType(
                     "lambda".to_owned(),

@@ -69,7 +69,7 @@ impl Env {
     // If a key exists in the top scope already it will be rebound.
     pub fn insert(&mut self, key: ScmVal, val: ScmVal) -> ValResult {
         match key {
-            ScmVal::Symbol(_) => {
+            ScmVal::NewSymbol(_) => {
                 self.scope.insert(key, val);
                 Ok(ScmVal::Empty)
             }

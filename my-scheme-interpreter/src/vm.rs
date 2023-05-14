@@ -101,7 +101,7 @@ impl Vm {
             let op = self.pop_op();
             match op {
                 VmOp::Eval(ref expr) => match expr {
-                    ScmVal::Symbol(name) => self.eval_symbol(expr, &name.to_string())?,
+                    ScmVal::NewSymbol(name) => self.eval_symbol(expr, &name.to_string())?,
                     ScmVal::NewPair(cell) => {
                         self.eval_pair(Rc::clone(cell))?;
                     }
@@ -111,8 +111,7 @@ impl Vm {
                     | ScmVal::Closure(_)
                     | ScmVal::Core(_, _)
                     | ScmVal::Env(_)
-                    | ScmVal::String(_)
-                    | ScmVal::StringMut(_)
+                    | ScmVal::NewString(_)
                     | ScmVal::Undefined
                     | ScmVal::Empty => self.push_res(expr.clone()),
                     _ => return Err(ScmErr::Syntax(expr.clone())),
@@ -197,7 +196,7 @@ impl Vm {
     // TODO no longer checks for cyclic
     fn eval_pair(&mut self, cell: Rc<Cell>) -> Result<(), ScmErr> {
         match cell.clone_head() {
-            ScmVal::Symbol(name) => {
+            ScmVal::NewSymbol(name) => {
                 self.eval_special(cell, &name.to_string())?;
             }
             head => {
@@ -368,7 +367,7 @@ impl Vm {
 
         let first = args[0].clone();
         match first {
-            ScmVal::Symbol(_) => {
+            ScmVal::NewSymbol(_) => {
                 self.env
                     .borrow_mut()
                     .insert(first.clone(), ScmVal::Undefined)?;

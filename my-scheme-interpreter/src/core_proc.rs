@@ -2,7 +2,8 @@ use crate::builtin::Builtin;
 use crate::error::{ScmErr, ValResult};
 use crate::number::ScmNumber;
 use crate::string::ScmString;
-use crate::types::{Env, ScmVal};
+use crate::types::{Env, ScmVal, StringRef};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 // All builtin functions that are not syntactic keywords and are the basic building
@@ -252,7 +253,7 @@ pub fn is_character(args: Vec<ScmVal>) -> ValResult {
 pub fn is_symbol(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Symbol(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::NewSymbol(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {
@@ -274,7 +275,7 @@ pub fn is_number(args: Vec<ScmVal>) -> ValResult {
 pub fn is_string(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::String(_) | ScmVal::StringMut(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::NewString(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {
@@ -296,7 +297,7 @@ pub fn is_pair(args: Vec<ScmVal>) -> ValResult {
 pub fn is_vector(args: Vec<ScmVal>) -> ValResult {
     if args.len() >= 1 {
         match args[0].clone() {
-            ScmVal::Vector(_) | ScmVal::VectorMut(_) => Ok(ScmVal::Boolean(true)),
+            ScmVal::NewVec(_) => Ok(ScmVal::Boolean(true)),
             _ => Ok(ScmVal::Boolean(false)),
         }
     } else {
@@ -463,7 +464,7 @@ pub fn symbol_to_string(args: Vec<ScmVal>) -> ValResult {
     }
 
     match args[0].clone() {
-        ScmVal::Symbol(s) => Ok(ScmVal::String(s)),
+        ScmVal::NewSymbol(s) => Ok(ScmVal::NewString(s)),
         _ => Err(ScmErr::BadArgType(
             "symbol->string".to_owned(),
             "symbol".to_owned(),
@@ -477,8 +478,8 @@ pub fn string_to_symbol(args: Vec<ScmVal>) -> ValResult {
     }
 
     match args[0].clone() {
-        ScmVal::String(s) => Ok(ScmVal::Symbol(s)),
-        ScmVal::StringMut(s) => Ok(ScmVal::Symbol(Rc::new((*s.borrow()).clone()))),
+        ScmVal::NewString(s) if s.mutable => Ok(ScmVal::NewSymbol(s)),
+        ScmVal::NewString(s) if !s.mutable => Ok(ScmVal::new_sym(&s.to_string())),
         _ => Err(ScmErr::BadArgType(
             "symbol->string".to_owned(),
             "symbol".to_owned(),
@@ -750,27 +751,16 @@ pub fn num_geq(args: Vec<ScmVal>) -> ValResult {
 // Strings ////////////////////////////////////////////////////////////////////
 
 pub fn make_string(args: Vec<ScmVal>) -> ValResult {
-    let size = match args.len() {
-        1 | 2 => match args[0].clone() {
-            ScmVal::Number(ScmNumber::Integer(i)) => i,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "make-string".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[0].clone(),
-                ))
-            }
-        },
-        _ => return Err(ScmErr::Arity("make-string".to_owned(), 1)),
+    let size = match args[0].clone() {
+        ScmVal::Number(ScmNumber::Integer(i)) if i >= 0 => i,
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "make-string".to_owned(),
+                "exact non-negative integer".to_owned(),
+                args[0].clone(),
+            ))
+        }
     };
-
-    if size < 0 {
-        return Err(ScmErr::BadArgType(
-            "make-string".to_owned(),
-            "exact non-negative integer".to_owned(),
-            args[0].clone(),
-        ));
-    }
 
     let fill: u8 = match args.len() {
         2 => match args[1].clone() {
@@ -783,53 +773,35 @@ pub fn make_string(args: Vec<ScmVal>) -> ValResult {
                 ))
             }
         },
-        _ => 0,
+        _ => '\0' as u8,
     };
 
-    Ok(ScmVal::new_str_mut_from_scmstring(ScmString::from_bytes(
-        &vec![fill; size as usize],
-    )))
+    Ok(ScmVal::from_scm_str(
+        ScmString::from_bytes(&vec![fill; size as usize]),
+        true,
+    ))
 }
 
 pub fn string_set(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 3 {
-        return Err(ScmErr::Arity("string-set!".to_owned(), 3));
-    }
-
-    let index = match args[1].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) => match i {
-            0.. => i as usize,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "string-set!".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[1].clone(),
-                ))
-            }
-        },
-        _ => {
-            return Err(ScmErr::BadArgType(
-                "string-set!".to_owned(),
-                "exact non-negative integer".to_owned(),
-                args[0].clone(),
-            ))
-        }
-    };
+    let index = to_index(&args[1]).ok_or(ScmErr::BadArgType(
+        "string-set!".to_owned(),
+        "exact non-negative integer".to_owned(),
+        args[1].clone(),
+    ))?;
 
     match args[0].clone() {
-        ScmVal::StringMut(s) => {
-            if s.borrow().chars.len() > index {
-                s.borrow_mut().chars[index] = match args[2].clone() {
-                    ScmVal::Character(ch) => ch.clone(),
-                    _ => {
-                        return Err(ScmErr::BadArgType(
-                            "string-set!".to_owned(),
-                            "mutable string".to_owned(),
-                            args[2].clone(),
-                        ))
-                    }
+        ScmVal::NewString(s) if s.mutable => {
+            let ch = match args[2].clone() {
+                ScmVal::Character(ch) => ch.clone(),
+                _ => {
+                    return Err(ScmErr::BadArgType(
+                        "string-set!".to_owned(),
+                        "char".to_owned(),
+                        args[2].clone(),
+                    ))
                 }
-            } else {
+            };
+            if !s.set_char(ch, index) {
                 return Err(ScmErr::RangeError(
                     "string-set!".to_owned(),
                     args[1].clone(),
@@ -850,13 +822,8 @@ pub fn string_set(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn string_length(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("string-length".to_owned(), 1));
-    }
-
     match args[0].clone() {
-        ScmVal::StringMut(s) => Ok(ScmVal::new_int(s.borrow().chars.len() as i64)),
-        ScmVal::String(s) => Ok(ScmVal::new_int(s.chars.len() as i64)),
+        ScmVal::NewString(s) => Ok(ScmVal::new_int(s.len() as i64)),
         _ => Err(ScmErr::BadArgType(
             "string-length".to_owned(),
             "string".to_owned(),
@@ -866,53 +833,16 @@ pub fn string_length(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn string_ref(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("string-ref".to_owned(), 2));
-    }
-
-    let index = match args[1].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) => match i {
-            0.. => i as usize,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "string-ref".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[1].clone(),
-                ))
-            }
-        },
-        _ => {
-            return Err(ScmErr::BadArgType(
-                "string-ref".to_owned(),
-                "exact non-negative integer".to_owned(),
-                args[0].clone(),
-            ))
-        }
-    };
+    let index = to_index(&args[1]).ok_or(ScmErr::BadArgType(
+        "string-ref".to_owned(),
+        "exact non-negative integer".to_owned(),
+        args[1].clone(),
+    ))?;
 
     match args[0].clone() {
-        ScmVal::StringMut(s) => {
-            if s.borrow().chars.len() > index {
-                Ok(ScmVal::Character(s.borrow().chars[index].clone()))
-            } else {
-                Err(ScmErr::RangeError(
-                    "string-ref".to_owned(),
-                    args[1].clone(),
-                    args[0].clone(),
-                ))
-            }
-        }
-        ScmVal::String(s) => {
-            if s.chars.len() > index {
-                Ok(ScmVal::Character(s.chars[index].clone()))
-            } else {
-                Err(ScmErr::RangeError(
-                    "string-ref".to_owned(),
-                    args[1].clone(),
-                    args[0].clone(),
-                ))
-            }
-        }
+        ScmVal::NewString(s) => Ok(ScmVal::Character(s.get_char(index).ok_or(
+            ScmErr::RangeError("string-ref".to_owned(), args[1].clone(), args[0].clone()),
+        )?)),
         _ => Err(ScmErr::BadArgType(
             "string-ref".to_owned(),
             "string".to_owned(),
@@ -933,8 +863,7 @@ pub fn vector_length(args: Vec<ScmVal>) -> ValResult {
     }
 
     match args[0].clone() {
-        ScmVal::VectorMut(vec) => Ok(ScmVal::new_int(vec.borrow().len() as i64)),
-        ScmVal::Vector(vec) => Ok(ScmVal::new_int(vec.len() as i64)),
+        ScmVal::NewVec(vec) => Ok(ScmVal::new_int(vec.len() as i64)),
         _ => Err(ScmErr::BadArgType(
             "vector-length".to_owned(),
             "vector".to_owned(),
@@ -944,27 +873,16 @@ pub fn vector_length(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn make_vector(args: Vec<ScmVal>) -> ValResult {
-    let size = match args.len() {
-        1 | 2 => match args[0].clone() {
-            ScmVal::Number(ScmNumber::Integer(i)) => i,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "make-vector".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[0].clone(),
-                ))
-            }
-        },
-        _ => return Err(ScmErr::Arity("make-vector".to_owned(), 1)),
+    let size = match args[0].clone() {
+        ScmVal::Number(ScmNumber::Integer(i)) if i >= 0 => i,
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "make-vector".to_owned(),
+                "exact non-negative integer".to_owned(),
+                args[0].clone(),
+            ))
+        }
     };
-
-    if size < 0 {
-        return Err(ScmErr::BadArgType(
-            "make-vector".to_owned(),
-            "exact non-negative integer".to_owned(),
-            args[0].clone(),
-        ));
-    }
 
     let fill = match args.len() {
         2 => args[1].clone(),
@@ -975,36 +893,16 @@ pub fn make_vector(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn vector_set(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 3 {
-        return Err(ScmErr::Arity("vector-set!".to_owned(), 3));
-    }
-
-    let index = match args[1].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) => match i {
-            0.. => i as usize,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "vector-set!".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[1].clone(),
-                ))
-            }
-        },
-        _ => {
-            return Err(ScmErr::BadArgType(
-                "vector-set!".to_owned(),
-                "exact non-negative integer".to_owned(),
-                args[0].clone(),
-            ))
-        }
-    };
+    let index = to_index(&args[1]).ok_or(ScmErr::BadArgType(
+        "vector-set!".to_owned(),
+        "exact non-negative integer".to_owned(),
+        args[1].clone(),
+    ))?;
 
     match args[0].clone() {
-        ScmVal::VectorMut(vec) => {
-            if vec.borrow().len() > index {
-                vec.borrow_mut()[index] = args[2].clone();
-            } else {
-                return Err(ScmErr::OutOfBounds(index, vec.borrow().len()));
+        ScmVal::NewVec(vec) => {
+            if !vec.set(args[2].clone(), index) {
+                return Err(ScmErr::OutOfBounds(index, vec.len()));
             }
         }
         _ => {
@@ -1020,45 +918,18 @@ pub fn vector_set(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn vector_ref(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("vector-ref".to_owned(), 2));
-    }
-
-    let index = match args[1].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) => match i {
-            0.. => i as usize,
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "vector-ref".to_owned(),
-                    "exact non-negative integer".to_owned(),
-                    args[1].clone(),
-                ))
-            }
-        },
-        _ => {
-            return Err(ScmErr::BadArgType(
-                "vector-ref".to_owned(),
-                "exact non-negative integer".to_owned(),
-                args[0].clone(),
-            ))
-        }
-    };
+    let index = to_index(&args[1]).ok_or(ScmErr::BadArgType(
+        "vector-ref".to_owned(),
+        "exact non-negative integer".to_owned(),
+        args[1].clone(),
+    ))?;
 
     match args[0].clone() {
-        ScmVal::VectorMut(vec) => {
-            if vec.borrow().len() > index {
-                Ok(vec.borrow()[index].clone())
-            } else {
-                Err(ScmErr::OutOfBounds(index, vec.borrow().len()))
-            }
-        }
-        ScmVal::Vector(vec) => {
-            if vec.len() > index {
-                Ok(vec[index].clone())
-            } else {
-                Err(ScmErr::OutOfBounds(index, vec.len()))
-            }
-        }
+        ScmVal::NewVec(vec) => Ok(vec.get(index).ok_or(ScmErr::RangeError(
+            "vector-ref".to_owned(),
+            args[1].clone(),
+            args[0].clone(),
+        ))?),
         _ => Err(ScmErr::BadArgType(
             "vector-ref".to_owned(),
             "vector".to_owned(),
@@ -1103,4 +974,13 @@ fn user_range_error(args: Vec<ScmVal>) -> ValResult {
         args[1].clone(),
         args[2].clone(),
     ))
+}
+
+// Helpers ////////////////////////////////////////////////////////////////////
+
+pub fn to_index(val: &ScmVal) -> Option<usize> {
+    match val {
+        ScmVal::Number(ScmNumber::Integer(i)) if *i >= 0 => Some(*i as usize),
+        _ => None,
+    }
 }
