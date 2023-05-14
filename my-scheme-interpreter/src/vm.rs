@@ -273,15 +273,19 @@ impl Vm {
                         self.push_op(VmOp::Eval(args[0].clone()));
                     }
                     "lambda" => {
+                        self.arity(num_args, 2, "lambda")?;
                         self.push_res(evh::make_closure(args, Rc::clone(&self.env))?);
                     }
                     "let" => {
+                        self.arity(num_args, 2, "let")?;
                         self.push_op(VmOp::Eval(evh::transform_let(args, Rc::clone(&self.env))?));
                     }
                     "let*" => {
+                        self.arity(num_args, 2, "let*")?;
                         self.push_op(VmOp::Eval(evh::transform_let_star(args)?));
                     }
                     "letrec" => {
+                        self.arity(num_args, 2, "letrec")?;
                         self.push_op(VmOp::Eval(evh::transform_letrec(args)?));
                     }
                     "set!" => {
@@ -290,7 +294,10 @@ impl Vm {
                         self.push_op(VmOp::Eval(args[1].clone()));
                     }
                     "begin" => self.eval_body(&args),
-                    "do" => self.push_op(VmOp::Eval(evh::transform_do(args)?)),
+                    "do" => {
+                        self.arity(num_args, 2, "do")?;
+                        self.push_op(VmOp::Eval(evh::transform_do(args)?));
+                    }
 
                     // These are not in separate methods because they tread args and mutable
                     "and" => match num_args {
@@ -409,6 +416,7 @@ impl Vm {
                 self.push_res(proc::apply_core_proc(b, args)?);
             }
             ScmVal::Closure(c) => {
+                // arity is checked during binding based on the param types
                 self.push_op(VmOp::SetEnv(Rc::clone(&self.env)));
                 self.env = evh::bind_closure_args(c.clone(), self.pop_n_res(num_args))?;
                 self.eval_body(&c.body);

@@ -9,61 +9,53 @@ use std::rc::Rc;
 // Takes the arguments to a lambda expression and the current env and creates
 // a new closure.
 pub fn make_closure(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    if args.len() >= 2 {
-        let params = args[0].clone();
-        let formals = match params {
-            ScmVal::NewSymbol(_) => Formals::Collect(params),
-            ScmVal::NewPair(_) => {
-                let (vec, dotted) = ScmVal::list_to_vec(&params).ok_or(ScmErr::BadArgType(
-                    "lambda".to_owned(),
-                    "pair".to_owned(),
-                    args[0].clone(),
-                ))?;
-                if dotted {
-                    Formals::Rest(vec[..vec.len() - 1].into(), vec[vec.len() - 1].clone())
-                } else {
-                    Formals::Fixed(vec)
-                }
+    let params = args[0].clone();
+    let formals = match params {
+        ScmVal::NewSymbol(_) => Formals::Collect(params),
+        ScmVal::NewPair(_) => {
+            let (vec, dotted) = ScmVal::list_to_vec(&params).ok_or(ScmErr::BadArgType(
+                "lambda".to_owned(),
+                "pair".to_owned(),
+                args[0].clone(),
+            ))?;
+            if dotted {
+                Formals::Rest(vec[..vec.len() - 1].into(), vec[vec.len() - 1].clone())
+            } else {
+                Formals::Fixed(vec)
             }
-            ScmVal::Empty => Formals::Fixed(vec![]),
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "lambda".to_owned(),
-                    "pair".to_owned(),
-                    args[0].clone(),
-                ))
-            }
-        };
+        }
+        ScmVal::Empty => Formals::Fixed(vec![]),
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "lambda".to_owned(),
+                "pair".to_owned(),
+                args[0].clone(),
+            ))
+        }
+    };
 
-        Ok(ScmVal::new_closure(Closure::new(
-            "no-name",
-            env,
-            formals,
-            args[1..].into(),
-        )))
-    } else {
-        Err(ScmErr::Arity("lambda".to_owned(), 2))
-    }
+    Ok(ScmVal::new_closure(Closure::new(
+        "no-name",
+        env,
+        formals,
+        args[1..].into(),
+    )))
 }
 
 // Transforms a let expression into a lambda application.
 // Example: (let ((a 1) (b 2)) (+ a b)) => ((lambda (a b) (+ a b)) 1 2)
 pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
-    if args.len() >= 2 {
-        let bindings = args[0].clone();
-        let (params, bind_args) = unbind(bindings.clone())?;
-        Ok(ScmVal::cons(
-            ScmVal::new_closure(Closure::new(
-                "no-name",
-                env,
-                Formals::Fixed(params),
-                args[1..].into(),
-            )),
-            ScmVal::vec_to_list(bind_args, ScmVal::Empty),
-        ))
-    } else {
-        Err(ScmErr::Arity("let".to_owned(), 2))
-    }
+    let bindings = args[0].clone();
+    let (params, bind_args) = unbind(bindings.clone())?;
+    Ok(ScmVal::cons(
+        ScmVal::new_closure(Closure::new(
+            "no-name",
+            env,
+            Formals::Fixed(params),
+            args[1..].into(),
+        )),
+        ScmVal::vec_to_list(bind_args, ScmVal::Empty),
+    ))
 }
 
 // Transforms a let* expression into a let expression.
@@ -73,42 +65,36 @@ pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // really like transforming it into something that will have to be transformed
 // again and again into so many nested lets/closures.
 pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 2 {
-        let (bindings, dot) =
-            ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::Syntax(args[0].clone()))?;
-        if dot {
-            return Err(ScmErr::Syntax(args[0].clone()));
-        }
+    let (bindings, dot) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::Syntax(args[0].clone()))?;
+    if dot {
+        return Err(ScmErr::Syntax(args[0].clone()));
+    }
 
-        let num_bind = bindings.len();
-        match num_bind {
-            2.. => {
-                let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
-                let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
-                let let_star_bind = ScmVal::vec_to_list(bindings[1..].into(), ScmVal::Empty);
-                let let_star =
-                    ScmVal::vec_to_list(vec![ScmVal::new_sym("let*"), let_star_bind], body);
-                println!("{let_bind}, {let_star}");
-                Ok(ScmVal::vec_to_list(
-                    vec![ScmVal::new_sym("let"), let_bind, let_star],
-                    ScmVal::Empty,
-                ))
-            }
-            1 => {
-                let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
-                let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
-                Ok(ScmVal::vec_to_list(
-                    vec![ScmVal::new_sym("let"), let_bind],
-                    body,
-                ))
-            }
-            _ => Ok(ScmVal::new_pair(
-                ScmVal::new_sym("begin"),
-                ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty),
-            )),
+    let num_bind = bindings.len();
+    match num_bind {
+        2.. => {
+            let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
+            let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+            let let_star_bind = ScmVal::vec_to_list(bindings[1..].into(), ScmVal::Empty);
+            let let_star = ScmVal::vec_to_list(vec![ScmVal::new_sym("let*"), let_star_bind], body);
+            println!("{let_bind}, {let_star}");
+            Ok(ScmVal::vec_to_list(
+                vec![ScmVal::new_sym("let"), let_bind, let_star],
+                ScmVal::Empty,
+            ))
         }
-    } else {
-        Err(ScmErr::Arity("let".to_owned(), 2))
+        1 => {
+            let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
+            let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+            Ok(ScmVal::vec_to_list(
+                vec![ScmVal::new_sym("let"), let_bind],
+                body,
+            ))
+        }
+        _ => Ok(ScmVal::new_pair(
+            ScmVal::new_sym("begin"),
+            ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty),
+        )),
     }
 }
 
@@ -117,22 +103,18 @@ pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
 //          (let ((a <undefined>) (b <undefined>))
 //            (set! a 1) (set! b 2) (+ a b))
 pub fn transform_letrec(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 2 {
-        let bindings = args[0].clone();
-        let (bind_vec, assign_vec) = letrec_bind(bindings.clone())?;
-        let new_body: Vec<ScmVal> = assign_vec.iter().chain(args[1..].iter()).cloned().collect();
+    let bindings = args[0].clone();
+    let (bind_vec, assign_vec) = letrec_bind(bindings.clone())?;
+    let new_body: Vec<ScmVal> = assign_vec.iter().chain(args[1..].iter()).cloned().collect();
 
-        // Cons let and bindings onto the new body list
-        Ok(ScmVal::vec_to_list(
-            vec![
-                ScmVal::new_sym("let"),
-                ScmVal::vec_to_list(bind_vec, ScmVal::Empty),
-            ],
-            ScmVal::vec_to_list(new_body, ScmVal::Empty),
-        ))
-    } else {
-        Err(ScmErr::Arity("letrec".to_owned(), 2))
-    }
+    // Cons let and bindings onto the new body list
+    Ok(ScmVal::vec_to_list(
+        vec![
+            ScmVal::new_sym("let"),
+            ScmVal::vec_to_list(bind_vec, ScmVal::Empty),
+        ],
+        ScmVal::vec_to_list(new_body, ScmVal::Empty),
+    ))
 }
 
 // Eval a do statment by restructuring it into a letrec and evaluating it.
@@ -148,9 +130,6 @@ pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
     //                       (begin commands ...
     //                              (loop step ...))))))
     //    (loop init)))
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("do".to_owned(), 2));
-    }
 
     // Get lists of params, their initial values, and their step expressions
     let (vars, inits, steps) = unbind_do(args[0].clone())?;
@@ -162,6 +141,7 @@ pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
         args[1].clone(),
     ))?;
     if test_vec.len() < 1 {
+        // TODO is arity the right error here?
         return Err(ScmErr::Arity("do test".to_owned(), 1));
     }
     let cond = test_vec[0].clone();
@@ -226,18 +206,22 @@ pub fn bind_closure_args(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<R
             }
         }
         Formals::Rest(params, symbol) => {
-            let mut full_params = params.clone();
-            full_params.push(symbol);
+            if args.len() >= params.len() {
+                let mut full_params = params.clone();
+                full_params.push(symbol);
 
-            let mut full_args: Vec<ScmVal> = args[..params.len()].into();
-            let rest = ScmVal::vec_to_list_mut(args[params.len()..].into(), ScmVal::Empty);
-            full_args.push(rest);
+                let mut full_args: Vec<ScmVal> = args[..params.len()].into();
+                let rest = ScmVal::vec_to_list_mut(args[params.len()..].into(), ScmVal::Empty);
+                full_args.push(rest);
 
-            Ok(Env::bind_in_new_env(
-                Rc::clone(&closure.env),
-                full_params,
-                full_args,
-            )?)
+                Ok(Env::bind_in_new_env(
+                    Rc::clone(&closure.env),
+                    full_params,
+                    full_args,
+                )?)
+            } else {
+                return Err(ScmErr::Arity("closure".to_owned(), params.len()));
+            }
         }
     }
 }

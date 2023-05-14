@@ -108,39 +108,28 @@ pub fn is_true(val: ScmVal) -> bool {
 // Core list functions ////////////////////////////////////////////////////////
 
 pub fn cons(args: Vec<ScmVal>) -> ValResult {
-    match args.len() {
-        2.. => Ok(ScmVal::cons(args[0].clone(), args[1].clone())),
-        _ => Err(ScmErr::Arity("cons".to_owned(), 2)),
-    }
+    Ok(ScmVal::cons(args[0].clone(), args[1].clone()))
 }
 
 pub fn car(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::NewPair(cell) => Ok(cell.clone_head()),
-            _ => Err(ScmErr::BadArgType(
-                "car".to_owned(),
-                "pair".to_owned(),
-                args[0].clone(),
-            )),
-        }
-    } else {
-        Err(ScmErr::Arity("car".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::NewPair(cell) => Ok(cell.clone_head()),
+        _ => Err(ScmErr::BadArgType(
+            "car".to_owned(),
+            "pair".to_owned(),
+            args[0].clone(),
+        )),
     }
 }
 
 pub fn cdr(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::NewPair(cell) => Ok(cell.clone_tail()),
-            _ => Err(ScmErr::BadArgType(
-                "cdr".to_owned(),
-                "pair".to_owned(),
-                args[0].clone(),
-            )),
-        }
-    } else {
-        Err(ScmErr::Arity("cdr".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::NewPair(cell) => Ok(cell.clone_tail()),
+        _ => Err(ScmErr::BadArgType(
+            "cdr".to_owned(),
+            "pair".to_owned(),
+            args[0].clone(),
+        )),
     }
 }
 
@@ -149,10 +138,7 @@ pub fn cdr(args: Vec<ScmVal>) -> ValResult {
 // TODO try to make this more robust and closer to the R5RS expectations.
 // Now that we use pointers some stuff may be easier to do.
 fn eqv_proc(args: Vec<ScmVal>) -> ValResult {
-    match args.len() {
-        2.. => Ok(ScmVal::Boolean(eqv(args[0].clone(), args[1].clone()))),
-        _ => Err(ScmErr::Arity("eqv?".to_owned(), 2)),
-    }
+    Ok(ScmVal::Boolean(eqv(args[0].clone(), args[1].clone())))
 }
 
 // not this simple, but will do for now
@@ -229,240 +215,180 @@ pub fn is_arithmetic_builtin(val: Builtin) -> bool {
 // Core Predicates ////////////////////////////////////////////////////////////
 
 pub fn is_boolean(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::Boolean(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("boolean?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::Boolean(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_character(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::Character(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("char?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::Character(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_symbol(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::NewSymbol(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("symbol?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::NewSymbol(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_number(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::Number(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("number?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::Number(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_string(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::NewString(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("string?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::NewString(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_pair(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::NewPair(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("pair?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::NewPair(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_vector(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::NewVec(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("vector?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::NewVec(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 pub fn is_procedure(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        match args[0].clone() {
-            ScmVal::Core(_, _) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
-            _ => Ok(ScmVal::Boolean(false)),
-        }
-    } else {
-        Err(ScmErr::Arity("procedure?".to_owned(), 1))
+    match args[0].clone() {
+        ScmVal::Core(_, _) | ScmVal::Closure(_) => Ok(ScmVal::Boolean(true)),
+        _ => Ok(ScmVal::Boolean(false)),
     }
 }
 
 // Lists //////////////////////////////////////////////////////////////////////
 
 pub fn set_car(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 2 {
-        match args[0].clone() {
-            ScmVal::NewPair(cell) if cell.mutable => {
-                cell.set_head(args[1].clone())
-                    .expect("cell should be mutable");
-            }
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "set-car!".to_owned(),
-                    "mutable pair".to_owned(),
-                    args[0].clone(),
-                ))
-            }
+    match args[0].clone() {
+        ScmVal::NewPair(cell) if cell.mutable => {
+            cell.set_head(args[1].clone())
+                .expect("cell should be mutable");
         }
-    } else {
-        return Err(ScmErr::Arity("set-car!".to_owned(), 2));
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "set-car!".to_owned(),
+                "mutable pair".to_owned(),
+                args[0].clone(),
+            ))
+        }
     }
     Ok(ScmVal::Empty)
 }
 
 pub fn set_cdr(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 2 {
-        match args[0].clone() {
-            ScmVal::NewPair(cell) if cell.mutable => {
-                cell.set_tail(args[1].clone())
-                    .expect("cell should be mutable");
-            }
-            _ => {
-                return Err(ScmErr::BadArgType(
-                    "set-cdr!".to_owned(),
-                    "mutable pair".to_owned(),
-                    args[0].clone(),
-                ))
-            }
+    match args[0].clone() {
+        ScmVal::NewPair(cell) if cell.mutable => {
+            cell.set_tail(args[1].clone())
+                .expect("cell should be mutable");
         }
-    } else {
-        return Err(ScmErr::Arity("set-cdr!".to_owned(), 2));
+        _ => {
+            return Err(ScmErr::BadArgType(
+                "set-cdr!".to_owned(),
+                "mutable pair".to_owned(),
+                args[0].clone(),
+            ))
+        }
     }
     Ok(ScmVal::Empty)
 }
 
 // TODO no longer checks for cyclic
 pub fn is_list(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        let (_, dotted) = match ScmVal::list_to_vec(&args[0]) {
-            Some(res) => res,
-            None => return Ok(ScmVal::Boolean(false)),
-        };
+    let (_, dotted) = match ScmVal::list_to_vec(&args[0]) {
+        Some(res) => res,
+        None => return Ok(ScmVal::Boolean(false)),
+    };
 
-        if dotted {
-            Ok(ScmVal::Boolean(false))
-        } else {
-            Ok(ScmVal::Boolean(true))
-        }
+    if dotted {
+        Ok(ScmVal::Boolean(false))
     } else {
-        Err(ScmErr::Arity("list?".to_owned(), 1))
+        Ok(ScmVal::Boolean(true))
     }
 }
 
 // TODO no longer checks for cyclic
 // TODO can we combine a helper to do both is_list check and return length
 pub fn list_length(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        let (vec, dotted) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+    let (vec, dotted) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+        "length".to_owned(),
+        "proper list".to_owned(),
+        args[0].clone(),
+    ))?;
+    if dotted {
+        Err(ScmErr::BadArgType(
             "length".to_owned(),
             "proper list".to_owned(),
             args[0].clone(),
-        ))?;
-        if dotted {
-            Err(ScmErr::BadArgType(
-                "length".to_owned(),
-                "proper list".to_owned(),
-                args[0].clone(),
-            ))
-        } else {
-            Ok(ScmVal::new_int(vec.len() as i64))
-        }
+        ))
     } else {
-        Err(ScmErr::Arity("length".to_owned(), 1))
+        Ok(ScmVal::new_int(vec.len() as i64))
     }
 }
 
 // TODO no longer checks cyclic
 pub fn list_append(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        let shared = args[args.len() - 1].clone();
-        let mut appended = Vec::new();
+    let shared = args[args.len() - 1].clone();
+    let mut appended = Vec::new();
 
-        for arg in args[..args.len() - 1].into_iter() {
-            let (arg_vec, dotted) = ScmVal::list_to_vec(&arg).ok_or(ScmErr::BadArgType(
-                "append".to_owned(),
-                "proper list".to_owned(),
-                args[0].clone(),
-            ))?;
-            if dotted {
-                return Err(ScmErr::BadArgType(
-                    "append".to_owned(),
-                    "proper list".to_owned(),
-                    args[0].clone(),
-                ));
-            } else {
-                for a in arg_vec.into_iter() {
-                    appended.push(a)
-                }
-            }
-        }
-        Ok(ScmVal::vec_to_list(appended, shared))
-    } else {
-        Err(ScmErr::Arity("append".to_owned(), 1))
-    }
-}
-
-// TODO no longer checks cyclic
-pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
-    if args.len() >= 1 {
-        let (arg_vec, dotted) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
-            "reverse".to_owned(),
+    for arg in args[..args.len() - 1].into_iter() {
+        let (arg_vec, dotted) = ScmVal::list_to_vec(&arg).ok_or(ScmErr::BadArgType(
+            "append".to_owned(),
             "proper list".to_owned(),
             args[0].clone(),
         ))?;
         if dotted {
             return Err(ScmErr::BadArgType(
-                "reverse".to_owned(),
+                "append".to_owned(),
                 "proper list".to_owned(),
                 args[0].clone(),
             ));
         } else {
-            Ok(ScmVal::vec_to_list(
-                arg_vec.into_iter().rev().collect(),
-                ScmVal::Empty,
-            ))
+            for a in arg_vec.into_iter() {
+                appended.push(a)
+            }
         }
+    }
+    Ok(ScmVal::vec_to_list(appended, shared))
+}
+
+// TODO no longer checks cyclic
+pub fn list_reverse(args: Vec<ScmVal>) -> ValResult {
+    let (arg_vec, dotted) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::BadArgType(
+        "reverse".to_owned(),
+        "proper list".to_owned(),
+        args[0].clone(),
+    ))?;
+    if dotted {
+        return Err(ScmErr::BadArgType(
+            "reverse".to_owned(),
+            "proper list".to_owned(),
+            args[0].clone(),
+        ));
     } else {
-        Err(ScmErr::Arity("reverse".to_owned(), 1))
+        Ok(ScmVal::vec_to_list(
+            arg_vec.into_iter().rev().collect(),
+            ScmVal::Empty,
+        ))
     }
 }
 
 // Symbols ////////////////////////////////////////////////////////////////////
 
 pub fn symbol_to_string(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("symbol->string".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::NewSymbol(s) => Ok(ScmVal::NewString(s)),
         _ => Err(ScmErr::BadArgType(
@@ -473,10 +399,6 @@ pub fn symbol_to_string(args: Vec<ScmVal>) -> ValResult {
     }
 }
 pub fn string_to_symbol(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("string->symbol".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::NewString(s) if s.mutable => Ok(ScmVal::NewSymbol(s)),
         ScmVal::NewString(s) if !s.mutable => Ok(ScmVal::new_sym(&s.to_string())),
@@ -491,10 +413,6 @@ pub fn string_to_symbol(args: Vec<ScmVal>) -> ValResult {
 // Chars //////////////////////////////////////////////////////////////////////
 
 pub fn char_to_int(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char->integer".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::new_int(ch.to_int())),
         _ => Err(ScmErr::BadArgType(
@@ -506,10 +424,6 @@ pub fn char_to_int(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn int_to_char(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("integer->char".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Number(ScmNumber::Integer(i)) => Ok(ScmVal::new_char((i as u8) as char)),
         _ => Err(ScmErr::BadArgType(
@@ -521,10 +435,6 @@ pub fn int_to_char(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_alphabetic(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-alphabetic?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_alpha())),
         _ => Err(ScmErr::BadArgType(
@@ -536,10 +446,6 @@ pub fn is_alphabetic(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_numeric(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-numeric?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_numeric())),
         _ => Err(ScmErr::BadArgType(
@@ -551,10 +457,6 @@ pub fn is_numeric(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_alphanumeric(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-alphanumeric?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_alphanumeric())),
         _ => Err(ScmErr::BadArgType(
@@ -566,10 +468,6 @@ pub fn is_alphanumeric(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_whitespace(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-whitespace?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_whitespace())),
         _ => Err(ScmErr::BadArgType(
@@ -581,10 +479,6 @@ pub fn is_whitespace(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_unsup(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-unsup?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_unsup())),
         _ => Err(ScmErr::BadArgType(
@@ -596,10 +490,6 @@ pub fn is_unsup(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_uppercase(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-upper-case?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_upper_case())),
         _ => Err(ScmErr::BadArgType(
@@ -611,10 +501,6 @@ pub fn is_uppercase(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn is_lowercase(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-lower-case?".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Boolean(ch.is_lower_case())),
         _ => Err(ScmErr::BadArgType(
@@ -626,10 +512,6 @@ pub fn is_lowercase(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn to_uppercase(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-upcase".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Character(ch.to_upper_case())),
         _ => Err(ScmErr::BadArgType(
@@ -641,10 +523,6 @@ pub fn to_uppercase(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn to_lowercase(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("char-downcase".to_owned(), 1));
-    }
-
     match args[0].clone() {
         ScmVal::Character(ch) => Ok(ScmVal::Character(ch.to_lower_case())),
         _ => Err(ScmErr::BadArgType(
@@ -658,9 +536,6 @@ pub fn to_lowercase(args: Vec<ScmVal>) -> ValResult {
 // Numbers ////////////////////////////////////////////////////////////////////
 
 pub fn num_eq(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("=".to_owned(), 2));
-    }
     match (args[0].clone(), args[1].clone()) {
         (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 == num2)),
         (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
@@ -675,10 +550,8 @@ pub fn num_eq(args: Vec<ScmVal>) -> ValResult {
         )),
     }
 }
+
 pub fn num_lt(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("<".to_owned(), 2));
-    }
     match (args[0].clone(), args[1].clone()) {
         (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 < num2)),
         (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
@@ -693,10 +566,8 @@ pub fn num_lt(args: Vec<ScmVal>) -> ValResult {
         )),
     }
 }
+
 pub fn num_gt(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity(">".to_owned(), 2));
-    }
     match (args[0].clone(), args[1].clone()) {
         (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 > num2)),
         (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
@@ -711,10 +582,8 @@ pub fn num_gt(args: Vec<ScmVal>) -> ValResult {
         )),
     }
 }
+
 pub fn num_leq(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity("<=".to_owned(), 2));
-    }
     match (args[0].clone(), args[1].clone()) {
         (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 <= num2)),
         (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
@@ -730,9 +599,6 @@ pub fn num_leq(args: Vec<ScmVal>) -> ValResult {
     }
 }
 pub fn num_geq(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 2 {
-        return Err(ScmErr::Arity(">=".to_owned(), 2));
-    }
     match (args[0].clone(), args[1].clone()) {
         (ScmVal::Number(num1), ScmVal::Number(num2)) => Ok(ScmVal::Boolean(num1 >= num2)),
         (ScmVal::Number(_), _) => Err(ScmErr::BadArgType(
@@ -858,10 +724,6 @@ pub fn vector(args: Vec<ScmVal>) -> ValResult {
 }
 
 pub fn vector_length(args: Vec<ScmVal>) -> ValResult {
-    if args.len() < 1 {
-        return Err(ScmErr::Arity("vector-length".to_owned(), 2));
-    }
-
     match args[0].clone() {
         ScmVal::NewVec(vec) => Ok(ScmVal::new_int(vec.len() as i64)),
         _ => Err(ScmErr::BadArgType(
