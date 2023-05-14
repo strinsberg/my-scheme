@@ -162,10 +162,10 @@ fn binary_arithmetic(op: Builtin, args: &[ScmVal]) -> ValResult {
 
     let result = match (left.clone(), right.clone()) {
         (ScmVal::Number(l), ScmVal::Number(r)) => match op.clone() {
-            Builtin::Sum => l.add(r.clone()),
-            Builtin::Subtract => l.subtract(r.clone()),
-            Builtin::Product => l.multiply(r.clone()),
-            Builtin::Divide => l.divide(r.clone()),
+            Builtin::Sum => l.add(&r),
+            Builtin::Subtract => l.subtract(&r),
+            Builtin::Product => l.multiply(&r),
+            Builtin::Divide => l.divide(&r),
             _ => panic!("operation should be arithmetic procedure: {:?}", op),
         },
         (ScmVal::Number(_), r) => return Err(ScmErr::BadArgType(format!("{}", op), type_str, r)),
