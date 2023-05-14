@@ -382,7 +382,7 @@ impl Vm {
                 self.push_op(VmOp::Eval(args[1].clone()));
             }
             ScmVal::NewPair(cell) => {
-                self.define_to_lambda(args[1..].into(), cell.clone_head(), cell.clone_tail());
+                self.define_to_lambda(&args[1..], cell.clone_head(), cell.clone_tail());
             }
             _ => {
                 return Err(ScmErr::BadArgType(
@@ -541,6 +541,7 @@ impl Vm {
         let num_args = args.len();
         match num_args {
             3.. => {
+                // TODO can these be passed back as slices?
                 if args[1] == ScmVal::new_sym("=>") {
                     Ok((args[0].clone(), true, args[2..3].into()))
                 } else {
@@ -563,6 +564,7 @@ impl Vm {
         let num_args = args.len();
         match num_args {
             2.. => {
+                // TODO can these be passed back as slices?
                 if args[0].clone() == ScmVal::new_sym("else") {
                     Ok((vec![], true, args[1..].into()))
                 } else {

@@ -75,7 +75,7 @@ pub fn transform_let_star(args: &[ScmVal]) -> ValResult {
         2.. => {
             let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
             let body = ScmVal::vec_to_list(&args[1..], ScmVal::Empty);
-            let let_star_bind = ScmVal::vec_to_list(bindings[1..].into(), ScmVal::Empty);
+            let let_star_bind = ScmVal::vec_to_list(&bindings[1..], ScmVal::Empty);
             let let_star = ScmVal::vec_to_list(&[ScmVal::new_sym("let*"), let_star_bind], body);
             println!("{let_bind}, {let_star}");
             Ok(ScmVal::vec_to_list(
