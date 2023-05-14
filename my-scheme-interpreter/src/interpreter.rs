@@ -8,6 +8,16 @@ use crate::vm::Vm;
 // be a builtin called Builtin::Require or something and it will have to explicitly
 // import the rust file, read it, and eval it with the current env and heap.
 // like define this will only be callable at the top level I guess.
+//
+// TODO when you implement a load, it would be cool to be able to add custom
+// extensions to the language that are writtin in rust, but are not included
+// unless an extension lib is loaded. Say a function like vector-push. It is
+// not part of the standard and cannot be added with scheme, unless I implemented
+// a dynamic vector with scheme. Other extensions might be able to be written
+// in scheme though and might benefit from using the extension functions. So
+// i will need an function that adds the builtin extensions to the environments
+// and have to catch a load call for a specific lib that will both add the
+// builtins to the env and will read and load the scheme file as well.
 
 pub struct Interpreter {
     ready: bool,
@@ -36,7 +46,7 @@ impl Interpreter {
         }
 
         match StringReader::new(text).read_forms() {
-            Ok(forms) => match self.vm.eval_forms(forms) {
+            Ok(forms) => match self.vm.eval_forms(&forms) {
                 Ok(val) => val.to_extern(),
                 Err(e) => format!("{e}"),
             },
@@ -51,7 +61,7 @@ impl Interpreter {
 
         // Eval scheme standard lib with the base env to add all defines to interpreter env
         self.vm
-            .eval_forms(lib_std_str)
+            .eval_forms(&lib_std_str)
             .expect("failed to eval SCM_LIB_STD: Err: {e}");
     }
 }

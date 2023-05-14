@@ -2,52 +2,62 @@ use crate::builtin::Builtin;
 use crate::number::ScmNumber;
 use crate::string::{ScmChar, ScmString};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-
-// TODO the special forms should be in an Rc in the ScmVal so that their size
-// does not affect the size of ScmVal. Also, provide constructors for them.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecialForm {
     If(Vec<ScmVal>),
-    Set(Rc<ScmVal>),
+    Set(ScmVal),
     And(Vec<ScmVal>),
     Or(Vec<ScmVal>),
     Cond(Vec<ScmVal>, bool, Vec<ScmVal>),
-    Case(Rc<ScmVal>, Vec<ScmVal>),
+    Case(ScmVal, Vec<ScmVal>),
 }
 
+// Anything that holds data that is more than a simple type uses an Pointer. This
+// should keep the enum variants small, even a vector is a struct with 3
+// elements and an Rc should only be 2. Also, a clone of an ScmVal is an Rc::clone()
+// on the pointer and should have low overhead, i.e. not copying a vector or a
+// string completely.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScmVal {
-    Number(ScmNumber),
+    // Simple variants
     Boolean(bool),
     Character(ScmChar),
-    Symbol(Rc<ScmString>),
-    Closure(Rc<Closure>),
+    Number(ScmNumber),
     Core(Builtin, u8),
-    PairMut(Rc<RefCell<ConsCell>>),
-    Pair(Rc<ConsCell>),
-    Env(Rc<RefCell<Env>>),
-    String(Rc<ScmString>),
-    StringMut(Rc<RefCell<ScmString>>),
-    Vector(Rc<Vec<ScmVal>>),
-    VectorMut(Rc<RefCell<Vec<ScmVal>>>),
-    Special(SpecialForm),
+    // Atoms that use Rc
+    NewSymbol(Rc<StringRef>),
+    Closure(Rc<Closure>),
+    // Collections
+    NewPair(Rc<Cell>),
+    NewString(Rc<StringRef>),
+    NewVec(Rc<VecRef>),
+    Env(Rc<Env>),
+    Empty,
+    // Other
+    Special(Box<SpecialForm>),
     Undefined,
     Cyclic,
-    Empty,
 }
 
 impl ScmVal {
     // Constructor Helpers //
 
     pub fn new_sym(string: &str) -> ScmVal {
-        ScmVal::Symbol(Rc::new(ScmString::new(string)))
+        ScmVal::NewSymbol(Rc::new(StringRef::new(string)))
+    }
+
+    pub fn sym_from_scm_str(string: ScmString) -> ScmVal {
+        ScmVal::NewSymbol(Rc::new(StringRef {
+            mutable: false,
+            string: RefCell::new(string),
+        }))
     }
 
     pub fn new_char(ch: char) -> ScmVal {
@@ -63,100 +73,107 @@ impl ScmVal {
     }
 
     pub fn new_pair(head: ScmVal, tail: ScmVal) -> ScmVal {
-        ScmVal::Pair(Rc::new(ConsCell::new(head, tail)))
+        ScmVal::NewPair(Rc::new(Cell::new(head, tail)))
     }
 
     pub fn new_pair_mut(head: ScmVal, tail: ScmVal) -> ScmVal {
-        ScmVal::PairMut(Rc::new(RefCell::new(ConsCell::new(head, tail))))
-    }
-
-    pub fn new_str_mut(string: &str) -> ScmVal {
-        ScmVal::StringMut(Rc::new(RefCell::new(ScmString::new(string))))
-    }
-
-    pub fn new_str_from_scmstring(string: ScmString) -> ScmVal {
-        ScmVal::String(Rc::new(string))
-    }
-
-    pub fn new_str_mut_from_scmstring(string: ScmString) -> ScmVal {
-        ScmVal::StringMut(Rc::new(RefCell::new(string)))
+        ScmVal::NewPair(Rc::new(Cell::new_mut(head, tail)))
     }
 
     pub fn new_str(string: &str) -> ScmVal {
-        ScmVal::String(Rc::new(ScmString::new(string)))
+        ScmVal::NewString(Rc::new(StringRef::new(string)))
+    }
+
+    pub fn new_str_mut(string: &str) -> ScmVal {
+        ScmVal::NewString(Rc::new(StringRef::new_mut(string)))
+    }
+
+    pub fn from_scm_str(string: ScmString, mutable: bool) -> ScmVal {
+        ScmVal::NewString(Rc::new(StringRef {
+            mutable: mutable,
+            string: RefCell::new(string),
+        }))
     }
 
     pub fn new_closure(closure: Closure) -> ScmVal {
         ScmVal::Closure(Rc::new(closure))
     }
 
-    pub fn new_vec_mut(vec: Vec<ScmVal>) -> ScmVal {
-        ScmVal::VectorMut(Rc::new(RefCell::new(vec)))
+    pub fn new_vec(vec: Vec<ScmVal>) -> ScmVal {
+        ScmVal::NewVec(Rc::new(VecRef::new(vec)))
     }
 
-    pub fn new_vec(vec: Vec<ScmVal>) -> ScmVal {
-        ScmVal::Vector(Rc::new(vec))
+    pub fn new_vec_mut(vec: Vec<ScmVal>) -> ScmVal {
+        ScmVal::NewVec(Rc::new(VecRef::new_mut(vec)))
+    }
+
+    pub fn new_if(args: Vec<ScmVal>) -> ScmVal {
+        ScmVal::Special(Box::new(SpecialForm::If(args)))
+    }
+
+    pub fn new_set(val: ScmVal) -> ScmVal {
+        ScmVal::Special(Box::new(SpecialForm::Set(val)))
+    }
+
+    pub fn new_and(args: Vec<ScmVal>) -> ScmVal {
+        ScmVal::Special(Box::new(SpecialForm::And(args)))
+    }
+
+    pub fn new_or(args: Vec<ScmVal>) -> ScmVal {
+        ScmVal::Special(Box::new(SpecialForm::Or(args)))
+    }
+
+    pub fn new_cond(branch: Vec<ScmVal>, arrow: bool, args: Vec<ScmVal>) -> ScmVal {
+        ScmVal::Special(Box::new(SpecialForm::Cond(branch, arrow, args)))
+    }
+
+    pub fn new_case(val: ScmVal, args: Vec<ScmVal>) -> ScmVal {
+        ScmVal::Special(Box::new(SpecialForm::Case(val, args)))
     }
 
     // List/Vector Helpers //
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
-    pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
+    pub fn vec_to_list(values: &[ScmVal], end: ScmVal) -> ScmVal {
         values
             .into_iter()
             .rev()
-            .fold(end, |acc, v| ScmVal::new_pair(v, acc))
+            .fold(end, |acc, v| ScmVal::new_pair(v.clone(), acc))
     }
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
-    pub fn vec_to_list_mut(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
+    pub fn vec_to_list_mut(values: &[ScmVal], end: ScmVal) -> ScmVal {
         values
             .into_iter()
             .rev()
-            .fold(end, |acc, v| ScmVal::new_pair_mut(v, acc))
+            .fold(end, |acc, v| ScmVal::new_pair_mut(v.clone(), acc))
     }
 
-    pub fn list_to_vec(val: ScmVal) -> Option<(Vec<ScmVal>, bool, bool)> {
-        let iter = match val {
-            ScmVal::Pair(_) | ScmVal::PairMut(_) => ListPairIter::new(val),
-            ScmVal::Empty => return Some((vec![], false, false)),
-            _ => return None,
-        };
+    // Iterate a pair and return a vetor of the elements.
+    pub fn list_to_vec(val: &ScmVal) -> Option<(Vec<ScmVal>, bool)> {
+        match val {
+            ScmVal::NewPair(cell) => {
+                let mut dotted = false;
+                let mut vals = Vec::new();
 
-        let mut dotted = false;
-        let mut cyclic = false;
-        let mut vals = Vec::new();
-
-        for pair in iter {
-            match pair {
-                ScmVal::Pair(cell) => {
-                    vals.push(cell.head.clone());
+                for cell in CellIter::new(cell.clone()) {
+                    vals.push(cell.clone_head());
                     if cell.is_dotted() {
                         dotted = true;
-                        vals.push(cell.tail.clone());
+                        vals.push(cell.clone_tail());
                     }
                 }
-                ScmVal::PairMut(cell) => {
-                    vals.push(cell.borrow().head.clone());
-                    if cell.borrow().is_dotted() {
-                        dotted = true;
-                        vals.push(cell.borrow().tail.clone());
-                    }
-                }
-                ScmVal::Cyclic => {
-                    cyclic = true;
-                    dotted = true;
-                }
-                _ => return None,
+                Some((vals, dotted))
             }
+            ScmVal::Empty => return Some((vec![], false)),
+            _ => return None,
         }
-
-        Some((vals, dotted, cyclic))
     }
 
+    // If the list is immutable it will keep it immutable
     pub fn cons(val: ScmVal, rest: ScmVal) -> ScmVal {
         match rest {
-            ScmVal::Pair(_) => ScmVal::new_pair(val, rest),
+            ScmVal::NewPair(ref cell) if !cell.mutable => ScmVal::new_pair(val, rest),
             _ => ScmVal::new_pair_mut(val, rest),
         }
     }
@@ -168,16 +185,13 @@ impl ScmVal {
             ScmVal::Number(val) => val.to_string(),
             ScmVal::Boolean(val) => format!("#{}", if *val { "t" } else { "f" }),
             ScmVal::Character(val) => val.to_extern(),
-            ScmVal::Symbol(val) => val.to_string(),
-            ScmVal::String(val) => val.to_extern(),
-            ScmVal::StringMut(val) => val.borrow().to_extern(),
+            ScmVal::NewSymbol(val) => val.to_string(),
+            ScmVal::NewString(val) => val.string.borrow().to_extern(),
             ScmVal::Closure(val) => ScmVal::extern_closure(val.name.clone()),
             ScmVal::Core(val, _) => format!("#<procedure {}>", val),
-            ScmVal::Pair(_) => ScmVal::extern_list(self.clone()),
-            ScmVal::PairMut(_) => ScmVal::extern_list(self.clone()),
+            ScmVal::NewPair(_) => ScmVal::extern_list(self.clone()),
             ScmVal::Env(_) => format!("#<environment>"),
-            ScmVal::Vector(val) => ScmVal::extern_vec(Rc::clone(val)),
-            ScmVal::VectorMut(val) => ScmVal::extern_vec_mut(Rc::clone(val)),
+            ScmVal::NewVec(val) => ScmVal::extern_vec(Rc::clone(val)),
             ScmVal::Empty => "()".to_string(),
             ScmVal::Cyclic => "#cyclic#".to_string(),
             val => format!("{:?}", val),
@@ -193,16 +207,14 @@ impl ScmVal {
     }
 
     fn extern_list(val: ScmVal) -> String {
-        let (vec, dotted, cyclic) =
-            ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
+        let (vec, dotted) =
+            ScmVal::list_to_vec(&val).expect("extern list should only be passed a pair");
         let strings: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
-        ScmVal::format_list(&strings, dotted, cyclic)
+        ScmVal::format_list(&strings, dotted)
     }
 
-    fn format_list(strings: &[String], dotted: bool, cyclic: bool) -> String {
-        if cyclic {
-            format!("({} . #cyclic#)", strings.join(" "),)
-        } else if dotted {
+    fn format_list(strings: &[String], dotted: bool) -> String {
+        if dotted {
             format!(
                 "({} . {})",
                 strings[..strings.len() - 1].join(" "),
@@ -213,13 +225,8 @@ impl ScmVal {
         }
     }
 
-    fn extern_vec(vec: Rc<Vec<ScmVal>>) -> String {
-        let vec_string: Vec<String> = vec.iter().map(|v| v.to_extern()).collect();
-        format!("#({})", vec_string.join(" "))
-    }
-
-    fn extern_vec_mut(vec: Rc<RefCell<Vec<ScmVal>>>) -> String {
-        let vec_string: Vec<String> = vec.borrow().iter().map(|v| v.to_extern()).collect();
+    fn extern_vec(vec: Rc<VecRef>) -> String {
+        let vec_string: Vec<String> = vec.vec.borrow().iter().map(|v| v.to_extern()).collect();
         format!("#({})", vec_string.join(" "))
     }
 }
@@ -229,7 +236,7 @@ impl ScmVal {
 impl Hash for ScmVal {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            ScmVal::Symbol(val) => val.hash(state),
+            ScmVal::NewSymbol(val) => val.string.borrow().hash(state),
             _ => panic!("cannot hash anything but symbols"),
         }
     }
@@ -243,12 +250,9 @@ impl Hash for ScmVal {
 impl fmt::Display for ScmVal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ScmVal::String(val) => write!(f, "{}", val),
-            ScmVal::StringMut(val) => write!(f, "{}", val.borrow()),
-            ScmVal::Pair(_) => display_list(f, self.clone()),
-            ScmVal::PairMut(_) => display_list(f, self.clone()),
-            ScmVal::Vector(val) => display_vec(f, Rc::clone(val)),
-            ScmVal::VectorMut(val) => display_vec_mut(f, Rc::clone(val)),
+            ScmVal::NewString(val) => write!(f, "{}", val.to_string()),
+            ScmVal::NewPair(_) => display_list(f, self.clone()),
+            ScmVal::NewVec(val) => display_vec(f, Rc::clone(val)),
             ScmVal::Empty => write!(f, "()"),
             val => write!(f, "{}", val.to_extern()),
         }
@@ -256,132 +260,85 @@ impl fmt::Display for ScmVal {
 }
 
 fn display_list(f: &mut fmt::Formatter, val: ScmVal) -> fmt::Result {
-    let (vec, dotted, cyclic) =
-        ScmVal::list_to_vec(val).expect("extern list should only be passed a pair or pair-mut");
+    let (vec, dotted) =
+        ScmVal::list_to_vec(&val).expect("extern list should only be passed a pair");
     let strings: Vec<String> = vec.iter().map(|v| v.to_string()).collect();
-    write!(f, "{}", ScmVal::format_list(&strings, dotted, cyclic))
+    write!(f, "{}", ScmVal::format_list(&strings, dotted))
 }
 
-fn display_vec(f: &mut fmt::Formatter, vec: Rc<Vec<ScmVal>>) -> fmt::Result {
-    let vec_string: Vec<String> = vec.iter().map(|v| v.to_string()).collect();
-    write!(f, "#({})", vec_string.join(" "))
-}
-
-fn display_vec_mut(f: &mut fmt::Formatter, vec: Rc<RefCell<Vec<ScmVal>>>) -> fmt::Result {
-    let vec_string: Vec<String> = vec.borrow().iter().map(|v| v.to_string()).collect();
+fn display_vec(f: &mut fmt::Formatter, vec: Rc<VecRef>) -> fmt::Result {
+    let vec_string: Vec<String> = vec.vec.borrow().iter().map(|v| v.to_string()).collect();
     write!(f, "#({})", vec_string.join(" "))
 }
 
 // Cons Cells /////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConsCell {
+pub struct Cell {
     pub mutable: bool,
-    pub head: ScmVal,
-    pub tail: ScmVal,
+    pub head: RefCell<ScmVal>,
+    pub tail: RefCell<ScmVal>,
 }
 
-impl ConsCell {
-    pub fn default() -> ConsCell {
-        ConsCell {
+impl Cell {
+    pub fn new(head: ScmVal, tail: ScmVal) -> Cell {
+        Cell {
             mutable: false,
-            head: ScmVal::Empty,
-            tail: ScmVal::Empty,
+            head: RefCell::new(head),
+            tail: RefCell::new(tail),
         }
     }
 
-    pub fn new(head: ScmVal, tail: ScmVal) -> ConsCell {
-        ConsCell {
-            mutable: false, // TODO make a way to set this
-            head: head,
-            tail: tail,
+    pub fn new_mut(head: ScmVal, tail: ScmVal) -> Cell {
+        Cell {
+            mutable: true,
+            head: RefCell::new(head),
+            tail: RefCell::new(tail),
         }
+    }
+
+    pub fn set_head(&self, val: ScmVal) -> Option<ScmVal> {
+        if self.mutable {
+            Some(self.head.replace(val))
+        } else {
+            None
+        }
+    }
+
+    pub fn set_tail(&self, val: ScmVal) -> Option<ScmVal> {
+        if self.mutable {
+            Some(self.tail.replace(val))
+        } else {
+            None
+        }
+    }
+
+    pub fn clone_head(&self) -> ScmVal {
+        self.head.borrow().clone()
+    }
+
+    pub fn clone_tail(&self) -> ScmVal {
+        self.tail.borrow().clone()
     }
 
     pub fn is_dotted(&self) -> bool {
-        match self.tail {
-            ScmVal::Pair(_) | ScmVal::PairMut(_) | ScmVal::Empty => false,
+        match self.clone_tail() {
+            ScmVal::Empty | ScmVal::NewPair(_) => false,
             _ => true,
         }
     }
 }
 
-// ConsCell Iterators //
-
 #[derive(Debug, Clone)]
-pub struct ListPairIter {
-    seen: HashSet<*const ConsCell>,
-    pair: ScmVal,
-}
-
-impl ListPairIter {
-    pub fn new(pair: ScmVal) -> ListPairIter {
-        ListPairIter {
-            seen: HashSet::new(),
-            pair: pair,
-        }
-    }
-}
-
-// TODO we can save a cons cell by cloning the ConsCell inside of both the
-// rc and refcell, so that we do not have to match both types of pair.
-
-// Terminates on cycles returning ScmVal::Cyclic before None
-impl Iterator for ListPairIter {
-    type Item = ScmVal;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.pair.clone() {
-            ScmVal::Pair(cell) => {
-                let next = self.pair.clone();
-                if self.seen.contains(&Rc::as_ptr(&cell)) {
-                    self.pair = ScmVal::Empty;
-                    return Some(ScmVal::Cyclic);
-                } else if cell.is_dotted() {
-                    self.pair = ScmVal::Empty;
-                } else {
-                    self.pair = cell.tail.clone();
-                }
-                self.seen.insert(Rc::as_ptr(&cell));
-                Some(next)
-            }
-            ScmVal::PairMut(cell) => {
-                let next = self.pair.clone();
-                if self
-                    .seen
-                    .contains(&(RefCell::as_ptr(&cell) as *const ConsCell))
-                {
-                    self.pair = ScmVal::Empty;
-                    return Some(ScmVal::Cyclic);
-                } else if cell.borrow().is_dotted() {
-                    self.pair = ScmVal::Empty;
-                } else {
-                    self.pair = cell.borrow().tail.clone();
-                }
-                self.seen.insert(RefCell::as_ptr(&cell));
-                Some(next)
-            }
-            ScmVal::Empty => None,
-            _ => panic!(
-                "list iterator should not contain non-list ScmVal: {:?}",
-                self.pair
-            ),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ListValIter {
-    seen: HashSet<ScmVal>,
+pub struct CellValIter {
     done: bool,
     last: ScmVal,
     pair: ScmVal,
 }
 
-impl ListValIter {
-    pub fn new(pair: ScmVal) -> ListValIter {
-        ListValIter {
-            seen: HashSet::new(),
+impl CellValIter {
+    pub fn new(pair: ScmVal) -> CellValIter {
+        CellValIter {
             done: false,
             last: ScmVal::Empty,
             pair: pair,
@@ -389,18 +346,13 @@ impl ListValIter {
     }
 }
 
-// Terminates on cycles returning ScmVal::Cyclic before None
-impl Iterator for ListValIter {
+// Does not check for cycles
+impl Iterator for CellValIter {
     type Item = ScmVal;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             return None;
-        } else if self.seen.contains(&self.pair.clone()) {
-            self.done = true;
-            return Some(ScmVal::Cyclic);
-        } else {
-            self.seen.insert(self.pair.clone());
         }
 
         match self.last {
@@ -412,30 +364,63 @@ impl Iterator for ListValIter {
         }
 
         match self.pair.clone() {
-            ScmVal::Pair(cell) => {
+            ScmVal::NewPair(cell) => {
                 if cell.is_dotted() {
-                    self.last = cell.tail.clone();
+                    self.last = cell.clone_tail();
                 } else {
-                    self.pair = cell.tail.clone();
+                    self.pair = cell.clone_tail();
                 }
-                Some(cell.head.clone())
-            }
-            ScmVal::PairMut(cell) => {
-                if cell.borrow().is_dotted() {
-                    self.last = cell.borrow().tail.clone();
-                } else {
-                    self.pair = cell.borrow().tail.clone();
-                }
-                Some(cell.borrow().head.clone())
+                Some(cell.clone_head())
             }
             ScmVal::Empty => {
                 self.done = true;
                 None
             }
             _ => panic!(
-                "list iterator should not contain non-list ScmVal: {:?}",
+                "list iterator should not save non-list ScmVal: {:?}",
                 self.pair
             ),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CellIter {
+    done: bool,
+    cell: Rc<Cell>,
+}
+
+impl CellIter {
+    pub fn new(cell: Rc<Cell>) -> CellIter {
+        CellIter {
+            done: false,
+            cell: cell,
+        }
+    }
+}
+
+impl Iterator for CellIter {
+    type Item = Rc<Cell>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        } else if self.cell.is_dotted() {
+            self.done = true;
+            return Some(self.cell.clone());
+        }
+
+        match self.cell.clone_tail() {
+            ScmVal::NewPair(cell) => {
+                let current = self.cell.clone();
+                self.cell = cell;
+                Some(current)
+            }
+            ScmVal::Empty => {
+                self.done = true;
+                Some(self.cell.clone())
+            }
+            _ => None,
         }
     }
 }
@@ -452,13 +437,13 @@ pub enum Formals {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
     pub name: String,
-    pub env: Rc<RefCell<Env>>,
+    pub env: Rc<Env>,
     pub params: Formals,
     pub body: Vec<ScmVal>,
 }
 
 impl Closure {
-    pub fn new(name: &str, env: Rc<RefCell<Env>>, params: Formals, body: Vec<ScmVal>) -> Closure {
+    pub fn new(name: &str, env: Rc<Env>, params: Formals, body: Vec<ScmVal>) -> Closure {
         Closure {
             name: name.to_owned(),
             env: env,
@@ -470,12 +455,112 @@ impl Closure {
     // TODO add a way to get the required arity from the formals
 }
 
+// String Wrapper /////////////////////////////////////////////////////////////
+
+// Like Cell we use a RefCell inside to allow mutability, while keeping the
+// ScmVal as just one variant. Could possibly add this to string as is or try
+// and integrate it into the struct in there, though they feel as though they
+// have different purposes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StringRef {
+    pub mutable: bool,
+    pub string: RefCell<ScmString>,
+}
+
+impl StringRef {
+    pub fn new(val: &str) -> StringRef {
+        StringRef {
+            mutable: false,
+            string: RefCell::new(ScmString::new(val)),
+        }
+    }
+
+    pub fn new_mut(val: &str) -> StringRef {
+        StringRef {
+            mutable: true,
+            string: RefCell::new(ScmString::new(val)),
+        }
+    }
+
+    pub fn set_char(&self, ch: ScmChar, idx: usize) -> bool {
+        if self.mutable && idx < self.len() {
+            self.string.borrow_mut().chars[idx] = ch;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_char(&self, idx: usize) -> Option<ScmChar> {
+        if idx < self.len() {
+            Some(self.string.borrow_mut().chars[idx].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.string.borrow().chars.len()
+    }
+
+    pub fn to_string(&self) -> String {
+        self.string.borrow().to_string()
+    }
+}
+
+// Vector Wrapper /////////////////////////////////////////////////////////////
+
+// Like Cell we use a RefCell inside to allow mutability, while keeping the
+// ScmVal as just one variant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VecRef {
+    pub mutable: bool,
+    pub vec: RefCell<Vec<ScmVal>>,
+}
+
+impl VecRef {
+    pub fn new(vec: Vec<ScmVal>) -> VecRef {
+        VecRef {
+            mutable: false,
+            vec: RefCell::new(vec),
+        }
+    }
+
+    pub fn new_mut(vec: Vec<ScmVal>) -> VecRef {
+        VecRef {
+            mutable: true,
+            vec: RefCell::new(vec),
+        }
+    }
+
+    pub fn set(&self, val: ScmVal, idx: usize) -> bool {
+        if self.mutable && idx < self.len() {
+            self.vec.borrow_mut()[idx] = val;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get(&self, idx: usize) -> Option<ScmVal> {
+        if idx < self.len() {
+            Some(self.vec.borrow_mut()[idx].clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.vec.borrow().len()
+    }
+}
+
 // Environment ////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Env {
-    pub scope: HashMap<ScmVal, ScmVal>,
-    pub next: Option<Rc<RefCell<Env>>>,
+    pub scope: RefCell<HashMap<ScmVal, ScmVal>>,
+    pub next: Option<Rc<Env>>,
 }
 
 // Implementation is in env_impl because it needs error and error needs other
