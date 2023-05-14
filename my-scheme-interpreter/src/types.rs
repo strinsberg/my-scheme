@@ -2,7 +2,7 @@ use crate::builtin::Builtin;
 use crate::number::ScmNumber;
 use crate::string::{ScmChar, ScmString};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -137,19 +137,19 @@ impl ScmVal {
     // List/Vector Helpers //
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
-    pub fn vec_to_list(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
+    pub fn vec_to_list(values: &[ScmVal], end: ScmVal) -> ScmVal {
         values
             .into_iter()
             .rev()
-            .fold(end, |acc, v| ScmVal::new_pair(v, acc))
+            .fold(end, |acc, v| ScmVal::new_pair(v.clone(), acc))
     }
 
     // If end is ScmVal::Empty it will be list otherwise dotted list
-    pub fn vec_to_list_mut(values: Vec<ScmVal>, end: ScmVal) -> ScmVal {
+    pub fn vec_to_list_mut(values: &[ScmVal], end: ScmVal) -> ScmVal {
         values
             .into_iter()
             .rev()
-            .fold(end, |acc, v| ScmVal::new_pair_mut(v, acc))
+            .fold(end, |acc, v| ScmVal::new_pair_mut(v.clone(), acc))
     }
 
     // Iterate a pair and return a vetor of the elements.

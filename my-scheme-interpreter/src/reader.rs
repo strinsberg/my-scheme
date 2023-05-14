@@ -1,7 +1,6 @@
 use crate::error::{ScmErr, ScmResult, ValResult};
 use crate::scanner::{Scanner, Token};
 use crate::types::ScmVal;
-use std::rc::Rc;
 
 // TODO confirm that the reader identifies all proper stopping points when
 // parsing complex forms. I.e. a Dot in a vector is an error, is anything else?
@@ -65,15 +64,15 @@ impl StringReader {
 
         while val != Token::RParen {
             match val {
-                Token::Dot => return self.read_dot_end(vec),
+                Token::Dot => return self.read_dot_end(&vec),
                 _ => vec.push(self.read_helper(val)?),
             }
             val = self.scanner.next()?;
         }
-        Ok(ScmVal::vec_to_list(vec, ScmVal::Empty))
+        Ok(ScmVal::vec_to_list(&vec, ScmVal::Empty))
     }
 
-    fn read_dot_end(&mut self, values: Vec<ScmVal>) -> ValResult {
+    fn read_dot_end(&mut self, values: &[ScmVal]) -> ValResult {
         // Dot was used by caller
         let next = self.scanner.next()?;
         match next {
@@ -85,7 +84,7 @@ impl StringReader {
                 // If next is a proper value check for ) and make the list
                 let val = self.read_helper(next)?;
                 match self.scanner.next()? {
-                    Token::RParen => Ok(ScmVal::vec_to_list(values, val)),
+                    Token::RParen => Ok(ScmVal::vec_to_list(&values, val)),
                     tk => Err(ScmErr::BadToken(self.scanner.line, tk)),
                 }
             }

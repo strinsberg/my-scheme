@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 // Takes the arguments to a lambda expression and the current env and creates
 // a new closure.
-pub fn make_closure(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+pub fn make_closure(args: &[ScmVal], env: Rc<RefCell<Env>>) -> ValResult {
     let params = args[0].clone();
     let formals = match params {
         ScmVal::NewSymbol(_) => Formals::Collect(params),
@@ -44,7 +44,7 @@ pub fn make_closure(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 
 // Transforms a let expression into a lambda application.
 // Example: (let ((a 1) (b 2)) (+ a b)) => ((lambda (a b) (+ a b)) 1 2)
-pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
+pub fn transform_let(args: &[ScmVal], env: Rc<RefCell<Env>>) -> ValResult {
     let bindings = args[0].clone();
     let (params, bind_args) = unbind(bindings.clone())?;
     Ok(ScmVal::cons(
@@ -54,7 +54,7 @@ pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
             Formals::Fixed(params),
             args[1..].into(),
         )),
-        ScmVal::vec_to_list(bind_args, ScmVal::Empty),
+        ScmVal::vec_to_list(&bind_args, ScmVal::Empty),
     ))
 }
 
@@ -64,7 +64,7 @@ pub fn transform_let(args: Vec<ScmVal>, env: Rc<RefCell<Env>>) -> ValResult {
 // TODO this feels horribly inefficient with all the to and from vecs, and I don't
 // really like transforming it into something that will have to be transformed
 // again and again into so many nested lets/closures.
-pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
+pub fn transform_let_star(args: &[ScmVal]) -> ValResult {
     let (bindings, dot) = ScmVal::list_to_vec(&args[0]).ok_or(ScmErr::Syntax(args[0].clone()))?;
     if dot {
         return Err(ScmErr::Syntax(args[0].clone()));
@@ -74,26 +74,26 @@ pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
     match num_bind {
         2.. => {
             let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
-            let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+            let body = ScmVal::vec_to_list(&args[1..], ScmVal::Empty);
             let let_star_bind = ScmVal::vec_to_list(bindings[1..].into(), ScmVal::Empty);
-            let let_star = ScmVal::vec_to_list(vec![ScmVal::new_sym("let*"), let_star_bind], body);
+            let let_star = ScmVal::vec_to_list(&[ScmVal::new_sym("let*"), let_star_bind], body);
             println!("{let_bind}, {let_star}");
             Ok(ScmVal::vec_to_list(
-                vec![ScmVal::new_sym("let"), let_bind, let_star],
+                &[ScmVal::new_sym("let"), let_bind, let_star],
                 ScmVal::Empty,
             ))
         }
         1 => {
             let let_bind = ScmVal::new_pair(bindings[0].clone(), ScmVal::Empty);
-            let body = ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty);
+            let body = ScmVal::vec_to_list(&args[1..], ScmVal::Empty);
             Ok(ScmVal::vec_to_list(
-                vec![ScmVal::new_sym("let"), let_bind],
+                &[ScmVal::new_sym("let"), let_bind],
                 body,
             ))
         }
         _ => Ok(ScmVal::new_pair(
             ScmVal::new_sym("begin"),
-            ScmVal::vec_to_list(args[1..].into(), ScmVal::Empty),
+            ScmVal::vec_to_list(&args[1..], ScmVal::Empty),
         )),
     }
 }
@@ -102,24 +102,24 @@ pub fn transform_let_star(args: Vec<ScmVal>) -> ValResult {
 // Example: (letrec ((a 1) (b 2)) (+ a b)) =>
 //          (let ((a <undefined>) (b <undefined>))
 //            (set! a 1) (set! b 2) (+ a b))
-pub fn transform_letrec(args: Vec<ScmVal>) -> ValResult {
+pub fn transform_letrec(args: &[ScmVal]) -> ValResult {
     let bindings = args[0].clone();
     let (bind_vec, assign_vec) = letrec_bind(bindings.clone())?;
     let new_body: Vec<ScmVal> = assign_vec.iter().chain(args[1..].iter()).cloned().collect();
 
     // Cons let and bindings onto the new body list
     Ok(ScmVal::vec_to_list(
-        vec![
+        &[
             ScmVal::new_sym("let"),
-            ScmVal::vec_to_list(bind_vec, ScmVal::Empty),
+            ScmVal::vec_to_list(&bind_vec, ScmVal::Empty),
         ],
-        ScmVal::vec_to_list(new_body, ScmVal::Empty),
+        ScmVal::vec_to_list(&new_body, ScmVal::Empty),
     ))
 }
 
 // Eval a do statment by restructuring it into a letrec and evaluating it.
 // Would benefit from a nice macro.
-pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
+pub fn transform_do(args: &[ScmVal]) -> ValResult {
     // (do ((var init step) ...)
     //    (cond result)
     //  commands ...)
@@ -157,29 +157,20 @@ pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
     commands.push(loop_rec);
     let begin = ScmVal::cons(
         ScmVal::new_sym("begin"),
-        ScmVal::vec_to_list(commands, ScmVal::Empty),
+        ScmVal::vec_to_list(&commands, ScmVal::Empty),
     );
 
     // Build the if statement with the condition, result, and begin branch
-    let if_stmt = ScmVal::vec_to_list(
-        vec![ScmVal::new_sym("if"), cond, result, begin],
-        ScmVal::Empty,
-    );
+    let if_stmt = ScmVal::vec_to_list(&[ScmVal::new_sym("if"), cond, result, begin], ScmVal::Empty);
 
     // Build the the loop binding
-    let lambda = ScmVal::vec_to_list(
-        vec![ScmVal::new_sym("lambda"), vars, if_stmt],
-        ScmVal::Empty,
-    );
-    let loop_bind = ScmVal::vec_to_list(vec![ScmVal::new_sym("loop"), lambda], ScmVal::Empty);
+    let lambda = ScmVal::vec_to_list(&[ScmVal::new_sym("lambda"), vars, if_stmt], ScmVal::Empty);
+    let loop_bind = ScmVal::vec_to_list(&[ScmVal::new_sym("loop"), lambda], ScmVal::Empty);
     let bindings = ScmVal::cons(loop_bind, ScmVal::Empty);
 
     // Build the letrec
     let call = ScmVal::cons(ScmVal::new_sym("loop"), inits);
-    let letrec = ScmVal::vec_to_list(
-        vec![ScmVal::new_sym("letrec"), bindings, call],
-        ScmVal::Empty,
-    );
+    let letrec = ScmVal::vec_to_list(&[ScmVal::new_sym("letrec"), bindings, call], ScmVal::Empty);
 
     // Return the new expression to be evaluated
     Ok(letrec)
@@ -187,19 +178,19 @@ pub fn transform_do(args: Vec<ScmVal>) -> ValResult {
 
 // Binding Helpers ////////////////////////////////////////////////////////////
 
-pub fn bind_closure_args(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<Rc<RefCell<Env>>> {
+pub fn bind_closure_args(closure: Rc<Closure>, args: &[ScmVal]) -> ScmResult<Rc<RefCell<Env>>> {
     match closure.params.clone() {
         Formals::Collect(symbol) => Ok(Env::bind_in_new_env(
             Rc::clone(&closure.env),
             vec![symbol],
-            vec![ScmVal::vec_to_list_mut(args, ScmVal::Empty)],
+            vec![ScmVal::vec_to_list_mut(&args, ScmVal::Empty)],
         )?),
         Formals::Fixed(params) => {
             if args.len() >= params.len() {
                 Ok(Env::bind_in_new_env(
                     Rc::clone(&closure.env),
                     params.clone(),
-                    args,
+                    args.into(),
                 )?)
             } else {
                 return Err(ScmErr::Arity("closure".to_owned(), params.len()));
@@ -211,7 +202,7 @@ pub fn bind_closure_args(closure: Rc<Closure>, args: Vec<ScmVal>) -> ScmResult<R
                 full_params.push(symbol);
 
                 let mut full_args: Vec<ScmVal> = args[..params.len()].into();
-                let rest = ScmVal::vec_to_list_mut(args[params.len()..].into(), ScmVal::Empty);
+                let rest = ScmVal::vec_to_list_mut(&args[params.len()..], ScmVal::Empty);
                 full_args.push(rest);
 
                 Ok(Env::bind_in_new_env(
@@ -274,7 +265,7 @@ fn letrec_bind(list: ScmVal) -> ScmResult<(Vec<ScmVal>, Vec<ScmVal>)> {
     // Create the assingments to add to the start of the body
     // ((set! val1 arg1) ...)
     let assignments = zip(params.clone(), args.clone())
-        .map(|(p, a)| ScmVal::vec_to_list(vec![ScmVal::new_sym("set!"), p, a], ScmVal::Empty))
+        .map(|(p, a)| ScmVal::vec_to_list(&[ScmVal::new_sym("set!"), p, a], ScmVal::Empty))
         .collect();
 
     Ok((bindings, assignments))
@@ -322,8 +313,8 @@ fn unbind_do(list: ScmVal) -> ScmResult<(ScmVal, ScmVal, ScmVal)> {
 
     // return (vars, inits, steps)
     Ok((
-        ScmVal::vec_to_list(vars_vec, ScmVal::Empty),
-        ScmVal::vec_to_list(inits_vec, ScmVal::Empty),
-        ScmVal::vec_to_list(steps_vec, ScmVal::Empty),
+        ScmVal::vec_to_list(&vars_vec, ScmVal::Empty),
+        ScmVal::vec_to_list(&inits_vec, ScmVal::Empty),
+        ScmVal::vec_to_list(&steps_vec, ScmVal::Empty),
     ))
 }

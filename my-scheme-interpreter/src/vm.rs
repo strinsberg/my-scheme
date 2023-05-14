@@ -82,7 +82,7 @@ impl Vm {
         }
     }
 
-    pub fn eval_forms(&mut self, forms: Vec<ScmVal>) -> ValResult {
+    pub fn eval_forms(&mut self, forms: &[ScmVal]) -> ValResult {
         if forms.len() < 1 {
             return Ok(ScmVal::Empty);
         }
@@ -125,7 +125,7 @@ impl Vm {
                         _ => panic!("apply should have put an integer on top of res stack"),
                     };
                     self.push_op(VmOp::ApplyRes((args.len() - 1) + size));
-                    self.eval_many(args);
+                    self.eval_many(&args);
                 }
                 VmOp::UserEval(has_env) => {
                     if has_env {
@@ -225,16 +225,16 @@ impl Vm {
                     ScmVal::Core(b, n) => {
                         self.arity(args.len(), n as usize, &b.to_string())?;
                         self.push_op(VmOp::Apply(cell.clone_head(), args.len()));
-                        self.eval_many(args);
+                        self.eval_many(&args);
                     }
                     ScmVal::NewPair(_) => {
                         self.push_op(VmOp::ApplyRes(args.len()));
                         self.push_op(VmOp::Eval(cell.clone_head()));
-                        self.eval_many(args);
+                        self.eval_many(&args);
                     }
                     ScmVal::Closure(_) => {
                         self.push_op(VmOp::Apply(cell.clone_head(), args.len()));
-                        self.eval_many(args);
+                        self.eval_many(&args);
                     }
                     _ => return Err(ScmErr::Syntax(ScmVal::NewPair(cell.clone()))),
                 }
@@ -263,7 +263,7 @@ impl Vm {
                         self.arity(args.len(), 1, "quote")?;
                         self.push_res(args[0].clone());
                     }
-                    "define" => self.eval_define(args)?,
+                    "define" => self.eval_define(&args)?,
                     "if" => {
                         self.arity(args.len(), 2, "if")?;
                         self.push_op(VmOp::Apply(
@@ -274,19 +274,19 @@ impl Vm {
                     }
                     "lambda" => {
                         self.arity(num_args, 2, "lambda")?;
-                        self.push_res(evh::make_closure(args, Rc::clone(&self.env))?);
+                        self.push_res(evh::make_closure(&args, Rc::clone(&self.env))?);
                     }
                     "let" => {
                         self.arity(num_args, 2, "let")?;
-                        self.push_op(VmOp::Eval(evh::transform_let(args, Rc::clone(&self.env))?));
+                        self.push_op(VmOp::Eval(evh::transform_let(&args, Rc::clone(&self.env))?));
                     }
                     "let*" => {
                         self.arity(num_args, 2, "let*")?;
-                        self.push_op(VmOp::Eval(evh::transform_let_star(args)?));
+                        self.push_op(VmOp::Eval(evh::transform_let_star(&args)?));
                     }
                     "letrec" => {
                         self.arity(num_args, 2, "letrec")?;
-                        self.push_op(VmOp::Eval(evh::transform_letrec(args)?));
+                        self.push_op(VmOp::Eval(evh::transform_letrec(&args)?));
                     }
                     "set!" => {
                         self.arity(args.len(), 2, "set!")?;
@@ -296,7 +296,7 @@ impl Vm {
                     "begin" => self.eval_body(&args),
                     "do" => {
                         self.arity(num_args, 2, "do")?;
-                        self.push_op(VmOp::Eval(evh::transform_do(args)?));
+                        self.push_op(VmOp::Eval(evh::transform_do(&args)?));
                     }
 
                     // These are not in separate methods because they tread args and mutable
@@ -352,7 +352,7 @@ impl Vm {
         Ok(())
     }
 
-    fn eval_body(&mut self, args: &Vec<ScmVal>) {
+    fn eval_body(&mut self, args: &[ScmVal]) {
         self.push_op(VmOp::Eval(args[args.len() - 1].clone()));
         args[..args.len() - 1].iter().rev().for_each(|expr| {
             self.push_op(VmOp::Discard);
@@ -360,7 +360,7 @@ impl Vm {
         });
     }
 
-    fn eval_many(&mut self, args: Vec<ScmVal>) {
+    fn eval_many(&mut self, args: &[ScmVal]) {
         // NOTE these get evaluated right to left, but end up
         // on the res_stack left to right once evaluated
         args.iter()
@@ -368,7 +368,7 @@ impl Vm {
     }
 
     // TODO add something to ensure it won't happen if not at top level
-    fn eval_define(&mut self, args: Vec<ScmVal>) -> Result<(), ScmErr> {
+    fn eval_define(&mut self, args: &[ScmVal]) -> Result<(), ScmErr> {
         let num_args = args.len();
         self.arity(num_args, 2, "define")?;
 
@@ -395,13 +395,13 @@ impl Vm {
         Ok(())
     }
 
-    fn define_to_lambda(&mut self, args: Vec<ScmVal>, head: ScmVal, tail: ScmVal) {
+    fn define_to_lambda(&mut self, args: &[ScmVal], head: ScmVal, tail: ScmVal) {
         let name = head;
         let params = tail;
-        let body = ScmVal::vec_to_list(args, ScmVal::Empty);
+        let body = ScmVal::vec_to_list(&args, ScmVal::Empty);
         let lambda = ScmVal::cons(ScmVal::new_sym("lambda"), ScmVal::cons(params, body));
         self.push_op(VmOp::Eval(ScmVal::vec_to_list(
-            vec![ScmVal::new_sym("define"), name, lambda],
+            &[ScmVal::new_sym("define"), name, lambda],
             ScmVal::Empty,
         )));
     }
@@ -413,12 +413,12 @@ impl Vm {
             ScmVal::Special(form) => self.apply_special(form)?,
             ScmVal::Core(b, _) => {
                 let args = self.pop_n_res(num_args);
-                self.push_res(proc::apply_core_proc(b, args)?);
+                self.push_res(proc::apply_core_proc(b, &args)?);
             }
             ScmVal::Closure(c) => {
                 // arity is checked during binding based on the param types
                 self.push_op(VmOp::SetEnv(Rc::clone(&self.env)));
-                self.env = evh::bind_closure_args(c.clone(), self.pop_n_res(num_args))?;
+                self.env = evh::bind_closure_args(c.clone(), &self.pop_n_res(num_args))?;
                 self.eval_body(&c.body);
             }
             _ => return Err(ScmErr::Syntax(val)),
@@ -971,7 +971,7 @@ mod tests {
         let mut vm = Vm::new(Rc::clone(&env));
 
         let forms = StringReader::new("(+ 1 2) (+ 5 6)").read_forms().unwrap();
-        assert_eq!(vm.eval_forms(forms), Ok(ScmVal::new_int(11)));
+        assert_eq!(vm.eval_forms(&forms), Ok(ScmVal::new_int(11)));
     }
 
     #[test]
@@ -982,15 +982,15 @@ mod tests {
         let forms = StringReader::new("(define (f) 13) (f)")
             .read_forms()
             .unwrap();
-        assert_eq!(vm.eval_forms(forms), Ok(ScmVal::new_int(13)));
+        assert_eq!(vm.eval_forms(&forms), Ok(ScmVal::new_int(13)));
 
         let forms = StringReader::new("(define a 5)").read_forms().unwrap();
-        assert_eq!(vm.eval_forms(forms), Ok(ScmVal::Empty));
+        assert_eq!(vm.eval_forms(&forms), Ok(ScmVal::Empty));
 
         let forms = StringReader::new("(define a 5) (+ a 10)")
             .read_forms()
             .unwrap();
-        assert_eq!(vm.eval_forms(forms), Ok(ScmVal::new_int(15)));
+        assert_eq!(vm.eval_forms(&forms), Ok(ScmVal::new_int(15)));
 
         let forms = StringReader::new(
             "(define vec (make-vector 5))
@@ -1001,7 +1001,7 @@ mod tests {
         .read_forms()
         .unwrap();
         assert_eq!(
-            vm.eval_forms(forms),
+            vm.eval_forms(&forms),
             Ok(ScmVal::new_vec_mut(vec![
                 ScmVal::new_int(0),
                 ScmVal::new_int(1),
@@ -1015,7 +1015,7 @@ mod tests {
             .read_forms()
             .unwrap();
         assert_eq!(
-            vm.eval_forms(forms),
+            vm.eval_forms(&forms),
             Ok(ScmVal::cons(
                 ScmVal::new_int(1),
                 ScmVal::cons(ScmVal::new_int(2), ScmVal::Empty)
@@ -1130,11 +1130,11 @@ mod tests {
         let expr = StringReader::new("(define + -) (eval '(+ 1 2) (null-environment))")
             .read_forms()
             .unwrap();
-        assert_eq!(vm.eval_forms(expr), Ok(ScmVal::new_int(3)));
+        assert_eq!(vm.eval_forms(&expr), Ok(ScmVal::new_int(3)));
 
         let expr = StringReader::new("(define + -) (eval '(+ 1 2))")
             .read_forms()
             .unwrap();
-        assert_eq!(vm.eval_forms(expr), Ok(ScmVal::new_int(-1)));
+        assert_eq!(vm.eval_forms(&expr), Ok(ScmVal::new_int(-1)));
     }
 }

@@ -36,7 +36,7 @@ impl Interpreter {
         }
 
         match StringReader::new(text).read_forms() {
-            Ok(forms) => match self.vm.eval_forms(forms) {
+            Ok(forms) => match self.vm.eval_forms(&forms) {
                 Ok(val) => val.to_extern(),
                 Err(e) => format!("{e}"),
             },
@@ -51,7 +51,7 @@ impl Interpreter {
 
         // Eval scheme standard lib with the base env to add all defines to interpreter env
         self.vm
-            .eval_forms(lib_std_str)
+            .eval_forms(&lib_std_str)
             .expect("failed to eval SCM_LIB_STD: Err: {e}");
     }
 }
