@@ -1,6 +1,5 @@
 use crate::error::{ScmErr, ScmResult, ValResult};
 use crate::types::{Closure, Env, Formals, ScmVal};
-use std::cell::RefCell;
 use std::iter::zip;
 use std::rc::Rc;
 
@@ -8,7 +7,7 @@ use std::rc::Rc;
 
 // Takes the arguments to a lambda expression and the current env and creates
 // a new closure.
-pub fn make_closure(args: &[ScmVal], env: Rc<RefCell<Env>>) -> ValResult {
+pub fn make_closure(args: &[ScmVal], env: Rc<Env>) -> ValResult {
     let params = args[0].clone();
     let formals = match params {
         ScmVal::NewSymbol(_) => Formals::Collect(params),
@@ -44,7 +43,7 @@ pub fn make_closure(args: &[ScmVal], env: Rc<RefCell<Env>>) -> ValResult {
 
 // Transforms a let expression into a lambda application.
 // Example: (let ((a 1) (b 2)) (+ a b)) => ((lambda (a b) (+ a b)) 1 2)
-pub fn transform_let(args: &[ScmVal], env: Rc<RefCell<Env>>) -> ValResult {
+pub fn transform_let(args: &[ScmVal], env: Rc<Env>) -> ValResult {
     let bindings = args[0].clone();
     let (params, bind_args) = unbind(bindings.clone())?;
     Ok(ScmVal::cons(
@@ -178,19 +177,19 @@ pub fn transform_do(args: &[ScmVal]) -> ValResult {
 
 // Binding Helpers ////////////////////////////////////////////////////////////
 
-pub fn bind_closure_args(closure: Rc<Closure>, args: &[ScmVal]) -> ScmResult<Rc<RefCell<Env>>> {
+pub fn bind_closure_args(closure: Rc<Closure>, args: &[ScmVal]) -> ScmResult<Rc<Env>> {
     match closure.params.clone() {
         Formals::Collect(symbol) => Ok(Env::bind_in_new_env(
             Rc::clone(&closure.env),
-            vec![symbol],
-            vec![ScmVal::vec_to_list_mut(&args, ScmVal::Empty)],
+            &[symbol],
+            &[ScmVal::vec_to_list_mut(&args, ScmVal::Empty)],
         )?),
         Formals::Fixed(params) => {
             if args.len() >= params.len() {
                 Ok(Env::bind_in_new_env(
                     Rc::clone(&closure.env),
-                    params.clone(),
-                    args.into(),
+                    &params,
+                    &args,
                 )?)
             } else {
                 return Err(ScmErr::Arity("closure".to_owned(), params.len()));
@@ -207,8 +206,8 @@ pub fn bind_closure_args(closure: Rc<Closure>, args: &[ScmVal]) -> ScmResult<Rc<
 
                 Ok(Env::bind_in_new_env(
                     Rc::clone(&closure.env),
-                    full_params,
-                    full_args,
+                    &full_params,
+                    &full_args,
                 )?)
             } else {
                 return Err(ScmErr::Arity("closure".to_owned(), params.len()));

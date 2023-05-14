@@ -7,9 +7,6 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-// TODO the special forms should be in an Rc in the ScmVal so that their size
-// does not affect the size of ScmVal. Also, provide constructors for them.
-
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +38,7 @@ pub enum ScmVal {
     NewPair(Rc<Cell>),
     NewString(Rc<StringRef>),
     NewVec(Rc<VecRef>),
-    Env(Rc<RefCell<Env>>),
+    Env(Rc<Env>),
     Empty,
     // Other
     Special(Box<SpecialForm>),
@@ -440,13 +437,13 @@ pub enum Formals {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
     pub name: String,
-    pub env: Rc<RefCell<Env>>,
+    pub env: Rc<Env>,
     pub params: Formals,
     pub body: Vec<ScmVal>,
 }
 
 impl Closure {
-    pub fn new(name: &str, env: Rc<RefCell<Env>>, params: Formals, body: Vec<ScmVal>) -> Closure {
+    pub fn new(name: &str, env: Rc<Env>, params: Formals, body: Vec<ScmVal>) -> Closure {
         Closure {
             name: name.to_owned(),
             env: env,
@@ -562,8 +559,8 @@ impl VecRef {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Env {
-    pub scope: HashMap<ScmVal, ScmVal>,
-    pub next: Option<Rc<RefCell<Env>>>,
+    pub scope: RefCell<HashMap<ScmVal, ScmVal>>,
+    pub next: Option<Rc<Env>>,
 }
 
 // Implementation is in env_impl because it needs error and error needs other

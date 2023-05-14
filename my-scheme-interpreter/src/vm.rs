@@ -4,7 +4,6 @@ use crate::error::{ScmErr, ValResult};
 use crate::eval_helpers as evh;
 use crate::number::ScmNumber;
 use crate::types::{Cell, Closure, Env, ScmVal, SpecialForm};
-use std::cell::RefCell;
 use std::rc::Rc;
 
 // TODO A closure evaluation is not completely tail recursive. The environment
@@ -48,7 +47,7 @@ use std::rc::Rc;
 
 type OpStackRc = Rc<Stack<VmOp>>;
 type ResStackRc = Rc<Stack<ScmVal>>;
-type EnvRc = Rc<RefCell<Env>>;
+type EnvRc = Rc<Env>;
 
 // Virtual Machine ////////////////////////////////////////////////////////////
 
@@ -58,8 +57,8 @@ enum VmOp {
     Apply(ScmVal, usize),
     UserApply(Vec<ScmVal>),
     UserEval(bool),
-    SetOpStack(EnvRc),
-    SetResStack(EnvRc),
+    //SetOpStack(EnvRc),
+    //SetResStack(EnvRc),
     SetEnv(EnvRc),
     ApplyRes(usize),
     UnpackRes(String),
@@ -74,7 +73,7 @@ pub struct Vm {
 }
 
 impl Vm {
-    pub fn new(env: Rc<RefCell<Env>>) -> Vm {
+    pub fn new(env: Rc<Env>) -> Vm {
         Vm {
             op_stack: Stack::push(Stack::new_rc(VmOp::Halt, None), VmOp::Halt),
             res_stack: Stack::push(Stack::new_rc(ScmVal::Undefined, None), ScmVal::Undefined),
@@ -145,8 +144,8 @@ impl Vm {
                     let expr = self.pop_res();
                     self.push_op(VmOp::Eval(expr));
                 }
-                VmOp::SetOpStack(val) => {}
-                VmOp::SetResStack(val) => {}
+                //VmOp::SetOpStack(val) => {}
+                //VmOp::SetResStack(val) => {}
                 VmOp::SetEnv(env) => {
                     self.env = env;
                 }
@@ -185,7 +184,7 @@ impl Vm {
     /*** Evaluation Helpers ***/
 
     fn eval_symbol(&mut self, expr: &ScmVal, name: &str) -> Result<(), ScmErr> {
-        let value = match self.env.borrow().lookup(expr) {
+        let value = match self.env.lookup(expr) {
             Some(val) => val,
             None => return Err(ScmErr::Undeclared(name.to_string())),
         };
@@ -245,7 +244,7 @@ impl Vm {
 
     // TODO no longer checks for cyclic
     fn eval_special(&mut self, cell: Rc<Cell>, name: &str) -> Result<(), ScmErr> {
-        let lookup = self.env.borrow().lookup(&cell.clone_head());
+        let lookup = self.env.lookup(&cell.clone_head());
         match lookup {
             Some(val) => {
                 self.push_op(VmOp::Eval(ScmVal::cons(val.clone(), cell.clone_tail())));
@@ -375,9 +374,7 @@ impl Vm {
         let first = args[0].clone();
         match first {
             ScmVal::NewSymbol(_) => {
-                self.env
-                    .borrow_mut()
-                    .insert(first.clone(), ScmVal::Undefined)?;
+                self.env.insert(first.clone(), ScmVal::Undefined)?;
                 self.push_op(VmOp::Apply(ScmVal::new_set(first), num_args - 1));
                 self.push_op(VmOp::Eval(args[1].clone()));
             }
@@ -448,7 +445,7 @@ impl Vm {
                     )),
                     v => v,
                 };
-                self.env.borrow_mut().set(key.clone(), val)?;
+                self.env.set(key.clone(), val)?;
                 self.push_res(ScmVal::Empty);
             }
             SpecialForm::And(mut args) => {
@@ -680,9 +677,8 @@ mod tests {
 
     #[test]
     fn test_eval_symbol() {
-        let env = Rc::new(RefCell::new(
-            Env::new_with_bindings(vec![(ScmVal::new_sym("A"), ScmVal::new_int(5))]).unwrap(),
-        ));
+        let env =
+            Rc::new(Env::new_with_bindings(&[(ScmVal::new_sym("A"), ScmVal::new_int(5))]).unwrap());
         let mut vm = Vm::new(Rc::clone(&env));
         assert_eq!(vm.eval(ScmVal::new_sym("A")), Ok(ScmVal::new_int(5)));
         assert_eq!(
@@ -693,7 +689,7 @@ mod tests {
 
     #[test]
     fn test_eval_simple_if() {
-        let env = Rc::new(RefCell::new(Env::new()));
+        let env = Rc::new(Env::new());
         let mut vm = Vm::new(Rc::clone(&env));
 
         let expr = StringReader::new("(if #t 1 0)").read().unwrap();
