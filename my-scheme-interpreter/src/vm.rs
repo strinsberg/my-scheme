@@ -34,6 +34,7 @@ use std::rc::Rc;
 // TODO begin has two forms, one that is at the top level and is allowed to have
 // defines inside it (I think). Currently, that will cause an error.
 // TODO define is still allowed inside forms.
+// TODO replace errors related to bindings with BadBinding
 //
 // TODO Macros -- note that I am not sure when macros should be expanded. It is
 // relatively clear that they must be done at eval time since they are themselves

@@ -20,6 +20,8 @@ pub enum ScmErr {
     Arity(String, usize),
     BadArgType(String, String, ScmVal),
     BadArithmetic(String, ScmVal, ScmVal),
+    // TODO add a variant that holds ArithErr and try to replace all arithmetic
+    // errors with it?
     BadBinding(ScmVal),
     // seq errors
     OutOfBounds(usize, usize),

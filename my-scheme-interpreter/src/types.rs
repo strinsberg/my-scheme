@@ -7,6 +7,10 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
+// TODO replace ScmNumber with Num
+// TODO rename ScmVal to just Val
+// TODO rename ScmString and ScmChar to Str and Chr
+
 // Scheme Values //////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq)]

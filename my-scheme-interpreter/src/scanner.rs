@@ -9,7 +9,7 @@ use std::fmt;
 pub enum Token {
     Identifier(ScmString),
     Boolean(bool),
-    Number(ScmNumber),
+    Number(ScmNumber), // TODO change to Num
     Character(ScmChar),
     String(ScmString),
     LParen,
@@ -29,7 +29,7 @@ impl fmt::Display for Token {
         match self {
             Token::Identifier(s) => write!(f, "{}", s.to_string()),
             Token::Boolean(b) => write!(f, "{}", b),
-            Token::Number(n) => write!(f, "{}", n.to_string()),
+            Token::Number(n) => write!(f, "{}", n.to_string()), // TODO Just put {n}
             Token::Character(c) => write!(f, "{}", c.to_string()),
             Token::String(s) => write!(f, "{}", s.to_string()),
             Token::LParen => write!(f, "("),
@@ -128,6 +128,7 @@ impl Scanner {
             '\\' => self.scan_char(),
             '(' => Ok(Token::VecOpen),
             't' | 'f' | 'T' | 'F' => self.scan_bool(byte),
+            // TODO b d o x indicate number
             'c' => self.scan_cyclic(),
             _ => Err(ScmErr::BadChar(self.line, ch)),
         }
@@ -314,6 +315,7 @@ impl Scanner {
 
     fn new_number(&self, bytes: &Vec<u8>) -> ScanResult {
         let s: String = bytes.iter().map(|b| *b as char).collect();
+        // TODO change to parse::<Num>() and just move this into the scan_number function
         match ScmNumber::from_str(&s) {
             Some(n) => Ok(Token::Number(n)),
             None => Err(ScmErr::BadNumber(self.line, s)),
