@@ -10,6 +10,15 @@ use std::fmt;
 // For example, if a char had the byte sequence [250, 5, 33] would be
 // [#\UNSUP, #\UNSUP, #\!] (not sure this example byte sequence is possible).
 
+// TODO convert this to Str like Num. Implement the proper rust traits for things
+// like ToString and FromStr. There may still be a little work to ensure that
+// we get the external vs display representation down how we want it. The use
+// of FromStr can replace the constructor, or also be used in the constructor
+// when using a string. This can parse the inside of a string, not including the
+// quotes. It will iterate with .chars() and do something when encountering non-ascii
+// characters rather than accepting raw bytes. Which may require some adjustments
+// on the scanner or reader.
+
 // Scheme strings //////////////////////////////////////////////////////////////
 
 #[derive(Clone, PartialEq, Eq, Hash)]

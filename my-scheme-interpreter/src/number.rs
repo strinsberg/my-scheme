@@ -4,13 +4,15 @@ use std::fmt;
 // TODO add necessary arithmetic functions from the report that are needed
 // to implement others in core_proc or in scheme code.
 
-// Num ////////////////////////////////////////////////////////////////////////
+// Arithmetic Errors //////////////////////////////////////////////////////////
 
 #[derive(Debug, PartialEq)]
 pub enum ArithErr {
     DivideByZero,
     FailedParse(String),
 }
+
+// Num ////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, Copy)]
 pub enum Num {
@@ -28,6 +30,9 @@ impl Default for Num {
 impl Num {
     // construtors //
 
+    // This should be used everywhere a user can create a rational number. It
+    // does the necessary checks and simplifications to ensure they are always
+    // in a consistent state.
     pub fn new_rat(a: i64, b: i64) -> Result<Num, ArithErr> {
         if b == 0 {
             Err(ArithErr::DivideByZero)

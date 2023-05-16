@@ -1,5 +1,7 @@
 pub mod builtin;
+pub mod cell;
 pub mod core_proc;
+pub mod env;
 pub mod env_impl;
 pub mod error;
 pub mod eval_helpers;
