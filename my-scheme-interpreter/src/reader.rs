@@ -123,7 +123,7 @@ impl StringReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::number::ScmNumber;
+    use crate::number::Num;
 
     #[test]
     fn test_reading_values_parsed_by_the_scanner() {
@@ -171,10 +171,7 @@ mod tests {
 
         let expr = "(1 (2 3) . 4 5)";
         let result = StringReader::new(expr).read();
-        assert_eq!(
-            result,
-            Err(ScmErr::BadToken(1, Token::Number(ScmNumber::Integer(5))))
-        );
+        assert_eq!(result, Err(ScmErr::BadToken(1, Token::Number(Num::Int(5)))));
     }
 
     #[test]

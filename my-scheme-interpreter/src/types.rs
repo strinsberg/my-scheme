@@ -1,5 +1,5 @@
 use crate::builtin::Builtin;
-use crate::number::ScmNumber;
+use crate::number::Num;
 use crate::string::{ScmChar, ScmString};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -7,7 +7,6 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-// TODO replace ScmNumber with Num
 // TODO rename ScmVal to just Val
 // TODO rename ScmString and ScmChar to Str and Chr
 
@@ -33,7 +32,7 @@ pub enum ScmVal {
     // Simple variants
     Boolean(bool),
     Character(ScmChar),
-    Number(ScmNumber),
+    Number(Num),
     Core(Builtin, u8),
     // Atoms that use Rc
     NewSymbol(Rc<StringRef>),
@@ -69,11 +68,11 @@ impl ScmVal {
     }
 
     pub fn new_int(i: i64) -> ScmVal {
-        ScmVal::Number(ScmNumber::Integer(i))
+        ScmVal::Number(Num::Int(i))
     }
 
     pub fn new_float(f: f64) -> ScmVal {
-        ScmVal::Number(ScmNumber::Float(f))
+        ScmVal::Number(Num::Flt(f))
     }
 
     pub fn new_pair(head: ScmVal, tail: ScmVal) -> ScmVal {

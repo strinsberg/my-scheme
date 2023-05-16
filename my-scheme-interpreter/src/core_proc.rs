@@ -1,6 +1,6 @@
 use crate::builtin::Builtin;
 use crate::error::{ScmErr, ValResult};
-use crate::number::ScmNumber;
+use crate::number::Num;
 use crate::string::ScmString;
 use crate::types::{Env, ScmVal};
 
@@ -163,20 +163,19 @@ fn binary_arithmetic(op: Builtin, args: &[ScmVal]) -> ValResult {
     let result = match (left.clone(), right.clone()) {
         (ScmVal::Number(l), ScmVal::Number(r)) => match op.clone() {
             Builtin::Sum => l.add(&r),
-            Builtin::Subtract => l.subtract(&r),
-            Builtin::Product => l.multiply(&r),
-            Builtin::Divide => l.divide(&r),
+            Builtin::Subtract => l.sub(&r),
+            Builtin::Product => l.mult(&r),
+            Builtin::Divide => l.div(&r),
             _ => panic!("operation should be arithmetic procedure: {:?}", op),
         },
         (ScmVal::Number(_), r) => return Err(ScmErr::BadArgType(format!("{}", op), type_str, r)),
         (l, _) => return Err(ScmErr::BadArgType(format!("{}", op), type_str, l)),
     };
 
-    Ok(ScmVal::Number(result.ok_or(ScmErr::BadArithmetic(
-        op.to_string(),
-        left,
-        right,
-    ))?))
+    match result {
+        Ok(val) => Ok(ScmVal::Number(val)),
+        Err(_) => Err(ScmErr::BadArithmetic(op.to_string(), left, right)),
+    }
 }
 
 fn unary_arithmetic(op: Builtin, args: &[ScmVal]) -> ValResult {
@@ -421,7 +420,7 @@ pub fn char_to_int(args: &[ScmVal]) -> ValResult {
 
 pub fn int_to_char(args: &[ScmVal]) -> ValResult {
     match args[0].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) => Ok(ScmVal::new_char((i as u8) as char)),
+        ScmVal::Number(Num::Int(i)) => Ok(ScmVal::new_char((i as u8) as char)),
         _ => Err(ScmErr::BadArgType(
             "integer->char".to_owned(),
             "exact non-negative integer".to_owned(),
@@ -614,7 +613,7 @@ pub fn num_geq(args: &[ScmVal]) -> ValResult {
 
 pub fn make_string(args: &[ScmVal]) -> ValResult {
     let size = match args[0].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) if i >= 0 => i,
+        ScmVal::Number(Num::Int(i)) if i >= 0 => i,
         _ => {
             return Err(ScmErr::BadArgType(
                 "make-string".to_owned(),
@@ -732,7 +731,7 @@ pub fn vector_length(args: &[ScmVal]) -> ValResult {
 
 pub fn make_vector(args: &[ScmVal]) -> ValResult {
     let size = match args[0].clone() {
-        ScmVal::Number(ScmNumber::Integer(i)) if i >= 0 => i,
+        ScmVal::Number(Num::Int(i)) if i >= 0 => i,
         _ => {
             return Err(ScmErr::BadArgType(
                 "make-vector".to_owned(),
@@ -838,7 +837,7 @@ fn user_range_error(args: &[ScmVal]) -> ValResult {
 
 pub fn to_index(val: &ScmVal) -> Option<usize> {
     match val {
-        ScmVal::Number(ScmNumber::Integer(i)) if *i >= 0 => Some(*i as usize),
+        ScmVal::Number(Num::Int(i)) if *i >= 0 => Some(*i as usize),
         _ => None,
     }
 }

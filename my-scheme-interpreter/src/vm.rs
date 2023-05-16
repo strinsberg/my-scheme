@@ -2,7 +2,7 @@ use crate::builtin::Builtin;
 use crate::core_proc as proc;
 use crate::error::{ScmErr, ValResult};
 use crate::eval_helpers as evh;
-use crate::number::ScmNumber;
+use crate::number::Num;
 use crate::types::{Cell, Closure, Env, ScmVal, SpecialForm};
 use std::rc::Rc;
 
@@ -121,7 +121,7 @@ impl Vm {
                 }
                 VmOp::UserApply(args) => {
                     let size = match self.pop_res() {
-                        ScmVal::Number(ScmNumber::Integer(i)) => i as usize,
+                        ScmVal::Number(Num::Int(i)) => i as usize,
                         _ => panic!("apply should have put an integer on top of res stack"),
                     };
                     self.push_op(VmOp::ApplyRes((args.len() - 1) + size));

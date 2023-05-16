@@ -1,5 +1,5 @@
 use crate::error::{ScanResult, ScmErr};
-use crate::number::ScmNumber;
+use crate::number::Num;
 use crate::string::{ScmChar, ScmString};
 use std::fmt;
 
@@ -9,7 +9,7 @@ use std::fmt;
 pub enum Token {
     Identifier(ScmString),
     Boolean(bool),
-    Number(ScmNumber), // TODO change to Num
+    Number(Num),
     Character(ScmChar),
     String(ScmString),
     LParen,
@@ -315,10 +315,9 @@ impl Scanner {
 
     fn new_number(&self, bytes: &Vec<u8>) -> ScanResult {
         let s: String = bytes.iter().map(|b| *b as char).collect();
-        // TODO change to parse::<Num>() and just move this into the scan_number function
-        match ScmNumber::from_str(&s) {
-            Some(n) => Ok(Token::Number(n)),
-            None => Err(ScmErr::BadNumber(self.line, s)),
+        match s.parse::<Num>() {
+            Ok(n) => Ok(Token::Number(n)),
+            Err(_) => Err(ScmErr::BadNumber(self.line, s)), // TODO change to ArithErr when ready
         }
     }
 }
@@ -549,45 +548,30 @@ mod tests {
     //
     // Also, some of these tests could really move to the number struct as the scanner
     // really just says if there is a +/- or a digit then scan bytes and send them
-    // to the ScmNumber constructor for a new number.
+    // to the Num constructor for a new number.
 
     #[test]
     fn scanning_simple_integers() {
-        assert_eq!(
-            Scanner::new("100").next(),
-            Ok(Token::Number(ScmNumber::Integer(100)))
-        );
+        assert_eq!(Scanner::new("100").next(), Ok(Token::Number(Num::Int(100))));
         assert_eq!(
             Scanner::new("+100").next(),
-            Ok(Token::Number(ScmNumber::Integer(100)))
+            Ok(Token::Number(Num::Int(100)))
         );
-        assert_eq!(
-            Scanner::new("-42").next(),
-            Ok(Token::Number(ScmNumber::Integer(-42)))
-        );
-        assert_eq!(
-            Scanner::new("0").next(),
-            Ok(Token::Number(ScmNumber::Integer(0)))
-        );
-        assert_eq!(
-            Scanner::new("+0").next(),
-            Ok(Token::Number(ScmNumber::Integer(0)))
-        );
-        assert_eq!(
-            Scanner::new("-0").next(),
-            Ok(Token::Number(ScmNumber::Integer(0)))
-        );
+        assert_eq!(Scanner::new("-42").next(), Ok(Token::Number(Num::Int(-42))));
+        assert_eq!(Scanner::new("0").next(), Ok(Token::Number(Num::Int(0))));
+        assert_eq!(Scanner::new("+0").next(), Ok(Token::Number(Num::Int(0))));
+        assert_eq!(Scanner::new("-0").next(), Ok(Token::Number(Num::Int(0))));
         assert_eq!(
             Scanner::new("9223372036854775807").next(),
-            Ok(Token::Number(ScmNumber::Integer(i64::MAX)))
+            Ok(Token::Number(Num::Int(i64::MAX)))
         );
         assert_eq!(
             Scanner::new("+9223372036854775807").next(),
-            Ok(Token::Number(ScmNumber::Integer(i64::MAX)))
+            Ok(Token::Number(Num::Int(i64::MAX)))
         );
         assert_eq!(
             Scanner::new("-9223372036854775808").next(),
-            Ok(Token::Number(ScmNumber::Integer(i64::MIN)))
+            Ok(Token::Number(Num::Int(i64::MIN)))
         );
     }
 
@@ -595,47 +579,44 @@ mod tests {
     fn test_scanning_simple_float() {
         assert_eq!(
             Scanner::new("1.234").next(),
-            Ok(Token::Number(ScmNumber::Float(1.234)))
+            Ok(Token::Number(Num::Flt(1.234)))
         );
         assert_eq!(
             Scanner::new("+1.234").next(),
-            Ok(Token::Number(ScmNumber::Float(1.234)))
+            Ok(Token::Number(Num::Flt(1.234)))
         );
         assert_eq!(
             Scanner::new("-1.234").next(),
-            Ok(Token::Number(ScmNumber::Float(-1.234)))
+            Ok(Token::Number(Num::Flt(-1.234)))
         );
-        assert_eq!(
-            Scanner::new("0.0").next(),
-            Ok(Token::Number(ScmNumber::Float(0.0)))
-        );
+        assert_eq!(Scanner::new("0.0").next(), Ok(Token::Number(Num::Flt(0.0))));
         assert_eq!(
             Scanner::new("+0.0").next(),
-            Ok(Token::Number(ScmNumber::Float(0.0)))
+            Ok(Token::Number(Num::Flt(0.0)))
         );
         assert_eq!(
             Scanner::new("-0.0").next(),
-            Ok(Token::Number(ScmNumber::Float(0.0)))
+            Ok(Token::Number(Num::Flt(0.0)))
         );
         assert_eq!(
             Scanner::new("-1.7976931348623157e308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::MIN)))
+            Ok(Token::Number(Num::Flt(f64::MIN)))
         );
         assert_eq!(
             Scanner::new("2.2250738585072014E-308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::MIN_POSITIVE)))
+            Ok(Token::Number(Num::Flt(f64::MIN_POSITIVE)))
         );
         assert_eq!(
             Scanner::new("1.7976931348623157E308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::MAX)))
+            Ok(Token::Number(Num::Flt(f64::MAX)))
         );
         assert_eq!(
             Scanner::new("-1.8E308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::NEG_INFINITY)))
+            Ok(Token::Number(Num::Flt(f64::NEG_INFINITY)))
         );
         assert_eq!(
             Scanner::new("2.5E308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::INFINITY)))
+            Ok(Token::Number(Num::Flt(f64::INFINITY)))
         );
     }
 
