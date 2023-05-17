@@ -8,6 +8,7 @@ pub mod eval_helpers;
 pub mod interpreter;
 pub mod number;
 pub mod reader;
+pub mod rep;
 pub mod scanner;
 pub mod scheme_libs;
 pub mod string;

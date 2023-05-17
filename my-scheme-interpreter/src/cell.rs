@@ -1,8 +1,8 @@
+use crate::rep::{DisplayRep, ExternalRep};
 use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
-// TODO implement Display, ExternalRep
 // TODO consider implementing map, filter, fold, reverse and other list methods
 // on here directly if they must be implemented in rust. Then core procs can
 // just call them. I like doing things in scheme, but using core procs offers
@@ -21,6 +21,14 @@ pub enum ListErr {
     Immutable,
 }
 
+impl std::error::Error for ListErr {}
+
+impl std::fmt::Display for ListErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", "not implemented")
+    }
+}
+
 // Cell Value Trait ///////////////////////////////////////////////////////////
 pub trait CellValue<T>
 where
@@ -31,7 +39,7 @@ where
 }
 
 // Cons Cell //////////////////////////////////////////////////////////////////
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Cell<T> {
     mutable: bool,
     head: RefCell<T>,
@@ -119,29 +127,42 @@ where
         self.head.as_ptr() as usize
     }
 
+    fn check_dotted_and_cycle(
+        &self,
+        checker: &mut CycleChecker,
+        cell: Rc<Cell<T>>,
+    ) -> Result<(), ListErr> {
+        if cell.is_dotted() {
+            return Err(ListErr::Dotted);
+        } else if checker.insert_and_check(cell.id()) {
+            return Err(ListErr::Cyclic);
+        } else if let Some(cell) = cell.clone_head().get_cell() {
+            if checker.check(cell.id()) {
+                return Err(ListErr::Cyclic);
+            }
+        };
+        Ok(())
+    }
+
     // Scheme List Functions //
 
     pub fn is_list(&self) -> Result<bool, ListErr> {
-        let mut cycles = CycleChecker::new(self.id());
+        let mut checker = CycleChecker::new(self.id());
         for cell in CellIter::new(Rc::new(self.clone())) {
-            if cell.is_dotted() {
-                return Ok(false);
-            } else if cycles.insert_and_check(cell.id()) {
-                return Err(ListErr::Cyclic);
+            match self.check_dotted_and_cycle(&mut checker, cell) {
+                Err(ListErr::Dotted) => return Ok(false),
+                Err(e) => return Err(e),
+                _ => (),
             }
         }
         Ok(true)
     }
 
     pub fn length(&self) -> Result<usize, ListErr> {
-        let mut cycles = CycleChecker::new(self.id());
+        let mut checker = CycleChecker::new(self.id());
         let mut len = 0;
         for cell in CellIter::new(Rc::new(self.clone())) {
-            if cell.is_dotted() {
-                return Err(ListErr::Dotted);
-            } else if cycles.insert_and_check(cell.id()) {
-                return Err(ListErr::Cyclic);
-            }
+            self.check_dotted_and_cycle(&mut checker, cell)?;
             len += 1;
         }
         Ok(len)
@@ -152,13 +173,10 @@ where
             return Err(ListErr::NoZero);
         }
 
-        let mut cycles = CycleChecker::new(self.id());
+        let mut checker = CycleChecker::new(self.id());
         for (i, cell) in CellIter::new(Rc::new(self.clone())).enumerate() {
-            if cell.is_dotted() {
-                return Err(ListErr::Dotted);
-            } else if cycles.insert_and_check(cell.id()) {
-                return Err(ListErr::Cyclic);
-            } else if idx == i + 1 {
+            self.check_dotted_and_cycle(&mut checker, cell.clone())?;
+            if idx == i + 1 {
                 return Ok(cell.clone_tail());
             }
         }
@@ -166,13 +184,10 @@ where
     }
 
     pub fn list_ref(&self, idx: usize) -> Result<T, ListErr> {
-        let mut cycles = CycleChecker::new(self.id());
+        let mut checker = CycleChecker::new(self.id());
         for (i, cell) in CellIter::new(Rc::new(self.clone())).enumerate() {
-            if cell.is_dotted() {
-                return Err(ListErr::Dotted);
-            } else if cycles.insert_and_check(cell.id()) {
-                return Err(ListErr::Cyclic);
-            } else if idx == i {
+            self.check_dotted_and_cycle(&mut checker, cell.clone())?;
+            if idx == i {
                 return Ok(cell.clone_head());
             }
         }
@@ -181,16 +196,12 @@ where
 
     // appends the end onto a copy of self
     pub fn append(&self, end: T) -> Result<T, ListErr> {
-        let mut cycles = CycleChecker::new(self.id());
+        let mut checker = CycleChecker::new(self.id());
         let rev = self.reverse()?;
         let mut result = end;
 
         for cell in CellIter::new(rev.get_cell().expect("should be a cell holding value")) {
-            if cell.is_dotted() {
-                return Err(ListErr::Dotted);
-            } else if cycles.insert_and_check(cell.id()) {
-                return Err(ListErr::Cyclic);
-            }
+            self.check_dotted_and_cycle(&mut checker, cell.clone())?;
             // If this is a mutable list then make the new one mutable
             if self.mutable {
                 result = T::new_pair(Cell::new_mut(cell.clone_head(), Some(result)));
@@ -206,16 +217,12 @@ where
             return Err(ListErr::Dotted);
         }
 
-        let mut cycles = CycleChecker::new(self.id());
         let mut res = T::new_pair(Cell::new(self.clone_head(), None));
         match self.clone_tail() {
             Some(val) => {
+                let mut checker = CycleChecker::new(self.id());
                 for cell in CellIter::new(val.get_cell().expect("tail should hold a cell")) {
-                    if cell.is_dotted() {
-                        return Err(ListErr::Dotted);
-                    } else if cycles.insert_and_check(cell.id()) {
-                        return Err(ListErr::Cyclic);
-                    }
+                    self.check_dotted_and_cycle(&mut checker, cell.clone())?;
                     // If this is a mutable list then make the new one mutable
                     if self.mutable {
                         res = T::new_pair(Cell::new_mut(cell.clone_head(), Some(res)));
@@ -230,10 +237,85 @@ where
     }
 }
 
+impl<T> DisplayRep for Cell<T>
+where
+    T: std::fmt::Debug + Clone + CellValue<T> + DisplayRep,
+{
+    fn to_display(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let mut checker = CycleChecker::new(self.id());
+        let mut strings = vec![];
+        for cell in CellIter::new(Rc::new(self.clone())) {
+            strings.push(cell.clone_head().to_display()?);
+
+            match self.check_dotted_and_cycle(&mut checker, cell.clone()) {
+                Err(ListErr::Dotted) => {
+                    if let Some(tail) = cell.clone_tail() {
+                        strings.push(".".to_owned());
+                        strings.push(tail.to_display()?);
+                    }
+                }
+                Err(e) => return Err(e.into()),
+                _ => (),
+            }
+        }
+        Ok(format!("({})", strings.join(" ")))
+    }
+}
+
+impl<T> ExternalRep for Cell<T>
+where
+    T: std::fmt::Debug + Clone + CellValue<T> + ExternalRep,
+{
+    fn to_external(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let mut checker = CycleChecker::new(self.id());
+        let mut strings = vec![];
+        for cell in CellIter::new(Rc::new(self.clone())) {
+            strings.push(cell.clone_head().to_external()?);
+
+            match self.check_dotted_and_cycle(&mut checker, cell.clone()) {
+                Err(ListErr::Dotted) => {
+                    if let Some(tail) = cell.clone_tail() {
+                        strings.push(".".to_owned());
+                        strings.push(tail.to_external()?);
+                    }
+                }
+                Err(e) => return Err(e.into()),
+                _ => (),
+            }
+        }
+        Ok(format!("({})", strings.join(" ")))
+    }
+}
+
+// This is not super helpful, but it helps eliminate cycles causing infinite
+// loops when debug printing for now.
+impl<T> std::fmt::Debug for Cell<T>
+where
+    T: std::fmt::Debug + Clone + CellValue<T>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "Cell{{ head: {:?}, tail: {}}}",
+            self.head.clone(),
+            match self.clone_tail() {
+                Some(val) => match val.get_cell() {
+                    Some(cell) => cell.id().to_string(),
+                    None => "None".to_string(),
+                },
+                None => "None".to_string(),
+            }
+        )
+    }
+}
+
 // Cell Iterator //////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub struct CellIter<T> {
+pub struct CellIter<T>
+where
+    T: std::fmt::Debug + Clone + CellValue<T>,
+{
     cell: Option<Rc<Cell<T>>>,
 }
 
@@ -270,7 +352,10 @@ where
 // CellValue Iterator /////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub struct CellValueIter<T> {
+pub struct CellValueIter<T>
+where
+    T: std::fmt::Debug + Clone + CellValue<T>,
+{
     last: Option<Rc<Cell<T>>>,
     iter: CellIter<T>,
 }
@@ -335,6 +420,10 @@ impl CycleChecker {
             false
         }
     }
+
+    pub fn check(&self, id: usize) -> bool {
+        self.ids.contains(&id)
+    }
 }
 
 // Testing ////////////////////////////////////////////////////////////////////
@@ -372,43 +461,61 @@ mod tests {
         }
     }
 
+    impl ExternalRep for TestVal {
+        fn to_external(&self) -> Result<String, Box<dyn std::error::Error>> {
+            match self {
+                TestVal::Int(i) => Ok(format!("#{}", i)),
+                TestVal::Pair(cell) => Ok(format!("{}", cell.to_external()?)),
+            }
+        }
+    }
+
+    impl DisplayRep for TestVal {
+        fn to_display(&self) -> Result<String, Box<dyn std::error::Error>> {
+            match self {
+                TestVal::Int(i) => Ok(format!("{}", i)),
+                TestVal::Pair(cell) => Ok(format!("{}", cell.to_display()?)),
+            }
+        }
+    }
+
     // Helpers //
 
     fn make_list_5() -> Rc<Cell<TestVal>> {
-        let cell = Rc::new(Cell::new(TestVal::Int(5), None));
-        let cell2 = Rc::new(Cell::new(
+        let cell = Rc::new(Cell::new_mut(TestVal::Int(5), None));
+        let cell2 = Rc::new(Cell::new_mut(
             TestVal::Int(4),
             Some(TestVal::Pair(cell.clone())),
         ));
-        let cell3 = Rc::new(Cell::new(
+        let cell3 = Rc::new(Cell::new_mut(
             TestVal::Int(3),
             Some(TestVal::Pair(cell2.clone())),
         ));
-        let cell4 = Rc::new(Cell::new(
+        let cell4 = Rc::new(Cell::new_mut(
             TestVal::Int(2),
             Some(TestVal::Pair(cell3.clone())),
         ));
-        Rc::new(Cell::new(
+        Rc::new(Cell::new_mut(
             TestVal::Int(1),
             Some(TestVal::Pair(cell4.clone())),
         ))
     }
 
     fn make_list_6_dotted() -> Rc<Cell<TestVal>> {
-        let cell = Rc::new(Cell::new(TestVal::Int(5), Some(TestVal::Int(6))));
-        let cell2 = Rc::new(Cell::new(
+        let cell = Rc::new(Cell::new_mut(TestVal::Int(5), Some(TestVal::Int(6))));
+        let cell2 = Rc::new(Cell::new_mut(
             TestVal::Int(4),
             Some(TestVal::Pair(cell.clone())),
         ));
-        let cell3 = Rc::new(Cell::new(
+        let cell3 = Rc::new(Cell::new_mut(
             TestVal::Int(3),
             Some(TestVal::Pair(cell2.clone())),
         ));
-        let cell4 = Rc::new(Cell::new(
+        let cell4 = Rc::new(Cell::new_mut(
             TestVal::Int(2),
             Some(TestVal::Pair(cell3.clone())),
         ));
-        Rc::new(Cell::new(
+        Rc::new(Cell::new_mut(
             TestVal::Int(1),
             Some(TestVal::Pair(cell4.clone())),
         ))
@@ -719,5 +826,97 @@ mod tests {
             cell2.append(TestVal::Pair(cell2.clone())),
             Err(ListErr::Cyclic)
         );
+    }
+
+    #[test]
+    fn test_cell_with_alternative_cycles() {
+        // Cycle is not with head
+        let cell = Rc::new(Cell::new_mut(TestVal::Int(3), None));
+        let cell2 = Rc::new(Cell::new_mut(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new_mut(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        cell.set_tail(Some(TestVal::Pair(cell2.clone()))).unwrap();
+        assert_eq!(cell3.is_list(), Err(ListErr::Cyclic));
+
+        // Cycle is in head not tail
+        let cell = Rc::new(Cell::new_mut(TestVal::Int(3), None));
+        let cell2 = Rc::new(Cell::new_mut(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new_mut(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        cell.set_head(TestVal::Pair(cell3.clone()));
+        assert_eq!(cell3.is_list(), Err(ListErr::Cyclic));
+
+        // Not a cycle, but the same element is pointed to by two heads.
+        let list = make_list_5();
+        let cell = Rc::new(Cell::new_mut(TestVal::Pair(list.clone()), None));
+        let cell2 = Rc::new(Cell::new_mut(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new_mut(
+            TestVal::Pair(list.clone()),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        assert_eq!(cell3.is_list(), Ok(true));
+    }
+
+    #[test]
+    fn test_display() {
+        let list = make_list_5();
+        let list2 = make_list_6_dotted();
+
+        list.set_head(TestVal::Pair(list2));
+        assert_eq!(
+            list.to_display().unwrap(),
+            "((1 2 3 4 5 . 6) 2 3 4 5)".to_owned()
+        );
+
+        // Cycle
+        let cell = Rc::new(Cell::new_mut(TestVal::Int(3), None));
+        let cell2 = Rc::new(Cell::new_mut(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new_mut(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        cell.set_tail(Some(TestVal::Pair(cell3.clone()))).unwrap();
+        assert!(cell3.to_display().err().unwrap().is::<ListErr>());
+    }
+
+    #[test]
+    fn test_external() {
+        let list = make_list_5();
+        let list2 = make_list_6_dotted();
+
+        list.set_head(TestVal::Pair(list2));
+        assert_eq!(
+            list.to_external().unwrap(),
+            "((#1 #2 #3 #4 #5 . #6) #2 #3 #4 #5)".to_owned()
+        );
+
+        // Cycle
+        let cell = Rc::new(Cell::new_mut(TestVal::Int(3), None));
+        let cell2 = Rc::new(Cell::new_mut(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new_mut(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        cell.set_tail(Some(TestVal::Pair(cell3.clone()))).unwrap();
+        assert!(cell3.to_external().err().unwrap().is::<ListErr>());
     }
 }
