@@ -9,6 +9,13 @@ use std::rc::Rc;
 
 // TODO rename ScmVal to just Val
 // TODO rename ScmString and ScmChar to Str and Chr
+// TODO break these types out of here and put them in their own files, closure
+// and some vector wrapper, since they are supposed to be arrays. The string
+// will have a RefCell so that it can keep track of it's own mutability, like
+// Cell.
+// TODO when creating and using env with Val use the contents of a symbol as the
+// type for keys, so Str which will require unwrapping and checking for symbol
+// before accessing so we can ensure no other types are used as env keys.
 
 // Scheme Values //////////////////////////////////////////////////////////////
 

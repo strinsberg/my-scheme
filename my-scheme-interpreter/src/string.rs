@@ -21,6 +21,10 @@ use std::fmt;
 
 // Scheme strings //////////////////////////////////////////////////////////////
 
+// TODO rewrite like Num, Cell, and Env with rust traits implemented for creating from
+// strings and bytes. Move the char to its own file unless it is really small
+// afterward, because both need to be tested.
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ScmString {
     pub chars: Vec<ScmChar>,

@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::rc::Rc;
 
-// TODO test errors for using bad keys
-
 // Environment as Linked List /////////////////////////////////////////////////
 
 #[derive(Debug)]

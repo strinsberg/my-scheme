@@ -12,4 +12,5 @@ pub mod scanner;
 pub mod scheme_libs;
 pub mod string;
 pub mod types;
+pub mod vector;
 pub mod vm;

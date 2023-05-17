@@ -1,5 +1,7 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::rc::Rc;
+
+// TODO testing
 
 // Cell Value Trait ////////////////////////////////////////////////////////////
 pub trait CellValue<T>
@@ -10,32 +12,36 @@ where
 }
 
 // Cons Cell //////////////////////////////////////////////////////////////////
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Cell<T> {
-    pub mutable: bool,
-    pub head: RefCell<T>,
-    pub tail: RefCell<Option<T>>,
+    mutable: bool,
+    head: RefCell<T>,
+    tail: RefCell<Option<T>>,
 }
 
 impl<T> Cell<T>
 where
     T: Clone + CellValue<T>,
 {
-    pub fn new(head: T, tail: T) -> Cell<T> {
+    // Constructors //
+
+    pub fn new(head: T, tail: Option<T>) -> Cell<T> {
         Cell {
             mutable: false,
             head: RefCell::new(head),
-            tail: RefCell::new(Some(tail)),
+            tail: RefCell::new(tail),
         }
     }
 
-    pub fn new_mut(head: T, tail: T) -> Cell<T> {
+    pub fn new_mut(head: T, tail: Option<T>) -> Cell<T> {
         Cell {
             mutable: true,
             head: RefCell::new(head),
-            tail: RefCell::new(Some(tail)),
+            tail: RefCell::new(tail),
         }
     }
+
+    // Access //
 
     pub fn set_head(&self, val: T) -> Option<T> {
         if self.mutable {
@@ -45,9 +51,9 @@ where
         }
     }
 
-    pub fn set_tail(&self, val: T) -> Option<T> {
+    pub fn set_tail(&self, val: Option<T>) -> Option<T> {
         if self.mutable {
-            self.tail.replace(Some(val))
+            self.tail.replace(val)
         } else {
             None
         }
@@ -61,6 +67,25 @@ where
         self.tail.borrow().clone()
     }
 
+    pub fn borrow_head(&self) -> Ref<'_, T> {
+        self.head.borrow()
+    }
+
+    pub fn borrow_tail(&self) -> Ref<'_, Option<T>> {
+        self.tail.borrow()
+    }
+
+    // Information //
+
+    pub fn is_mut(&self) -> bool {
+        self.mutable
+    }
+
+    // For a list type value like scheme, Empty should not appear in the tail
+    // position of a Cell. It should always be None to indicate nothing follows.
+    // If Empty is used this will consider it a dotted pair. If None is in the
+    // tail position the cell is not considered a dotted pair, but the end of
+    // a list.
     pub fn is_dotted(&self) -> bool {
         match self.clone_tail() {
             Some(val) => match val.get_cell() {
@@ -96,14 +121,14 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.cell.clone() {
-            Some(cell) => match cell.clone_tail() {
-                Some(val) => {
-                    let current = Some(cell);
-                    self.cell = val.get_cell();
-                    current
-                }
-                None => None,
-            },
+            Some(cell) => {
+                let current = Some(cell.clone());
+                self.cell = match cell.clone_tail() {
+                    Some(val) => val.get_cell(),
+                    None => None,
+                };
+                current
+            }
             None => None,
         }
     }
@@ -153,5 +178,176 @@ where
             }
             None => None,
         }
+    }
+}
+
+// Testing ////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Test CellValue //
+
+    #[derive(Clone, Debug, PartialEq)]
+    enum TestVal {
+        Int(i64),
+        Pair(Rc<Cell<TestVal>>),
+    }
+
+    impl TestVal {
+        pub fn doot(&self) -> i64 {
+            match self {
+                TestVal::Int(i) => *i,
+                TestVal::Pair(_) => 42,
+            }
+        }
+    }
+
+    impl CellValue<TestVal> for TestVal {
+        fn get_cell(&self) -> Option<Rc<Cell<TestVal>>> {
+            match self {
+                TestVal::Int(_) => None,
+                TestVal::Pair(cell) => Some(cell.clone()),
+            }
+        }
+    }
+
+    // Cell //
+
+    #[test]
+    fn test_cell_clone_head_and_tail() {
+        let cell = Cell::new(TestVal::Int(5), None);
+        assert_eq!(cell.clone_head(), TestVal::Int(5));
+        assert_eq!(cell.clone_tail(), None);
+    }
+
+    #[test]
+    fn test_cell_borrow_head_and_tail() {
+        let cell = Cell::new(TestVal::Int(5), Some(TestVal::Int(88)));
+        assert_eq!(cell.borrow_head().doot(), 5);
+        assert_eq!(cell.clone_tail().unwrap().doot(), 88);
+    }
+
+    #[test]
+    fn test_cell_set_head_and_tail() {
+        let cell = Cell::new_mut(TestVal::Int(5), None);
+        cell.set_head(TestVal::Int(56));
+        cell.set_tail(Some(TestVal::Int(99)));
+        assert_eq!(cell.clone_head(), TestVal::Int(56));
+        assert_eq!(cell.clone_tail(), Some(TestVal::Int(99)));
+    }
+
+    #[test]
+    fn test_cell_is_mutable() {
+        let cell = Cell::new(TestVal::Int(5), None);
+        assert_eq!(cell.is_mut(), false);
+
+        let cell = Cell::new_mut(TestVal::Int(5), None);
+        assert_eq!(cell.is_mut(), true);
+    }
+
+    #[test]
+    fn test_cell_is_dotted() {
+        let cell = Cell::new(TestVal::Int(5), None);
+        assert_eq!(cell.is_dotted(), false);
+
+        let cell = Cell::new(
+            TestVal::Int(5),
+            Some(TestVal::Pair(Rc::new(Cell::new(TestVal::Int(9), None)))),
+        );
+        assert_eq!(cell.is_dotted(), false);
+
+        let cell = Cell::new(TestVal::Int(5), Some(TestVal::Int(6)));
+        assert_eq!(cell.is_dotted(), true);
+    }
+
+    // Iterators //
+
+    #[test]
+    fn test_cell_iterator() {
+        let cell = Rc::new(Cell::new(TestVal::Int(5), None));
+        let cell2 = Rc::new(Cell::new(
+            TestVal::Int(4),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new(
+            TestVal::Int(3),
+            Some(TestVal::Pair(cell2.clone())),
+        ));
+        let cell4 = Rc::new(Cell::new(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell3.clone())),
+        ));
+        let cell5 = Rc::new(Cell::new(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell4.clone())),
+        ));
+
+        let mut iter = CellIter::new(cell5.clone());
+        assert_eq!(iter.next(), Some(cell5));
+        assert_eq!(iter.next(), Some(cell4));
+        assert_eq!(iter.next(), Some(cell3));
+        assert_eq!(iter.next(), Some(cell2));
+        assert_eq!(iter.next(), Some(cell));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_cell_value_iterator_last_is_not_dotted() {
+        let cell = Rc::new(Cell::new(TestVal::Int(5), None));
+        let cell2 = Rc::new(Cell::new(
+            TestVal::Int(4),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new(
+            TestVal::Int(3),
+            Some(TestVal::Pair(cell2.clone())),
+        ));
+        let cell4 = Rc::new(Cell::new(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell3.clone())),
+        ));
+        let cell5 = Rc::new(Cell::new(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell4.clone())),
+        ));
+
+        let mut iter = CellValueIter::new(cell5.clone());
+        assert_eq!(iter.next(), Some(TestVal::Int(1)));
+        assert_eq!(iter.next(), Some(TestVal::Int(2)));
+        assert_eq!(iter.next(), Some(TestVal::Int(3)));
+        assert_eq!(iter.next(), Some(TestVal::Int(4)));
+        assert_eq!(iter.next(), Some(TestVal::Int(5)));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_cell_value_iterator_last_is_dotted() {
+        let cell = Rc::new(Cell::new(TestVal::Int(5), Some(TestVal::Int(6))));
+        let cell2 = Rc::new(Cell::new(
+            TestVal::Int(4),
+            Some(TestVal::Pair(cell.clone())),
+        ));
+        let cell3 = Rc::new(Cell::new(
+            TestVal::Int(3),
+            Some(TestVal::Pair(cell2.clone())),
+        ));
+        let cell4 = Rc::new(Cell::new(
+            TestVal::Int(2),
+            Some(TestVal::Pair(cell3.clone())),
+        ));
+        let cell5 = Rc::new(Cell::new(
+            TestVal::Int(1),
+            Some(TestVal::Pair(cell4.clone())),
+        ));
+
+        let mut iter = CellValueIter::new(cell5.clone());
+        assert_eq!(iter.next(), Some(TestVal::Int(1)));
+        assert_eq!(iter.next(), Some(TestVal::Int(2)));
+        assert_eq!(iter.next(), Some(TestVal::Int(3)));
+        assert_eq!(iter.next(), Some(TestVal::Int(4)));
+        assert_eq!(iter.next(), Some(TestVal::Int(5)));
+        assert_eq!(iter.next(), Some(TestVal::Int(6)));
+        assert_eq!(iter.next(), None);
     }
 }
