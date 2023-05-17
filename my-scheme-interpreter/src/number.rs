@@ -3,6 +3,7 @@ use std::fmt;
 
 // TODO add necessary arithmetic functions from the report that are needed
 // to implement others in core_proc or in scheme code.
+// TODO implement Display, ExternalRep, Default, etc.
 
 // Arithmetic Errors //////////////////////////////////////////////////////////
 

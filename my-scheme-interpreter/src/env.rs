@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::rc::Rc;
 
+// TODO implement Display, ExternalRep, etc.
+
 // Environment as Linked List /////////////////////////////////////////////////
 
 #[derive(Debug)]

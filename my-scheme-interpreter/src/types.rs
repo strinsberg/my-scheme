@@ -7,7 +7,10 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-// TODO rename ScmVal to just Val
+// TODO create a trait for things that have a to_extern method like display. It
+// can just return a string. But that way we can force all the T types to implement
+// it as a trait and then easily distinguish between to to_string/Display and to_extern.
+// TODO rename ScmVal to just Val and implement all the traits, CellValue etc.
 // TODO rename ScmString and ScmChar to Str and Chr
 // TODO break these types out of here and put them in their own files, closure
 // and some vector wrapper, since they are supposed to be arrays. The string
@@ -283,6 +286,7 @@ fn display_vec(f: &mut fmt::Formatter, vec: Rc<VecRef>) -> fmt::Result {
 
 // Cons Cells /////////////////////////////////////////////////////////////////
 
+// TODO this is replaced by cell::Cell<T>
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub mutable: bool,
@@ -437,6 +441,14 @@ impl Iterator for CellIter {
 
 // Closure ////////////////////////////////////////////////////////////////////
 
+// TODO remake this like other structures we have used, but keep it in here
+// because of all of them it really does not make sense apart from the scheme
+// value. Implement all the traits we have for the other ones for this one too.
+// Val should mostly just be calling those traits on its wrapped types.
+// TODO can we nest Fromals inside of Closure?
+// TODO also special forms are kind of like closures, in that they contain information
+// for some code to be run, so group the closer
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Formals {
     Collect(ScmVal),
@@ -522,6 +534,7 @@ impl StringRef {
 
 // Like Cell we use a RefCell inside to allow mutability, while keeping the
 // ScmVal as just one variant.
+// TODO this is replaced by Vector<T>
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VecRef {
     pub mutable: bool,

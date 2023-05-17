@@ -24,25 +24,42 @@ use std::fmt;
 // TODO rewrite like Num, Cell, and Env with rust traits implemented for creating from
 // strings and bytes. Move the char to its own file unless it is really small
 // afterward, because both need to be tested.
+// TODO add the string builtins into this class and just do type and arity checks
+// in the core procs. Some things might still be good in scheme, but it is so
+// much better for being informative about errors etc. if we do as much in
+// rust as possible and putting it in classes organizes it nicely. I.e. the rust
+// types are the types we have in the scheme interpreter and their methods are the
+// functions called on them except with the wrapper of the Val type.
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ScmString {
+    // add a mutable flag
+    // make this private so that it cannot be adjusted, and put it into a ref cell
     pub chars: Vec<ScmChar>,
 }
 
 impl ScmString {
+    // Add constructors that take value and size
+    // Add methods like get and set and borrow_chars like in the vector class
+    // Add methods for length and mutability
+    // Basically copy the vector class
+
+    // make this a from trait or do like in so it can be mutable and immutable
     pub fn new(string: &str) -> ScmString {
         ScmString {
             chars: string.chars().map(|ch| ScmChar::from_char(ch)).collect(),
         }
     }
 
+    // make this a from trait and use &[u8] instead, can use from because
+    // if we are creating from bytes it is an immutable string for sure.
     pub fn from_bytes(bytes: &Vec<u8>) -> ScmString {
         ScmString {
             chars: bytes.iter().map(|b| ScmChar::new(*b)).collect(),
         }
     }
 
+    // Do this in display trait
     pub fn to_string(&self) -> String {
         self.chars
             .iter()
@@ -60,6 +77,7 @@ impl ScmString {
             .collect()
     }
 
+    // Do this in an ExternalRep trait
     pub fn to_extern(&self) -> String {
         let string: String = self
             .chars
@@ -87,6 +105,7 @@ impl fmt::Display for ScmString {
     }
 }
 
+// Make this nicer??
 impl fmt::Debug for ScmString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = self
@@ -111,7 +130,9 @@ pub enum ScmChar {
     Unsupported,
 }
 
+// Adjust like above in some ways, though this is simpler. Maybe refer to Num.
 impl ScmChar {
+    // Implement this with a from trait
     pub fn new(byte: u8) -> ScmChar {
         match byte {
             0 => ScmChar::Null,
@@ -123,10 +144,12 @@ impl ScmChar {
         }
     }
 
+    // Implement this with a from trait
     pub fn from_char(ch: char) -> ScmChar {
         ScmChar::new(ch as u8)
     }
 
+    // Implement this in Display trait
     pub fn to_string(&self) -> String {
         match self {
             ScmChar::Null => "\0".to_string(),
@@ -138,6 +161,7 @@ impl ScmChar {
         }
     }
 
+    // Implement this in an ExternalRep trait
     pub fn to_extern(&self) -> String {
         match self {
             ScmChar::Null => "#\\null".to_string(),
@@ -164,6 +188,7 @@ impl ScmChar {
         self.to_byte() as i64
     }
 
+    // Organize these better as predicates and conversions
     pub fn is_alpha(&self) -> bool {
         (self.to_byte() as char).is_ascii_alphabetic()
     }
