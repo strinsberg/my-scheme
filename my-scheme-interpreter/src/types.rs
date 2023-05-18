@@ -1,11 +1,30 @@
-use crate::builtin::Builtin;
-use crate::number::Num;
-use crate::string::{ScmChar, ScmString};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::rc::Rc;
+//use crate::builtin::Builtin;
+//use crate::number::Num;
+//use crate::string::{ScmChar, ScmString};
+//use std::cell::RefCell;
+//use std::collections::HashMap;
+//use std::fmt;
+//use std::hash::{Hash, Hasher};
+//use std::rc::Rc;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    Bool,
+    Char,
+    Number,
+    Symbol,
+    Procedure,
+    String,
+    Pair,
+    Empty,
+    Vector,
+    Array,
+    Port,
+    Env,
+}
+
+/*
+////////////////////////////////////////////////////////////////////////////////
 
 // TODO create a trait for things that have a to_extern method like display. It
 // can just return a string. But that way we can force all the T types to implement
@@ -589,3 +608,4 @@ pub struct Env {
 // Implementation is in env_impl because it needs error and error needs other
 // stuff and to make it work I would have to move error in here too, and there
 // are enough things in here.
+*/

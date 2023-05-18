@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 // Environment as Linked List /////////////////////////////////////////////////
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Env<K, V>
 where
     K: Clone + PartialEq + Eq + Hash,
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_insert_a_vec_of_bindings() {
-        let mut env = Env::new();
+        let env = Env::new();
         env.insert_all(&[('a', 22), ('b', 99), ('c', 345)]);
         assert_eq!(env.lookup(&'a'), Some(22));
         assert_eq!(env.lookup(&'b'), Some(99));

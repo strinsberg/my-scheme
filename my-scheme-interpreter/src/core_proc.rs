@@ -1,7 +1,7 @@
 use crate::builtin::Builtin;
 use crate::error::{ScmErr, ValResult};
 use crate::number::Num;
-use crate::string::ScmString;
+use crate::string::Str;
 use crate::types::{Env, ScmVal};
 
 // All builtin functions that are not syntactic keywords and are the basic building
@@ -395,8 +395,7 @@ pub fn symbol_to_string(args: &[ScmVal]) -> ValResult {
 }
 pub fn string_to_symbol(args: &[ScmVal]) -> ValResult {
     match args[0].clone() {
-        ScmVal::NewString(s) if s.mutable => Ok(ScmVal::NewSymbol(s)),
-        ScmVal::NewString(s) if !s.mutable => Ok(ScmVal::new_sym(&s.to_string())),
+        ScmVal::NewString(s) => Ok(ScmVal::NewSymbol(s)),
         _ => Err(ScmErr::BadArgType(
             "symbol->string".to_owned(),
             "symbol".to_owned(),
@@ -611,6 +610,12 @@ pub fn num_geq(args: &[ScmVal]) -> ValResult {
 
 // Strings ////////////////////////////////////////////////////////////////////
 
+//  TODO add here string (use Str::from with a vec of Char), string-append,
+//  string->list, list->string, substring, string copy and remove them all
+//  from the .scm file. We can keep the comparissons for now.
+
+// TODO remove this functions as we are no longer having mutable strings so
+// this makes no sense
 pub fn make_string(args: &[ScmVal]) -> ValResult {
     let size = match args[0].clone() {
         ScmVal::Number(Num::Int(i)) if i >= 0 => i,
@@ -638,11 +643,12 @@ pub fn make_string(args: &[ScmVal]) -> ValResult {
     };
 
     Ok(ScmVal::from_scm_str(
-        ScmString::from_bytes(&vec![fill; size as usize]),
+        Str::from(&vec![fill; size as usize]),
         true,
     ))
 }
 
+// TODO no mutable strings
 pub fn string_set(args: &[ScmVal]) -> ValResult {
     let index = to_index(&args[1]).ok_or(ScmErr::BadArgType(
         "string-set!".to_owned(),
@@ -701,6 +707,7 @@ pub fn string_ref(args: &[ScmVal]) -> ValResult {
     ))?;
 
     match args[0].clone() {
+        // TODO returns a Char and needs to be wrapped back into an Val::Char
         ScmVal::NewString(s) => Ok(ScmVal::Character(s.get_char(index).ok_or(
             ScmErr::RangeError("string-ref".to_owned(), args[1].clone(), args[0].clone()),
         )?)),
@@ -714,6 +721,7 @@ pub fn string_ref(args: &[ScmVal]) -> ValResult {
 
 // Vector /////////////////////////////////////////////////////////////////////
 
+// TODO get rid of all of these that do mutable operations
 pub fn vector(args: &[ScmVal]) -> ValResult {
     Ok(ScmVal::new_vec_mut(args.to_vec()))
 }
