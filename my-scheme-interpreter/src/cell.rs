@@ -1,4 +1,5 @@
 use crate::rep::{DisplayRep, ExternalRep};
+// TODO archive this in favour of the mutable version.
 
 // TODO consider implementing map, filter, fold, reverse and other list methods
 // on here directly if they must be implemented in rust. Then core procs can

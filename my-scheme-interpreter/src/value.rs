@@ -2,7 +2,6 @@ use crate::array::Array;
 use crate::cell_mut::{Cell, CellValue};
 use crate::char::Char;
 use crate::env::Env;
-use crate::err::Error;
 use crate::number::Num;
 use crate::proc::{Closure, Proc};
 use crate::rep::{DisplayRep, ExternalRep};

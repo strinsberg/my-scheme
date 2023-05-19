@@ -1,4 +1,4 @@
-use crate::cell_mut::{Cell, CellIter, CellValueIter};
+use crate::cell_mut::Cell;
 use crate::err::Error;
 use crate::value::Value;
 
@@ -113,7 +113,6 @@ pub fn list_reverse(pair: &Value) -> Result<Value, Error> {
 
 // Testing ////////////////////////////////////////////////////////////////////
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -199,16 +198,18 @@ mod tests {
                 .unwrap()
                 .get_cell()
                 .unwrap()
-                .head(),
-            &Value::from(1)
+                .head()
+                .clone(),
+            Value::from(1)
         );
         assert_eq!(
             list_tail(&list, &Value::from(4))
                 .unwrap()
                 .get_cell()
                 .unwrap()
-                .head(),
-            &Value::from(5)
+                .head()
+                .clone(),
+            Value::from(5)
         );
         assert_eq!(list_tail(&list, &Value::from(5)), Ok(Value::Empty));
         assert_eq!(list_tail(&list, &Value::from(6)), Err(Error::OutOfRange));
@@ -219,16 +220,18 @@ mod tests {
                 .unwrap()
                 .get_cell()
                 .unwrap()
-                .head(),
-            &Value::from(1)
+                .head()
+                .clone(),
+            Value::from(1)
         );
         assert_eq!(
             list_tail(&list, &Value::from(4))
                 .unwrap()
                 .get_cell()
                 .unwrap()
-                .head(),
-            &Value::from(5)
+                .head()
+                .clone(),
+            Value::from(5)
         );
         assert_eq!(list_tail(&list, &Value::from(5)).unwrap(), Value::from(6));
         assert_eq!(list_tail(&list, &Value::from(6)), Err(Error::OutOfRange));
@@ -247,7 +250,7 @@ mod tests {
         let list = make_list_5();
         let rev_list = list_reverse(&list).unwrap();
         let cell = rev_list.get_cell().unwrap();
-        let mut iter = CellValueIter::new(cell);
+        let mut iter = cell.values();
         assert_eq!(iter.next(), Some(Value::from(5)));
         assert_eq!(iter.next(), Some(Value::from(4)));
         assert_eq!(iter.next(), Some(Value::from(3)));
@@ -258,7 +261,7 @@ mod tests {
         let list = Value::from(make_list_6_dotted());
         let rev_list = list_reverse(&list).unwrap();
         let cell = rev_list.get_cell().unwrap();
-        let mut iter = CellValueIter::new(cell);
+        let mut iter = cell.values();
         assert_eq!(iter.next(), Some(Value::from(6)));
         assert_eq!(iter.next(), Some(Value::from(5)));
         assert_eq!(iter.next(), Some(Value::from(4)));
@@ -314,4 +317,3 @@ mod tests {
         );
     }
 }
-*/

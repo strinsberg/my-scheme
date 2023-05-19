@@ -2,14 +2,6 @@ use crate::rep::{DisplayRep, ExternalRep};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
-// TODO consider implementing map, filter, fold, reverse and other list methods
-// on here directly if they must be implemented in rust. Then core procs can
-// just call them. I like doing things in scheme, but using core procs offers
-// a lot more flexibility for arity and type checking. We will essentially do
-// this for Num and have done it for Char, so why not all the types. Then Val
-// just wraps them and other things are a bridge between the Val variants,
-// the interpreter, and the base types.
-
 // Cell Value Trait ///////////////////////////////////////////////////////////
 
 pub trait CellValue<T>
@@ -236,7 +228,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::rc::Rc;
 
     // Test CellValue //
 
@@ -363,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
+    fn test_representations() {
         let list = make_list_5();
         let list2 = make_list_6_dotted();
         let list3 = TestVal::Pair(Cell::new(
@@ -371,16 +362,6 @@ mod tests {
             Some(TestVal::Pair(list.clone())),
         ));
         assert_eq!(list3.to_display(), "((1 2 3 4 5 . 6) 1 2 3 4 5)".to_owned());
-    }
-
-    #[test]
-    fn test_external() {
-        let list = make_list_5();
-        let list2 = make_list_6_dotted();
-        let list3 = TestVal::Pair(Cell::new(
-            TestVal::Pair(list2.clone()),
-            Some(TestVal::Pair(list.clone())),
-        ));
         assert_eq!(
             list3.to_external(),
             "((#1 #2 #3 #4 #5 . #6) #1 #2 #3 #4 #5)".to_owned()
