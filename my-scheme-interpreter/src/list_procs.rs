@@ -1,4 +1,4 @@
-use crate::cell_mut::Cell;
+use crate::cell::Cell;
 use crate::err::Error;
 use crate::value::Value;
 
@@ -116,7 +116,7 @@ pub fn list_reverse(pair: &Value) -> Result<Value, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell_mut::CellValue;
+    use crate::cell::CellValue;
 
     // Helpers //
 

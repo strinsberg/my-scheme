@@ -1,5 +1,5 @@
 use crate::array::Array;
-use crate::cell_mut::{Cell, CellValue};
+use crate::cell::{Cell, CellValue};
 use crate::char::Char;
 use crate::env::Env;
 use crate::number::Num;

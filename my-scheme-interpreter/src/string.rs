@@ -2,6 +2,9 @@ use crate::char::Char;
 use crate::err::Error;
 use crate::rep::{DisplayRep, ExternalRep};
 
+// TODO redo this like array, with Rc<Vec<RefCell<Char>>>
+// and use DisplayRep and ExternalRep for display and debug
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Str {
     chars: Vec<Char>,

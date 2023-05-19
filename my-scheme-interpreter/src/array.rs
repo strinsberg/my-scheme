@@ -1,10 +1,9 @@
-use crate::cell_mut::CellValue;
+use crate::cell::CellValue;
 use crate::rep::{DisplayRep, ExternalRep};
 use std::cell::{Ref, RefCell};
-use std::fmt::Debug;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Array<T>
 where
     T: Clone + CellValue<T> + ExternalRep + DisplayRep,
@@ -120,6 +119,24 @@ where
     }
 }
 
+impl<T> std::fmt::Display for Array<T>
+where
+    T: Clone + CellValue<T> + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl<T> std::fmt::Debug for Array<T>
+where
+    T: Clone + CellValue<T> + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Array{{ {} }}", self.to_external())
+    }
+}
+
 // Iterator ///////////////////////////////////////////////////////////////////
 
 pub struct ArrayIter<T>
@@ -164,7 +181,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell_mut::Cell;
+    use crate::cell::Cell;
 
     // Test CellValue //
 
