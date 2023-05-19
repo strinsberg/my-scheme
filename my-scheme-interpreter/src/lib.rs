@@ -1,4 +1,5 @@
 pub mod array;
+pub mod list_procs;
 //pub mod builtin;
 pub mod cell;
 pub mod char;

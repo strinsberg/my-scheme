@@ -174,6 +174,7 @@ mod test {
         assert_eq!(Char::from(UNSUP).to_display(), "**UNSUP**".to_owned());
     }
 
+    #[test]
     fn test_char_from_char_and_display() {
         for i in FIRST_ASCII..=LAST_ASCII {
             let other = i as char;
