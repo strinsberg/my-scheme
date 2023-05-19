@@ -1,4 +1,6 @@
 use crate::rep::{DisplayRep, ExternalRep};
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
 
 // TODO consider implementing map, filter, fold, reverse and other list methods
 // on here directly if they must be implemented in rust. Then core procs can
@@ -15,15 +17,15 @@ where
     T: Clone + DisplayRep + ExternalRep,
 {
     fn is_empty(&self) -> bool;
-    fn get_cell<'a>(&'a self) -> Option<&'a Cell<T>>;
+    fn get_cell(&self) -> Option<Cell<T>>;
 }
 
 // Cons Cell //////////////////////////////////////////////////////////////////
 
 #[derive(Clone, PartialEq)]
 pub struct Cell<T> {
-    head: T,
-    tail: Option<T>,
+    head: Rc<RefCell<T>>,
+    tail: Rc<RefCell<Option<T>>>,
 }
 
 impl<T> Cell<T>
@@ -34,36 +36,33 @@ where
 
     pub fn new(head: T, tail: Option<T>) -> Cell<T> {
         Cell {
-            head: head,
-            tail: tail,
+            head: Rc::new(RefCell::new(head)),
+            tail: Rc::new(RefCell::new(tail)),
         }
     }
 
     // Access //
 
-    pub fn head(&self) -> &T {
-        &self.head
+    pub fn head(&self) -> Ref<'_, T> {
+        self.head.borrow()
     }
 
-    pub fn tail(&self) -> Option<&T> {
-        match self.tail {
-            Some(ref t) => Some(t),
-            None => None,
-        }
+    pub fn tail(&self) -> Ref<'_, Option<T>> {
+        self.tail.borrow()
     }
 
     pub fn values(&self) -> CellValueIter<T> {
-        CellValueIter::new(self)
+        CellValueIter::new(self.clone())
     }
 
     pub fn cells(&self) -> CellIter<T> {
-        CellIter::new(self)
+        CellIter::new(self.clone())
     }
 
     // Information //
 
     pub fn is_dotted(&self) -> bool {
-        match self.tail() {
+        match self.tail().clone() {
             Some(val) => {
                 if val.is_empty() {
                     false
@@ -87,12 +86,13 @@ where
 {
     fn to_display(&self) -> String {
         let mut strings = vec![];
-        for cell in CellIter::new(self) {
+        for cell in self.cells() {
             strings.push(cell.head().to_display());
             if cell.is_dotted() {
                 strings.push(".".to_owned());
                 strings.push(
                     cell.tail()
+                        .clone()
                         .expect("dotted tail should not be none")
                         .to_display(),
                 );
@@ -108,12 +108,13 @@ where
 {
     fn to_external(&self) -> String {
         let mut strings = vec![];
-        for cell in CellIter::new(self) {
+        for cell in self.cells() {
             strings.push(cell.head().to_external());
             if cell.is_dotted() {
                 strings.push(".".to_owned());
                 strings.push(
                     cell.tail()
+                        .clone()
                         .expect("dotted tail should not be none")
                         .to_external(),
                 );
@@ -144,36 +145,37 @@ where
 // Cell Iterator //////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub struct CellIter<'a, T>
+pub struct CellIter<T>
 where
     T: Clone + CellValue<T> + DisplayRep + ExternalRep,
 {
-    cell: Option<&'a Cell<T>>,
+    cell: Option<Cell<T>>,
 }
 
-impl<'a, T> CellIter<'a, T>
+impl<'a, T> CellIter<T>
 where
     T: Clone + CellValue<T> + DisplayRep + ExternalRep,
 {
-    pub fn new(cell: &'a Cell<T>) -> CellIter<'a, T> {
+    pub fn new(cell: Cell<T>) -> CellIter<T> {
         CellIter { cell: Some(cell) }
     }
 }
 
-impl<'a, T> Iterator for CellIter<'a, T>
+impl<T> Iterator for CellIter<T>
 where
     T: Clone + CellValue<T> + DisplayRep + ExternalRep,
 {
-    type Item = &'a Cell<T>;
+    type Item = Cell<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.cell {
-            Some(cell) => {
-                let current = Some(cell);
-                self.cell = match cell.tail() {
-                    Some(val) => val.get_cell(),
+            Some(ref cell) => {
+                let next = match *cell.tail() {
+                    Some(ref val) => val.get_cell(),
                     None => None,
                 };
+                let current = Some(cell.clone());
+                self.cell = next;
                 current
             }
             None => None,
@@ -184,19 +186,19 @@ where
 // CellValue Iterator /////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub struct CellValueIter<'a, T>
+pub struct CellValueIter<T>
 where
     T: Clone + CellValue<T> + DisplayRep + ExternalRep,
 {
-    last: Option<&'a Cell<T>>,
-    iter: CellIter<'a, T>,
+    last: Option<T>,
+    iter: CellIter<T>,
 }
 
-impl<'a, T> CellValueIter<'a, T>
+impl<T> CellValueIter<T>
 where
     T: Clone + CellValue<T> + DisplayRep + ExternalRep,
 {
-    pub fn new(cell: &'a Cell<T>) -> CellValueIter<'a, T> {
+    pub fn new(cell: Cell<T>) -> CellValueIter<T> {
         CellValueIter {
             last: None,
             iter: CellIter::new(cell),
@@ -204,27 +206,26 @@ where
     }
 }
 
-impl<'a, T> Iterator for CellValueIter<'a, T>
+impl<T> Iterator for CellValueIter<T>
 where
     T: Clone + CellValue<T> + DisplayRep + ExternalRep,
 {
-    type Item = &'a T;
+    type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(cell) = self.last {
-            let value = cell.tail().expect("last should not have None tail");
+        if let Some(val) = self.last.clone() {
             self.last = None;
-            return Some(value);
+            return Some(val);
         }
 
         let next = self.iter.next();
         match next {
-            Some(cell) => {
+            Some(ref cell) => {
                 let value = cell.head();
                 if cell.is_dotted() {
-                    self.last = Some(cell);
+                    self.last = cell.tail().clone();
                 }
-                Some(value)
+                Some(value.clone())
             }
             None => None,
         }
@@ -242,14 +243,14 @@ mod tests {
     #[derive(Clone, Debug, PartialEq)]
     enum TestVal {
         Int(i64),
-        Pair(Rc<Cell<TestVal>>),
+        Pair(Cell<TestVal>),
     }
 
     impl CellValue<TestVal> for TestVal {
-        fn get_cell<'a>(&'a self) -> Option<&'a Cell<TestVal>> {
+        fn get_cell(&self) -> Option<Cell<TestVal>> {
             match self {
                 TestVal::Int(_) => None,
-                TestVal::Pair(cell) => Some(cell),
+                TestVal::Pair(cell) => Some(cell.clone()),
             }
         }
 
@@ -280,19 +281,19 @@ mod tests {
 
     fn make_list_5() -> Cell<TestVal> {
         let cell = Cell::new(TestVal::Int(5), None);
-        let cell2 = Cell::new(TestVal::Int(4), Some(TestVal::Pair(Rc::new(cell.clone()))));
-        let cell3 = Cell::new(TestVal::Int(3), Some(TestVal::Pair(Rc::new(cell2.clone()))));
-        let cell4 = Cell::new(TestVal::Int(2), Some(TestVal::Pair(Rc::new(cell3.clone()))));
-        let cell5 = Cell::new(TestVal::Int(1), Some(TestVal::Pair(Rc::new(cell4.clone()))));
+        let cell2 = Cell::new(TestVal::Int(4), Some(TestVal::Pair(cell.clone())));
+        let cell3 = Cell::new(TestVal::Int(3), Some(TestVal::Pair(cell2.clone())));
+        let cell4 = Cell::new(TestVal::Int(2), Some(TestVal::Pair(cell3.clone())));
+        let cell5 = Cell::new(TestVal::Int(1), Some(TestVal::Pair(cell4.clone())));
         cell5
     }
 
     fn make_list_6_dotted() -> Cell<TestVal> {
         let cell = Cell::new(TestVal::Int(5), Some(TestVal::Int(6)));
-        let cell2 = Cell::new(TestVal::Int(4), Some(TestVal::Pair(Rc::new(cell.clone()))));
-        let cell3 = Cell::new(TestVal::Int(3), Some(TestVal::Pair(Rc::new(cell2.clone()))));
-        let cell4 = Cell::new(TestVal::Int(2), Some(TestVal::Pair(Rc::new(cell3.clone()))));
-        let cell5 = Cell::new(TestVal::Int(1), Some(TestVal::Pair(Rc::new(cell4.clone()))));
+        let cell2 = Cell::new(TestVal::Int(4), Some(TestVal::Pair(cell.clone())));
+        let cell3 = Cell::new(TestVal::Int(3), Some(TestVal::Pair(cell2.clone())));
+        let cell4 = Cell::new(TestVal::Int(2), Some(TestVal::Pair(cell3.clone())));
+        let cell5 = Cell::new(TestVal::Int(1), Some(TestVal::Pair(cell4.clone())));
         cell5
     }
 
@@ -301,8 +302,8 @@ mod tests {
     #[test]
     fn test_cell_head_and_tail() {
         let cell = Cell::new(TestVal::Int(5), None);
-        assert_eq!(cell.head(), &TestVal::Int(5));
-        assert_eq!(cell.tail(), None);
+        assert_eq!(cell.head().clone(), TestVal::Int(5));
+        assert_eq!(cell.tail().clone(), None);
     }
 
     #[test]
@@ -312,7 +313,7 @@ mod tests {
 
         let cell = Cell::new(
             TestVal::Int(5),
-            Some(TestVal::Pair(Rc::new(Cell::new(TestVal::Int(9), None)))),
+            Some(TestVal::Pair(Cell::new(TestVal::Int(9), None))),
         );
         assert_eq!(cell.is_dotted(), false);
 
@@ -325,39 +326,39 @@ mod tests {
     #[test]
     fn test_cell_iterator() {
         let cell = Cell::new(TestVal::Int(5), None);
-        let cell2 = Cell::new(TestVal::Int(4), Some(TestVal::Pair(Rc::new(cell.clone()))));
-        let cell3 = Cell::new(TestVal::Int(3), Some(TestVal::Pair(Rc::new(cell2.clone()))));
-        let cell4 = Cell::new(TestVal::Int(2), Some(TestVal::Pair(Rc::new(cell3.clone()))));
-        let cell5 = Cell::new(TestVal::Int(1), Some(TestVal::Pair(Rc::new(cell4.clone()))));
+        let cell2 = Cell::new(TestVal::Int(4), Some(TestVal::Pair(cell.clone())));
+        let cell3 = Cell::new(TestVal::Int(3), Some(TestVal::Pair(cell2.clone())));
+        let cell4 = Cell::new(TestVal::Int(2), Some(TestVal::Pair(cell3.clone())));
+        let cell5 = Cell::new(TestVal::Int(1), Some(TestVal::Pair(cell4.clone())));
 
-        let mut iter = CellIter::new(&cell5);
-        assert_eq!(iter.next(), Some(&cell5));
-        assert_eq!(iter.next(), Some(&cell4));
-        assert_eq!(iter.next(), Some(&cell3));
-        assert_eq!(iter.next(), Some(&cell2));
-        assert_eq!(iter.next(), Some(&cell));
+        let mut iter = cell5.cells();
+        assert_eq!(iter.next(), Some(cell5));
+        assert_eq!(iter.next(), Some(cell4));
+        assert_eq!(iter.next(), Some(cell3));
+        assert_eq!(iter.next(), Some(cell2));
+        assert_eq!(iter.next(), Some(cell));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn test_cell_value_iterator() {
         let list = make_list_5();
-        let mut iter = CellValueIter::new(&list);
-        assert_eq!(iter.next(), Some(&TestVal::Int(1)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(2)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(3)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(4)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(5)));
+        let mut iter = list.values();
+        assert_eq!(iter.next(), Some(TestVal::Int(1)));
+        assert_eq!(iter.next(), Some(TestVal::Int(2)));
+        assert_eq!(iter.next(), Some(TestVal::Int(3)));
+        assert_eq!(iter.next(), Some(TestVal::Int(4)));
+        assert_eq!(iter.next(), Some(TestVal::Int(5)));
         assert_eq!(iter.next(), None);
 
         let list = make_list_6_dotted();
-        let mut iter = CellValueIter::new(&list);
-        assert_eq!(iter.next(), Some(&TestVal::Int(1)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(2)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(3)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(4)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(5)));
-        assert_eq!(iter.next(), Some(&TestVal::Int(6)));
+        let mut iter = list.values();
+        assert_eq!(iter.next(), Some(TestVal::Int(1)));
+        assert_eq!(iter.next(), Some(TestVal::Int(2)));
+        assert_eq!(iter.next(), Some(TestVal::Int(3)));
+        assert_eq!(iter.next(), Some(TestVal::Int(4)));
+        assert_eq!(iter.next(), Some(TestVal::Int(5)));
+        assert_eq!(iter.next(), Some(TestVal::Int(6)));
         assert_eq!(iter.next(), None);
     }
 
@@ -365,10 +366,10 @@ mod tests {
     fn test_display() {
         let list = make_list_5();
         let list2 = make_list_6_dotted();
-        let list3 = TestVal::Pair(Rc::new(Cell::new(
-            TestVal::Pair(Rc::new(list2.clone())),
-            Some(TestVal::Pair(Rc::new(list.clone()))),
-        )));
+        let list3 = TestVal::Pair(Cell::new(
+            TestVal::Pair(list2.clone()),
+            Some(TestVal::Pair(list.clone())),
+        ));
         assert_eq!(list3.to_display(), "((1 2 3 4 5 . 6) 1 2 3 4 5)".to_owned());
     }
 
@@ -376,10 +377,10 @@ mod tests {
     fn test_external() {
         let list = make_list_5();
         let list2 = make_list_6_dotted();
-        let list3 = TestVal::Pair(Rc::new(Cell::new(
-            TestVal::Pair(Rc::new(list2.clone())),
-            Some(TestVal::Pair(Rc::new(list.clone()))),
-        )));
+        let list3 = TestVal::Pair(Cell::new(
+            TestVal::Pair(list2.clone()),
+            Some(TestVal::Pair(list.clone())),
+        ));
         assert_eq!(
             list3.to_external(),
             "((#1 #2 #3 #4 #5 . #6) #1 #2 #3 #4 #5)".to_owned()

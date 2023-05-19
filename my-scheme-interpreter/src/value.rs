@@ -1,10 +1,11 @@
 use crate::array::Array;
-use crate::cell::{Cell, CellValue};
+use crate::cell_mut::{Cell, CellValue};
 use crate::char::Char;
 use crate::env::Env;
 use crate::err::Error;
 use crate::number::Num;
 use crate::proc::{Closure, Proc};
+use crate::rep::{DisplayRep, ExternalRep};
 use crate::string::Str;
 //use crate::vector::Vector;
 use std::rc::Rc;
@@ -19,7 +20,7 @@ pub enum Value {
     Symbol(Rc<Str>),
     Closure(Rc<Closure<Value>>),
     // Collections
-    Pair(Rc<Cell<Value>>),
+    Pair(Cell<Value>),
     String(Rc<Str>),
     //Vector(Rc<Vector<Value>>),
     Array(Rc<Array<Value>>),
@@ -123,18 +124,41 @@ impl From<char> for Value {
 
 impl From<Cell<Value>> for Value {
     fn from(cell: Cell<Value>) -> Value {
-        Value::Pair(Rc::new(cell))
+        Value::Pair(cell)
     }
 }
 
 // Cell Value //
 
 impl CellValue<Value> for Value {
-    fn get_cell<'a>(&'a self) -> Option<&'a Cell<Value>> {
+    fn get_cell(&self) -> Option<Cell<Value>> {
         match self {
-            Value::Pair(cell) => Some(cell),
+            Value::Pair(cell) => Some(cell.clone()),
             _ => None,
         }
+    }
+
+    fn is_empty(&self) -> bool {
+        match self {
+            Value::Empty => true,
+            _ => false,
+        }
+    }
+}
+
+// Representations //
+
+impl DisplayRep for Value {
+    fn to_display(&self) -> String {
+        // TODO implement for all types properly and then use for implementing Display
+        format!("{:?}", self)
+    }
+}
+
+impl ExternalRep for Value {
+    fn to_external(&self) -> String {
+        // TODO implement for all types properly and then use for implementing Debug
+        format!("{:?}", self)
     }
 }
 

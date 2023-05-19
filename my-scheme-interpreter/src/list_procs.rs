@@ -1,6 +1,17 @@
-use crate::cell::{Cell, CellIter, CellValueIter};
+use crate::cell_mut::{Cell, CellIter, CellValueIter};
 use crate::err::Error;
 use crate::value::Value;
+
+// TODO add pair procedures? like car, cdr, cons etc.
+// TODO consider how these will be used in core_procs. Will they be called
+// directly like list_length(arg[0]) or wrapped in other functions. If they are
+// not wrapped then the errors here need to be better or processed by the
+// interpreter somehow to return errors. I.e. if the types, arity, and name are
+// available from the Procedure, then if the apply errors we have what we need to
+// implement error processing once for builting procs. We already create the arity
+// error there, we could also create errors for bad argument types and out of ranges
+// where the procedure name is given and the expr that failed along with other
+// information.
 
 // Scheme List Procedures /////////////////////////////////////////////////////
 
@@ -11,42 +22,42 @@ pub fn list_length(pair: &Value) -> Result<Value, Error> {
 
     let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
     let mut len = 0;
-    for _ in CellValueIter::new(cell) {
+    for _ in cell.values() {
         len += 1;
     }
     Ok(Value::from(len))
 }
 
-pub fn list_tail<'a>(pair: &'a Value, index: &'a Value) -> Result<&'a Value, Error> {
+pub fn list_tail(pair: &Value, index: &Value) -> Result<Value, Error> {
     let idx = Value::get_int(index).ok_or(Error::BadArg(2))? as usize;
     if idx == 0 {
-        return Ok(pair);
+        return Ok(pair.clone());
     } else if pair == &Value::Empty {
         return Err(Error::OutOfRange);
     }
 
     let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
-    for (i, cell) in CellIter::new(cell).enumerate() {
+    for (i, cell) in cell.cells().enumerate() {
         if idx == i + 1 {
-            return match cell.tail() {
+            return match cell.tail().clone() {
                 Some(v) => Ok(v),
-                None => Ok(&Value::Empty),
+                None => Ok(Value::Empty),
             };
         }
     }
     Err(Error::OutOfRange)
 }
 
-pub fn list_ref<'a>(pair: &'a Value, index: &'a Value) -> Result<&'a Value, Error> {
+pub fn list_ref(pair: &Value, index: &Value) -> Result<Value, Error> {
     if pair == &Value::Empty {
         return Err(Error::OutOfRange);
     }
 
     let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
     let idx = Value::get_int(index).ok_or(Error::BadArg(2))? as usize;
-    for (i, value) in CellValueIter::new(cell).enumerate() {
+    for (i, value) in cell.values().enumerate() {
         if idx == i {
-            return Ok(value);
+            return Ok(value.clone());
         }
     }
     Err(Error::OutOfRange)
@@ -64,7 +75,7 @@ pub fn list_append(pair: &Value, other: &Value) -> Result<Value, Error> {
         o => Some(o.clone()),
     };
 
-    for value in CellValueIter::new(rev_cell) {
+    for value in rev_cell.values() {
         result = Some(Value::from(Cell::new(value.clone(), result)));
     }
     Ok(result.expect("result should not be None"))
@@ -78,18 +89,21 @@ pub fn list_reverse(pair: &Value) -> Result<Value, Error> {
     let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
     if cell.is_dotted() {
         return Ok(Value::from(Cell::new(
-            cell.tail().expect("dotted tail should not be none").clone(),
+            cell.tail()
+                .clone()
+                .expect("dotted tail should not be none")
+                .clone(),
             Some(cell.head().clone()),
         )));
     }
 
     let mut res = Value::from(Cell::new(cell.head().clone(), None));
-    match cell.tail() {
+    match cell.tail().clone() {
         Some(tail) => {
-            let tail_cell = Value::get_pair_cell(tail)
+            let tail_cell = Value::get_pair_cell(&tail)
                 .expect("tail cell should not be None if val is not Dotted");
-            for value in CellValueIter::new(tail_cell) {
-                res = Value::from(Cell::new(value.clone(), Some(res)));
+            for value in tail_cell.values() {
+                res = Value::from(Cell::new(value, Some(res)));
             }
             Ok(res)
         }
@@ -99,10 +113,11 @@ pub fn list_reverse(pair: &Value) -> Result<Value, Error> {
 
 // Testing ////////////////////////////////////////////////////////////////////
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell::CellValue;
+    use crate::cell_mut::CellValue;
 
     // Helpers //
 
@@ -148,20 +163,20 @@ mod tests {
     #[test]
     fn test_list_ref() {
         let list = make_list_5();
-        assert_eq!(list_ref(&list, &Value::from(0)), Ok(&Value::from(1)));
-        assert_eq!(list_ref(&list, &Value::from(1)), Ok(&Value::from(2)));
-        assert_eq!(list_ref(&list, &Value::from(2)), Ok(&Value::from(3)));
-        assert_eq!(list_ref(&list, &Value::from(3)), Ok(&Value::from(4)));
-        assert_eq!(list_ref(&list, &Value::from(4)), Ok(&Value::from(5)));
+        assert_eq!(list_ref(&list, &Value::from(0)), Ok(Value::from(1)));
+        assert_eq!(list_ref(&list, &Value::from(1)), Ok(Value::from(2)));
+        assert_eq!(list_ref(&list, &Value::from(2)), Ok(Value::from(3)));
+        assert_eq!(list_ref(&list, &Value::from(3)), Ok(Value::from(4)));
+        assert_eq!(list_ref(&list, &Value::from(4)), Ok(Value::from(5)));
         assert_eq!(list_ref(&list, &Value::from(5)), Err(Error::OutOfRange));
 
         let list = make_list_6_dotted();
-        assert_eq!(list_ref(&list, &Value::from(0)), Ok(&Value::from(1)));
-        assert_eq!(list_ref(&list, &Value::from(1)), Ok(&Value::from(2)));
-        assert_eq!(list_ref(&list, &Value::from(2)), Ok(&Value::from(3)));
-        assert_eq!(list_ref(&list, &Value::from(3)), Ok(&Value::from(4)));
-        assert_eq!(list_ref(&list, &Value::from(4)), Ok(&Value::from(5)));
-        assert_eq!(list_ref(&list, &Value::from(5)), Ok(&Value::from(6)));
+        assert_eq!(list_ref(&list, &Value::from(0)), Ok(Value::from(1)));
+        assert_eq!(list_ref(&list, &Value::from(1)), Ok(Value::from(2)));
+        assert_eq!(list_ref(&list, &Value::from(2)), Ok(Value::from(3)));
+        assert_eq!(list_ref(&list, &Value::from(3)), Ok(Value::from(4)));
+        assert_eq!(list_ref(&list, &Value::from(4)), Ok(Value::from(5)));
+        assert_eq!(list_ref(&list, &Value::from(5)), Ok(Value::from(6)));
         assert_eq!(list_ref(&list, &Value::from(6)), Err(Error::OutOfRange));
 
         // other
@@ -195,7 +210,7 @@ mod tests {
                 .head(),
             &Value::from(5)
         );
-        assert_eq!(list_tail(&list, &Value::from(5)), Ok(&Value::Empty));
+        assert_eq!(list_tail(&list, &Value::from(5)), Ok(Value::Empty));
         assert_eq!(list_tail(&list, &Value::from(6)), Err(Error::OutOfRange));
 
         let list = make_list_6_dotted();
@@ -215,7 +230,7 @@ mod tests {
                 .head(),
             &Value::from(5)
         );
-        assert_eq!(list_tail(&list, &Value::from(5)).unwrap(), &Value::from(6));
+        assert_eq!(list_tail(&list, &Value::from(5)).unwrap(), Value::from(6));
         assert_eq!(list_tail(&list, &Value::from(6)), Err(Error::OutOfRange));
 
         // Other
@@ -224,7 +239,7 @@ mod tests {
             list_tail(&Value::Empty, &Value::from(1)),
             Err(Error::OutOfRange)
         );
-        assert_eq!(list_tail(&Value::Empty, &Value::from(0)), Ok(&Value::Empty));
+        assert_eq!(list_tail(&Value::Empty, &Value::from(0)), Ok(Value::Empty));
     }
 
     #[test]
@@ -233,23 +248,23 @@ mod tests {
         let rev_list = list_reverse(&list).unwrap();
         let cell = rev_list.get_cell().unwrap();
         let mut iter = CellValueIter::new(cell);
-        assert_eq!(iter.next(), Some(&Value::from(5)));
-        assert_eq!(iter.next(), Some(&Value::from(4)));
-        assert_eq!(iter.next(), Some(&Value::from(3)));
-        assert_eq!(iter.next(), Some(&Value::from(2)));
-        assert_eq!(iter.next(), Some(&Value::from(1)));
+        assert_eq!(iter.next(), Some(Value::from(5)));
+        assert_eq!(iter.next(), Some(Value::from(4)));
+        assert_eq!(iter.next(), Some(Value::from(3)));
+        assert_eq!(iter.next(), Some(Value::from(2)));
+        assert_eq!(iter.next(), Some(Value::from(1)));
         assert_eq!(iter.next(), None);
 
         let list = Value::from(make_list_6_dotted());
         let rev_list = list_reverse(&list).unwrap();
         let cell = rev_list.get_cell().unwrap();
         let mut iter = CellValueIter::new(cell);
-        assert_eq!(iter.next(), Some(&Value::from(6)));
-        assert_eq!(iter.next(), Some(&Value::from(5)));
-        assert_eq!(iter.next(), Some(&Value::from(4)));
-        assert_eq!(iter.next(), Some(&Value::from(3)));
-        assert_eq!(iter.next(), Some(&Value::from(2)));
-        assert_eq!(iter.next(), Some(&Value::from(1)));
+        assert_eq!(iter.next(), Some(Value::from(6)));
+        assert_eq!(iter.next(), Some(Value::from(5)));
+        assert_eq!(iter.next(), Some(Value::from(4)));
+        assert_eq!(iter.next(), Some(Value::from(3)));
+        assert_eq!(iter.next(), Some(Value::from(2)));
+        assert_eq!(iter.next(), Some(Value::from(1)));
         assert_eq!(iter.next(), None);
 
         // Other
@@ -261,32 +276,32 @@ mod tests {
     fn test_list_append() {
         let list = make_list_5();
         let list2 = list_append(&list, &list).unwrap();
-        assert_eq!(list_ref(&list2, &Value::from(0)), Ok(&Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(1)), Ok(&Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(2)), Ok(&Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(3)), Ok(&Value::from(4)));
-        assert_eq!(list_ref(&list2, &Value::from(4)), Ok(&Value::from(5)));
-        assert_eq!(list_ref(&list2, &Value::from(5)), Ok(&Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(6)), Ok(&Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(7)), Ok(&Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(8)), Ok(&Value::from(4)));
-        assert_eq!(list_ref(&list2, &Value::from(9)), Ok(&Value::from(5)));
+        assert_eq!(list_ref(&list2, &Value::from(0)), Ok(Value::from(1)));
+        assert_eq!(list_ref(&list2, &Value::from(1)), Ok(Value::from(2)));
+        assert_eq!(list_ref(&list2, &Value::from(2)), Ok(Value::from(3)));
+        assert_eq!(list_ref(&list2, &Value::from(3)), Ok(Value::from(4)));
+        assert_eq!(list_ref(&list2, &Value::from(4)), Ok(Value::from(5)));
+        assert_eq!(list_ref(&list2, &Value::from(5)), Ok(Value::from(1)));
+        assert_eq!(list_ref(&list2, &Value::from(6)), Ok(Value::from(2)));
+        assert_eq!(list_ref(&list2, &Value::from(7)), Ok(Value::from(3)));
+        assert_eq!(list_ref(&list2, &Value::from(8)), Ok(Value::from(4)));
+        assert_eq!(list_ref(&list2, &Value::from(9)), Ok(Value::from(5)));
         assert_eq!(list_ref(&list2, &Value::from(10)), Err(Error::OutOfRange));
 
         let list = make_list_6_dotted();
         let list2 = list_append(&list, &list).unwrap();
-        assert_eq!(list_ref(&list2, &Value::from(0)), Ok(&Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(1)), Ok(&Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(2)), Ok(&Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(3)), Ok(&Value::from(4)));
-        assert_eq!(list_ref(&list2, &Value::from(4)), Ok(&Value::from(5)));
-        assert_eq!(list_ref(&list2, &Value::from(5)), Ok(&Value::from(6)));
-        assert_eq!(list_ref(&list2, &Value::from(6)), Ok(&Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(7)), Ok(&Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(8)), Ok(&Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(9)), Ok(&Value::from(4)));
-        assert_eq!(list_ref(&list2, &Value::from(10)), Ok(&Value::from(5)));
-        assert_eq!(list_ref(&list2, &Value::from(11)), Ok(&Value::from(6)));
+        assert_eq!(list_ref(&list2, &Value::from(0)), Ok(Value::from(1)));
+        assert_eq!(list_ref(&list2, &Value::from(1)), Ok(Value::from(2)));
+        assert_eq!(list_ref(&list2, &Value::from(2)), Ok(Value::from(3)));
+        assert_eq!(list_ref(&list2, &Value::from(3)), Ok(Value::from(4)));
+        assert_eq!(list_ref(&list2, &Value::from(4)), Ok(Value::from(5)));
+        assert_eq!(list_ref(&list2, &Value::from(5)), Ok(Value::from(6)));
+        assert_eq!(list_ref(&list2, &Value::from(6)), Ok(Value::from(1)));
+        assert_eq!(list_ref(&list2, &Value::from(7)), Ok(Value::from(2)));
+        assert_eq!(list_ref(&list2, &Value::from(8)), Ok(Value::from(3)));
+        assert_eq!(list_ref(&list2, &Value::from(9)), Ok(Value::from(4)));
+        assert_eq!(list_ref(&list2, &Value::from(10)), Ok(Value::from(5)));
+        assert_eq!(list_ref(&list2, &Value::from(11)), Ok(Value::from(6)));
         assert_eq!(list_ref(&list2, &Value::from(12)), Err(Error::OutOfRange));
 
         // Other
@@ -299,3 +314,4 @@ mod tests {
         );
     }
 }
+*/

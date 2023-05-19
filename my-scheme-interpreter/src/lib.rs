@@ -1,7 +1,8 @@
 pub mod array;
+pub mod cell_mut;
 pub mod list_procs;
 //pub mod builtin;
-pub mod cell;
+//pub mod cell;
 pub mod char;
 //pub mod core_proc;
 pub mod env;
