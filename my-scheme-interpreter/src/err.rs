@@ -2,6 +2,8 @@
 pub enum Error {
     OutOfRange,
     DividByZero,
+    ArgsNotList,
+    Arity,
     BadArg(usize),
 }
 

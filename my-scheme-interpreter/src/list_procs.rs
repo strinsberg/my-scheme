@@ -1,6 +1,7 @@
 use crate::cell::Cell;
 use crate::err::Error;
 use crate::proc::Proc;
+use crate::proc_utils as utils;
 use crate::types::{Arity, Type};
 use crate::value::Value;
 
@@ -12,25 +13,36 @@ use crate::value::Value;
 pub fn make_procs() -> Vec<Proc<Value>> {
     vec![
         Proc::new("length", Arity::Fix(vec![Type::Pair]), |args| {
-            list_length(&args[0])
+            let first = utils::fixed_take_1(args)?;
+            list_length(&first)
         }),
         Proc::new(
             "list-tail",
             Arity::Fix(vec![Type::Pair, Type::UInt]),
-            |args| list_tail(&args[0], &args[1]),
+            |args| {
+                let (first, second) = utils::fixed_take_2(args)?;
+                list_tail(&first, &second)
+            },
         ),
         Proc::new(
             "list-ref",
             Arity::Fix(vec![Type::Pair, Type::UInt]),
-            |args| list_ref(&args[0], &args[1]),
+            |args| {
+                let (first, second) = utils::fixed_take_2(args)?;
+                list_ref(&first, &second)
+            },
         ),
         Proc::new(
             "list-append",
             Arity::Fix(vec![Type::Pair, Type::UInt]),
-            |args| list_append(&args[0], &args[1]),
+            |args| {
+                let (first, second) = utils::fixed_take_2(args)?;
+                list_append(&first, &second)
+            },
         ),
         Proc::new("list-reverse", Arity::Fix(vec![Type::Pair]), |args| {
-            list_reverse(&args[0])
+            let first = utils::fixed_take_1(args)?;
+            list_reverse(&first)
         }),
     ]
 }

@@ -18,9 +18,9 @@ pub enum Value {
     Symbol(Rc<Str>),
     Closure(Rc<Closure<Value>>),
     // Collections
-    Pair(Cell<Value>),
-    String(Str),
-    Array(Array<Value>),
+    Pair(Rc<Cell<Value>>),
+    String(Rc<Str>),
+    Array(Rc<Array<Value>>),
     Env(Rc<Env<Str, Value>>),
     Empty,
     // Other
@@ -120,7 +120,7 @@ impl From<char> for Value {
 
 impl From<Cell<Value>> for Value {
     fn from(cell: Cell<Value>) -> Value {
-        Value::Pair(cell)
+        Value::Pair(Rc::new(cell))
     }
 }
 
@@ -129,7 +129,7 @@ impl From<Cell<Value>> for Value {
 impl CellValue<Value> for Value {
     fn get_cell(&self) -> Option<Cell<Value>> {
         match self {
-            Value::Pair(cell) => Some(cell.clone()),
+            Value::Pair(cell) => Some(cell.as_ref().clone()),
             _ => None,
         }
     }

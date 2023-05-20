@@ -8,15 +8,15 @@ use std::rc::Rc;
 
 // Procedure //////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Proc<T> {
     pub name: Str,
     pub arity: Arity,
-    pub func: fn(Vec<T>) -> Result<T, Error>,
+    pub func: fn(&T) -> Result<T, Error>,
 }
 
 impl<T> Proc<T> {
-    pub fn new(name: &str, arity: Arity, func: fn(Vec<T>) -> Result<T, Error>) -> Proc<T> {
+    pub fn new(name: &str, arity: Arity, func: fn(&T) -> Result<T, Error>) -> Proc<T> {
         Proc {
             name: Str::from(name),
             arity: arity,
@@ -25,9 +25,23 @@ impl<T> Proc<T> {
     }
 }
 
+// Proc Traits ////////////////////////////////////////////////////////////////
+
+impl<T> PartialEq for Proc<T> {
+    fn eq(&self, other: &Proc<T>) -> bool {
+        self.name == other.name && self.arity == other.arity
+    }
+
+    fn ne(&self, other: &Proc<T>) -> bool {
+        !self.eq(other)
+    }
+}
+
+// Representation //
+
 impl<T> DisplayRep for Proc<T>
 where
-    T: Debug + DisplayRep,
+    T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn to_display(&self) -> String {
         "s".to_owned()
@@ -36,10 +50,28 @@ where
 
 impl<T> ExternalRep for Proc<T>
 where
-    T: Debug + ExternalRep,
+    T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn to_external(&self) -> String {
         "s".to_owned()
+    }
+}
+
+impl<T> std::fmt::Display for Proc<T>
+where
+    T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl<T> std::fmt::Debug for Proc<T>
+where
+    T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Cell{{ {} }}", self.to_external())
     }
 }
 
