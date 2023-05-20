@@ -9,6 +9,7 @@
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
+    Any,
     Bool,
     Char,
     Number,
@@ -16,22 +17,31 @@ pub enum Type {
     UInt,
     Float,
     Symbol,
-    Procedure,
+    Procedure(Box<Arity>),
     String,
     Pair,
     Empty,
-    Vector,
     Array,
     Port,
     Env,
-    List(Box<Type>),
+    ListOf(Box<Type>),
+}
+
+impl Type {
+    pub fn proc(arity: Arity) -> Type {
+        Type::Procedure(Box::new(arity))
+    }
+
+    pub fn list(t: Type) -> Type {
+        Type::ListOf(Box::new(t))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Arity {
-    All,
-    Fix(usize),
-    Rest(usize),
+    Collect(Type),
+    Fix(Vec<Type>),
+    Rest(Vec<Type>, Type),
 }
 
 /*

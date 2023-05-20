@@ -2,18 +2,9 @@ use crate::env::Env;
 use crate::err::Error;
 use crate::rep::{DisplayRep, ExternalRep};
 use crate::string::Str;
-use crate::types::{Arity, Type};
+use crate::types::Arity;
 use std::fmt::Debug;
 use std::rc::Rc;
-
-// Formals ////////////////////////////////////////////////////////////////////
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Formals {
-    Collect(Str),
-    Fixed(Vec<Str>),
-    Rest(Vec<Str>, Str),
-}
 
 // Procedure //////////////////////////////////////////////////////////////////
 
@@ -21,21 +12,14 @@ pub enum Formals {
 pub struct Proc<T> {
     pub name: Str,
     pub arity: Arity,
-    pub types: Vec<Type>,
     pub func: fn(Vec<T>) -> Result<T, Error>,
 }
 
 impl<T> Proc<T> {
-    pub fn new(
-        name: &str,
-        arity: Arity,
-        types: Vec<Type>,
-        func: fn(Vec<T>) -> Result<T, Error>,
-    ) -> Proc<T> {
+    pub fn new(name: &str, arity: Arity, func: fn(Vec<T>) -> Result<T, Error>) -> Proc<T> {
         Proc {
             name: Str::from(name),
             arity: arity,
-            types: types,
             func: func,
         }
     }
@@ -109,6 +93,15 @@ where
     fn to_external(&self) -> String {
         "s".to_owned()
     }
+}
+
+// Formals ////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Formals {
+    Collect(Str),
+    Fixed(Vec<Str>),
+    Rest(Vec<Str>, Str),
 }
 
 // Testing ////////////////////////////////////////////////////////////////////

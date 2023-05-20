@@ -11,28 +11,25 @@ use crate::value::Value;
 
 pub fn make_procs() -> Vec<Proc<Value>> {
     vec![
-        Proc::new("length", Arity::Fix(1), vec![Type::Pair], |args| {
+        Proc::new("length", Arity::Fix(vec![Type::Pair]), |args| {
             list_length(&args[0])
         }),
         Proc::new(
             "list-tail",
-            Arity::Fix(2),
-            vec![Type::Pair, Type::UInt],
+            Arity::Fix(vec![Type::Pair, Type::UInt]),
             |args| list_tail(&args[0], &args[1]),
         ),
         Proc::new(
             "list-ref",
-            Arity::Fix(2),
-            vec![Type::Pair, Type::UInt],
+            Arity::Fix(vec![Type::Pair, Type::UInt]),
             |args| list_ref(&args[0], &args[1]),
         ),
         Proc::new(
             "list-append",
-            Arity::Fix(2),
-            vec![Type::Pair, Type::UInt],
+            Arity::Fix(vec![Type::Pair, Type::UInt]),
             |args| list_append(&args[0], &args[1]),
         ),
-        Proc::new("list-reverse", Arity::Fix(1), vec![Type::Pair], |args| {
+        Proc::new("list-reverse", Arity::Fix(vec![Type::Pair]), |args| {
             list_reverse(&args[0])
         }),
     ]
