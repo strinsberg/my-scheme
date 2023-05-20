@@ -1,8 +1,10 @@
 pub mod array;
 pub mod array_procs;
 pub mod cell;
+pub mod char_procs;
 pub mod list_procs;
 pub mod proc_utils;
+pub mod string_procs;
 //pub mod builtin;
 pub mod char;
 //pub mod core_proc;

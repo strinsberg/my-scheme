@@ -124,6 +124,12 @@ impl From<char> for Value {
     }
 }
 
+impl From<Str> for Value {
+    fn from(s: Str) -> Value {
+        Value::String(Rc::new(s))
+    }
+}
+
 impl From<Cell<Value>> for Value {
     fn from(cell: Cell<Value>) -> Value {
         Value::Pair(Rc::new(cell))
