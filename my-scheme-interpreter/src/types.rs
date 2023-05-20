@@ -25,6 +25,7 @@ pub enum Type {
     Port,
     Env,
     ListOf(Box<Type>),
+    Opt(Box<Type>),
 }
 
 impl Type {
@@ -35,12 +36,16 @@ impl Type {
     pub fn list(t: Type) -> Type {
         Type::ListOf(Box::new(t))
     }
+
+    pub fn opt(t: Type) -> Type {
+        Type::Opt(Box::new(t))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Arity {
     Collect(Type),
-    Fix(Vec<Type>),
+    Fixed(Vec<Type>),
     Rest(Vec<Type>, Type),
 }
 

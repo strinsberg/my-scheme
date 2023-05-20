@@ -6,6 +6,8 @@ use crate::types::{Arity, Type};
 use crate::value::Value;
 
 // NOTE car, cdr, variants will stay in std.scm
+// TODO Now that these are called with wrappers that produce values and not &values
+// remove the & from all of them, it is unecessary.
 // TODO test new procedures
 
 // Exported Procedures ////////////////////////////////////////////////////////
@@ -13,40 +15,40 @@ use crate::value::Value;
 pub fn make_procs() -> Vec<Proc<Value>> {
     vec![
         // Core //
-        Proc::new("car", Arity::Fix(vec![Type::Pair]), |args| {
+        Proc::new("car", Arity::Fixed(vec![Type::Pair]), |args| {
             let first = utils::fixed_take_1(args)?;
             car(&first)
         }),
-        Proc::new("cdr", Arity::Fix(vec![Type::Pair]), |args| {
+        Proc::new("cdr", Arity::Fixed(vec![Type::Pair]), |args| {
             let first = utils::fixed_take_1(args)?;
             cdr(&first)
         }),
-        Proc::new("cons", Arity::Fix(vec![Type::Any, Type::Any]), |args| {
+        Proc::new("cons", Arity::Fixed(vec![Type::Any, Type::Any]), |args| {
             let (first, second) = utils::fixed_take_2(args)?;
             cons(&first, &second)
         }),
         Proc::new("list", Arity::Collect(Type::Any), |args| new_list(&args)),
         // Predicates //
-        Proc::new("list?", Arity::Fix(vec![Type::Any]), |args| {
+        Proc::new("list?", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
             is_list(&first)
         }),
-        Proc::new("pair?", Arity::Fix(vec![Type::Any]), |args| {
+        Proc::new("pair?", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
             is_pair(&first)
         }),
-        Proc::new("null?", Arity::Fix(vec![Type::Any]), |args| {
+        Proc::new("null?", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
             is_null(&first)
         }),
         // Non-Mutating //
-        Proc::new("length", Arity::Fix(vec![Type::Pair]), |args| {
+        Proc::new("length", Arity::Fixed(vec![Type::Pair]), |args| {
             let first = utils::fixed_take_1(args)?;
             list_length(&first)
         }),
         Proc::new(
             "list-tail",
-            Arity::Fix(vec![Type::Pair, Type::UInt]),
+            Arity::Fixed(vec![Type::Pair, Type::UInt]),
             |args| {
                 let (first, second) = utils::fixed_take_2(args)?;
                 list_tail(&first, &second)
@@ -54,7 +56,7 @@ pub fn make_procs() -> Vec<Proc<Value>> {
         ),
         Proc::new(
             "list-ref",
-            Arity::Fix(vec![Type::Pair, Type::UInt]),
+            Arity::Fixed(vec![Type::Pair, Type::UInt]),
             |args| {
                 let (first, second) = utils::fixed_take_2(args)?;
                 list_ref(&first, &second)
@@ -62,20 +64,20 @@ pub fn make_procs() -> Vec<Proc<Value>> {
         ),
         Proc::new(
             "list-append",
-            Arity::Fix(vec![Type::Pair, Type::UInt]),
+            Arity::Fixed(vec![Type::Pair, Type::UInt]),
             |args| {
                 let (first, second) = utils::fixed_take_2(args)?;
                 list_append(&first, &second)
             },
         ),
-        Proc::new("list-reverse", Arity::Fix(vec![Type::Pair]), |args| {
+        Proc::new("list-reverse", Arity::Fixed(vec![Type::Pair]), |args| {
             let first = utils::fixed_take_1(args)?;
             list_reverse(&first)
         }),
         // Mutating //
         Proc::new(
             "set-car!",
-            Arity::Fix(vec![Type::Pair, Type::Any]),
+            Arity::Fixed(vec![Type::Pair, Type::Any]),
             |args| {
                 let (first, second) = utils::fixed_take_2(args)?;
                 set_car(&first, &second)
@@ -83,7 +85,7 @@ pub fn make_procs() -> Vec<Proc<Value>> {
         ),
         Proc::new(
             "set-cdr!",
-            Arity::Fix(vec![Type::Pair, Type::Any]),
+            Arity::Fixed(vec![Type::Pair, Type::Any]),
             |args| {
                 let (first, second) = utils::fixed_take_2(args)?;
                 set_cdr(&first, &second)

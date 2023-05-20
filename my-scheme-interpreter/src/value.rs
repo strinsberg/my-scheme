@@ -106,6 +106,12 @@ impl Value {
 
 // From Traits/Constructors //
 
+impl Default for Value {
+    fn default() -> Value {
+        Value::Empty
+    }
+}
+
 impl From<i64> for Value {
     fn from(i: i64) -> Value {
         Value::Number(Num::Int(i))
@@ -121,6 +127,12 @@ impl From<char> for Value {
 impl From<Cell<Value>> for Value {
     fn from(cell: Cell<Value>) -> Value {
         Value::Pair(Rc::new(cell))
+    }
+}
+
+impl From<Array<Value>> for Value {
+    fn from(arr: Array<Value>) -> Value {
+        Value::Array(Rc::new(arr))
     }
 }
 

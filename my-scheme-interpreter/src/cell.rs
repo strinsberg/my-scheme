@@ -29,7 +29,10 @@ where
     pub fn new(head: T, tail: Option<T>) -> Cell<T> {
         Cell {
             head: Rc::new(RefCell::new(head)),
-            tail: Rc::new(RefCell::new(tail)),
+            tail: match tail {
+                Some(val) if val.is_empty() => Rc::new(RefCell::new(None)),
+                _ => Rc::new(RefCell::new(tail)),
+            },
         }
     }
 
