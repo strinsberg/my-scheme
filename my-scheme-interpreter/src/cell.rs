@@ -43,6 +43,14 @@ where
         self.tail.borrow()
     }
 
+    pub fn set_head(&self, val: T) -> T {
+        self.head.replace(val)
+    }
+
+    pub fn set_tail(&self, val: Option<T>) -> Option<T> {
+        self.tail.replace(val)
+    }
+
     pub fn values(&self) -> CellValueIter<T> {
         CellValueIter::new(self.clone())
     }

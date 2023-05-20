@@ -5,13 +5,41 @@ use crate::proc_utils as utils;
 use crate::types::{Arity, Type};
 use crate::value::Value;
 
-// TODO add pair procedures? like car, cdr, cons etc.
-// TODO add mutating procedures too.
+// NOTE car, cdr, variants will stay in std.scm
+// TODO test new procedures
 
 // Exported Procedures ////////////////////////////////////////////////////////
 
 pub fn make_procs() -> Vec<Proc<Value>> {
     vec![
+        // Core //
+        Proc::new("car", Arity::Fix(vec![Type::Pair]), |args| {
+            let first = utils::fixed_take_1(args)?;
+            car(&first)
+        }),
+        Proc::new("cdr", Arity::Fix(vec![Type::Pair]), |args| {
+            let first = utils::fixed_take_1(args)?;
+            cdr(&first)
+        }),
+        Proc::new("cons", Arity::Fix(vec![Type::Any, Type::Any]), |args| {
+            let (first, second) = utils::fixed_take_2(args)?;
+            cons(&first, &second)
+        }),
+        Proc::new("list", Arity::Collect(Type::Any), |args| new_list(&args)),
+        // Predicates //
+        Proc::new("list?", Arity::Fix(vec![Type::Any]), |args| {
+            let first = utils::fixed_take_1(args)?;
+            is_list(&first)
+        }),
+        Proc::new("pair?", Arity::Fix(vec![Type::Any]), |args| {
+            let first = utils::fixed_take_1(args)?;
+            is_pair(&first)
+        }),
+        Proc::new("null?", Arity::Fix(vec![Type::Any]), |args| {
+            let first = utils::fixed_take_1(args)?;
+            is_null(&first)
+        }),
+        // Non-Mutating //
         Proc::new("length", Arity::Fix(vec![Type::Pair]), |args| {
             let first = utils::fixed_take_1(args)?;
             list_length(&first)
@@ -44,10 +72,77 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             let first = utils::fixed_take_1(args)?;
             list_reverse(&first)
         }),
+        // Mutating //
+        Proc::new(
+            "set-car!",
+            Arity::Fix(vec![Type::Pair, Type::Any]),
+            |args| {
+                let (first, second) = utils::fixed_take_2(args)?;
+                set_car(&first, &second)
+            },
+        ),
+        Proc::new(
+            "set-cdr!",
+            Arity::Fix(vec![Type::Pair, Type::Any]),
+            |args| {
+                let (first, second) = utils::fixed_take_2(args)?;
+                set_cdr(&first, &second)
+            },
+        ),
     ]
 }
 
-// Scheme List Procedures /////////////////////////////////////////////////////
+// Scheme List/Pair Procedures ////////////////////////////////////////////////
+
+// Core Procedures //
+
+fn car(pair: &Value) -> Result<Value, Error> {
+    let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
+    Ok(cell.head().clone())
+}
+
+fn cdr(pair: &Value) -> Result<Value, Error> {
+    let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
+    match cell.tail().clone() {
+        Some(tail) => Ok(tail),
+        None => Ok(Value::Empty),
+    }
+}
+
+fn cons(first: &Value, second: &Value) -> Result<Value, Error> {
+    if second == &Value::Empty {
+        Ok(Value::from(Cell::new(first.clone(), None)))
+    } else {
+        Ok(Value::from(Cell::new(first.clone(), Some(second.clone()))))
+    }
+}
+
+fn new_list(args: &Value) -> Result<Value, Error> {
+    Value::get_pair_cell(args).ok_or(Error::ArgsNotList)?;
+    Ok(args.clone())
+}
+
+// Predicates //
+
+fn is_pair(value: &Value) -> Result<Value, Error> {
+    match Value::get_pair_cell(value) {
+        Some(_) => Ok(Value::Bool(true)),
+        None => Ok(Value::Bool(false)),
+    }
+}
+
+fn is_list(value: &Value) -> Result<Value, Error> {
+    is_pair(value)
+}
+
+fn is_null(value: &Value) -> Result<Value, Error> {
+    match value {
+        Value::Empty => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+// Non-Mutating Procedures //
 
 fn list_length(pair: &Value) -> Result<Value, Error> {
     if pair == &Value::Empty {
@@ -142,6 +237,25 @@ fn list_reverse(pair: &Value) -> Result<Value, Error> {
             Ok(res)
         }
         None => Ok(res),
+    }
+}
+
+// Mutating Procedures //
+
+fn set_car(pair: &Value, val: &Value) -> Result<Value, Error> {
+    let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
+    Ok(cell.set_head(val.clone()))
+}
+
+fn set_cdr(pair: &Value, val: &Value) -> Result<Value, Error> {
+    let cell = Value::get_pair_cell(pair).ok_or(Error::BadArg(1))?;
+    let result = match val {
+        Value::Empty => cell.set_tail(None),
+        _ => cell.set_tail(Some(val.clone())),
+    };
+    match result {
+        Some(v) => Ok(v),
+        None => Ok(Value::Empty),
     }
 }
 
