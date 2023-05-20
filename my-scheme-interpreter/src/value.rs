@@ -6,7 +6,6 @@ use crate::number::Num;
 use crate::proc::{Closure, Proc};
 use crate::rep::{DisplayRep, ExternalRep};
 use crate::string::Str;
-//use crate::vector::Vector;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,14 +19,12 @@ pub enum Value {
     Closure(Rc<Closure<Value>>),
     // Collections
     Pair(Cell<Value>),
-    String(Rc<Str>),
-    //Vector(Rc<Vector<Value>>),
-    Array(Rc<Array<Value>>),
+    String(Str),
+    Array(Array<Value>),
     Env(Rc<Env<Str, Value>>),
     Empty,
     // Other
     Special(Box<SpecialForm>),
-    //Port(Rc<Port>),
     Undefined,
 }
 

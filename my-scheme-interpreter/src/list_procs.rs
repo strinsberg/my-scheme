@@ -1,21 +1,46 @@
 use crate::cell::Cell;
 use crate::err::Error;
+use crate::proc::Proc;
+use crate::types::{Arity, Type};
 use crate::value::Value;
 
 // TODO add pair procedures? like car, cdr, cons etc.
-// TODO consider how these will be used in core_procs. Will they be called
-// directly like list_length(arg[0]) or wrapped in other functions. If they are
-// not wrapped then the errors here need to be better or processed by the
-// interpreter somehow to return errors. I.e. if the types, arity, and name are
-// available from the Procedure, then if the apply errors we have what we need to
-// implement error processing once for builting procs. We already create the arity
-// error there, we could also create errors for bad argument types and out of ranges
-// where the procedure name is given and the expr that failed along with other
-// information.
+// TODO add mutating procedures too.
+
+// Exported Procedures ////////////////////////////////////////////////////////
+
+pub fn make_procs() -> Vec<Proc<Value>> {
+    vec![
+        Proc::new("length", Arity::Fix(1), vec![Type::Pair], |args| {
+            list_length(&args[0])
+        }),
+        Proc::new(
+            "list-tail",
+            Arity::Fix(2),
+            vec![Type::Pair, Type::UInt],
+            |args| list_tail(&args[0], &args[1]),
+        ),
+        Proc::new(
+            "list-ref",
+            Arity::Fix(2),
+            vec![Type::Pair, Type::UInt],
+            |args| list_ref(&args[0], &args[1]),
+        ),
+        Proc::new(
+            "list-append",
+            Arity::Fix(2),
+            vec![Type::Pair, Type::UInt],
+            |args| list_append(&args[0], &args[1]),
+        ),
+        Proc::new("list-reverse", Arity::Fix(1), vec![Type::Pair], |args| {
+            list_reverse(&args[0])
+        }),
+    ]
+}
 
 // Scheme List Procedures /////////////////////////////////////////////////////
 
-pub fn list_length(pair: &Value) -> Result<Value, Error> {
+fn list_length(pair: &Value) -> Result<Value, Error> {
     if pair == &Value::Empty {
         return Ok(Value::from(0));
     }
@@ -28,7 +53,7 @@ pub fn list_length(pair: &Value) -> Result<Value, Error> {
     Ok(Value::from(len))
 }
 
-pub fn list_tail(pair: &Value, index: &Value) -> Result<Value, Error> {
+fn list_tail(pair: &Value, index: &Value) -> Result<Value, Error> {
     let idx = Value::get_int(index).ok_or(Error::BadArg(2))? as usize;
     if idx == 0 {
         return Ok(pair.clone());
@@ -48,7 +73,7 @@ pub fn list_tail(pair: &Value, index: &Value) -> Result<Value, Error> {
     Err(Error::OutOfRange)
 }
 
-pub fn list_ref(pair: &Value, index: &Value) -> Result<Value, Error> {
+fn list_ref(pair: &Value, index: &Value) -> Result<Value, Error> {
     if pair == &Value::Empty {
         return Err(Error::OutOfRange);
     }
@@ -63,7 +88,7 @@ pub fn list_ref(pair: &Value, index: &Value) -> Result<Value, Error> {
     Err(Error::OutOfRange)
 }
 
-pub fn list_append(pair: &Value, other: &Value) -> Result<Value, Error> {
+fn list_append(pair: &Value, other: &Value) -> Result<Value, Error> {
     if pair == &Value::Empty {
         return Ok(other.clone());
     }
@@ -81,7 +106,7 @@ pub fn list_append(pair: &Value, other: &Value) -> Result<Value, Error> {
     Ok(result.expect("result should not be None"))
 }
 
-pub fn list_reverse(pair: &Value) -> Result<Value, Error> {
+fn list_reverse(pair: &Value) -> Result<Value, Error> {
     if pair == &Value::Empty {
         return Ok(pair.clone());
     }

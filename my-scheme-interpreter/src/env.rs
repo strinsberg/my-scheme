@@ -4,6 +4,7 @@ use std::hash::Hash;
 use std::rc::Rc;
 
 // TODO implement Display, ExternalRep, etc.
+// TODO put the scope insid an Rc as well and remove the rc from the enum.
 
 // Environment as Linked List /////////////////////////////////////////////////
 

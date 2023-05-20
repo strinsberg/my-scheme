@@ -12,6 +12,9 @@ pub enum Type {
     Bool,
     Char,
     Number,
+    Int,
+    UInt,
+    Float,
     Symbol,
     Procedure,
     String,
@@ -21,6 +24,14 @@ pub enum Type {
     Array,
     Port,
     Env,
+    List(Box<Type>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Arity {
+    All,
+    Fix(usize),
+    Rest(usize),
 }
 
 /*

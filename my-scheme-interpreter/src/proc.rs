@@ -1,17 +1,18 @@
 use crate::env::Env;
+use crate::err::Error;
 use crate::rep::{DisplayRep, ExternalRep};
 use crate::string::Str;
-use crate::types::Type;
+use crate::types::{Arity, Type};
 use std::fmt::Debug;
 use std::rc::Rc;
 
 // Formals ////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Formals<T> {
-    Collect(T),
-    Fixed(Vec<T>),
-    Rest(Vec<T>, T),
+pub enum Formals {
+    Collect(Str),
+    Fixed(Vec<Str>),
+    Rest(Vec<Str>, Str),
 }
 
 // Procedure //////////////////////////////////////////////////////////////////
@@ -19,23 +20,23 @@ pub enum Formals<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Proc<T> {
     pub name: Str,
-    pub formals: Formals<T>,
-    pub signature: Vec<Type>,
+    pub arity: Arity,
+    pub types: Vec<Type>,
+    pub func: fn(Vec<T>) -> Result<T, Error>,
 }
 
 impl<T> Proc<T> {
-    pub fn new(name: Str, formals: Formals<T>, signature: Vec<Type>) -> Proc<T> {
+    pub fn new(
+        name: &str,
+        arity: Arity,
+        types: Vec<Type>,
+        func: fn(Vec<T>) -> Result<T, Error>,
+    ) -> Proc<T> {
         Proc {
-            name: name,
-            formals: formals,
-            signature: signature,
-        }
-    }
-
-    pub fn arity(&self) -> usize {
-        match &self.formals {
-            Formals::Collect(_) => 0,
-            Formals::Fixed(vec) | Formals::Rest(vec, _) => vec.len(),
+            name: Str::from(name),
+            arity: arity,
+            types: types,
+            func: func,
         }
     }
 }
@@ -67,7 +68,7 @@ where
 {
     pub name: Str,
     pub env: Rc<Env<Str, T>>,
-    pub formals: Formals<T>,
+    pub formals: Formals,
     pub body: Vec<T>,
 }
 
@@ -75,7 +76,7 @@ impl<T> Closure<T>
 where
     T: Clone,
 {
-    pub fn new(name: Str, env: Rc<Env<Str, T>>, formals: Formals<T>, body: Vec<T>) -> Closure<T> {
+    pub fn new(name: Str, env: Rc<Env<Str, T>>, formals: Formals, body: Vec<T>) -> Closure<T> {
         Closure {
             name: name,
             env: env,
