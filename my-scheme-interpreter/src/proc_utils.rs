@@ -50,6 +50,18 @@ pub fn fixed_take_3(args: &Value) -> Result<(Value, Value, Value), Error> {
     Ok((first, second, third))
 }
 
+// For Rest Arg Lists /////////////////////////////////////////////////////////
+
+pub fn rest_take_1(args: &Value) -> Result<(Value, Value), Error> {
+    let cell = Value::get_pair_cell(args).ok_or(Error::ArgsNotList)?;
+    let first = cell.head().clone();
+    let second = match cell.tail().clone() {
+        Some(val) => val,
+        None => Value::Empty,
+    };
+    Ok((first, second))
+}
+
 // For Optional Arg Lists /////////////////////////////////////////////////////
 
 pub fn opt_last_take_2(args: &Value) -> Result<(Value, Option<Value>), Error> {

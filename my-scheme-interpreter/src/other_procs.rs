@@ -7,6 +7,8 @@ use crate::types::{Arity, Type};
 use crate::value::Value;
 use std::rc::Rc;
 
+// TODO add in eq?, eqv?, and equal?
+
 // Exported Procedures ////////////////////////////////////////////////////////
 
 pub fn make_procs() -> Vec<Proc<Value>> {

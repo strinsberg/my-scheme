@@ -195,6 +195,8 @@ impl Num {
     }
 }
 
+// Traits /////////////////////////////////////////////////////////////////////
+
 // We only support binary and octal with their prefix and optional sign, NO exponent
 // We support hex with hex prefix, optional sign, and positive exponent only
 // We support rational and int with/without decimal prefix and optional sign, NO exponent
@@ -267,6 +269,8 @@ impl std::str::FromStr for Num {
     }
 }
 
+// Representation //
+
 // TODO should this will work as both display and external, though if it
 // is in standard we might want to be able to display ints as other types
 // and floats with or without the exponent
@@ -279,6 +283,8 @@ impl fmt::Display for Num {
         }
     }
 }
+
+// Equality and Ordering //
 
 impl PartialEq for Num {
     fn eq(&self, other: &Num) -> bool {
