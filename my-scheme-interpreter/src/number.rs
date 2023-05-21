@@ -1,15 +1,15 @@
 use crate::err::Error;
+use crate::rep::{DisplayRep, ExternalRep};
 use std::cmp::Ordering;
 use std::fmt;
 
 // TODO test divide by zero errors.
 // TODO add necessary arithmetic functions from the report that are needed
 // to implement others in core_proc or in scheme code.
-// TODO implement Display, ExternalRep, Default, etc.
 
 // Num ////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub enum Num {
     Int(i64),
     Flt(f64),
@@ -25,7 +25,6 @@ impl Default for Num {
 impl Num {
     // construtors //
 
-    // TODO make this a from trait.
     // This should be used everywhere a user can create a rational number. It
     // does the necessary checks and simplifications to ensure they are always
     // in a consistent state.
@@ -282,16 +281,35 @@ impl std::str::FromStr for Num {
 
 // Representation //
 
-// TODO should this will work as both display and external, though if it
-// is in standard we might want to be able to display ints as other types
-// and floats with or without the exponent
+impl DisplayRep for Num {
+    fn to_display(&self) -> String {
+        match self {
+            Num::Int(n) => format!("{n}"),
+            Num::Flt(n) => format!("{n}"),
+            Num::Rat(a, b) => format!("{}/{}", a, b),
+        }
+    }
+}
+
+impl ExternalRep for Num {
+    fn to_external(&self) -> String {
+        match self {
+            Num::Int(n) => format!("{n}"),
+            Num::Flt(n) => format!("{n}"),
+            Num::Rat(a, b) => format!("{}/{}", a, b),
+        }
+    }
+}
+
 impl fmt::Display for Num {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Num::Int(n) => write!(f, "{n}"),
-            Num::Flt(n) => write!(f, "{n}"),
-            Num::Rat(a, b) => write!(f, "{}/{}", a, b),
-        }
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl fmt::Debug for Num {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Number({})", self.to_external())
     }
 }
 

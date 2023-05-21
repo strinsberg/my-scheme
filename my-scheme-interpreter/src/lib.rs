@@ -17,7 +17,7 @@ pub mod err;
 //pub mod interpreter;
 pub mod number;
 pub mod proc;
-//pub mod reader;
+pub mod reader;
 pub mod rep;
 pub mod scanner;
 pub mod value;

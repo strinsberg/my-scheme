@@ -8,7 +8,7 @@ use crate::rep::{DisplayRep, ExternalRep};
 use crate::string::Str;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
     // Atoms
     Bool(bool),
@@ -29,6 +29,18 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn list_from_vec(vec: Vec<Value>, val: Value) -> Value {
+        let mut result = val;
+        for v in vec.iter().rev() {
+            result = Value::from(Cell::new(v.clone(), Some(result)));
+        }
+        result
+    }
+
+    pub fn symbol(string: Str) -> Value {
+        Value::Symbol(Rc::new(string))
+    }
+
     // Extractors //
 
     pub fn get_bool(val: Value) -> Option<bool> {
@@ -118,6 +130,12 @@ impl From<i64> for Value {
     }
 }
 
+impl From<f64> for Value {
+    fn from(f: f64) -> Value {
+        Value::Number(Num::Flt(f))
+    }
+}
+
 impl From<char> for Value {
     fn from(ch: char) -> Value {
         Value::Char(Char::from(ch))
@@ -127,6 +145,12 @@ impl From<char> for Value {
 impl From<Str> for Value {
     fn from(s: Str) -> Value {
         Value::String(Rc::new(s))
+    }
+}
+
+impl From<&str> for Value {
+    fn from(s: &str) -> Value {
+        Value::String(Rc::new(Str::from(s)))
     }
 }
 
@@ -164,15 +188,53 @@ impl CellValue<Value> for Value {
 
 impl DisplayRep for Value {
     fn to_display(&self) -> String {
-        // TODO implement for all types properly and then use for implementing Display
-        format!("{:?}", self)
+        match self {
+            Value::Bool(val) => format!("#{}", if *val { "t" } else { "f" }),
+            Value::Char(val) => val.to_display(),
+            Value::Number(val) => val.to_display(),
+            Value::Procedure(val) => val.to_display(),
+            Value::Symbol(val) => val.to_display(),
+            Value::Closure(val) => val.to_display(),
+            Value::Pair(val) => val.to_display(),
+            Value::String(val) => val.to_display(),
+            Value::Array(val) => val.to_display(),
+            Value::Empty => "()".to_string(),
+            Value::Env(_) => "#<environment>".to_string(),
+            Value::Special(_) => "#<special-form>".to_string(),
+            Value::Undefined => "#<undefined>".to_string(),
+        }
     }
 }
 
 impl ExternalRep for Value {
     fn to_external(&self) -> String {
-        // TODO implement for all types properly and then use for implementing Debug
-        format!("{:?}", self)
+        match self {
+            Value::Bool(val) => format!("#{}", if *val { "t" } else { "f" }),
+            Value::Char(val) => val.to_external(),
+            Value::Number(val) => val.to_external(),
+            Value::Procedure(val) => val.to_external(),
+            Value::Symbol(val) => val.to_external(),
+            Value::Closure(val) => val.to_external(),
+            Value::Pair(val) => val.to_external(),
+            Value::String(val) => val.to_external(),
+            Value::Array(val) => val.to_external(),
+            Value::Empty => "()".to_string(),
+            Value::Env(_) => "#<environment>".to_string(),
+            Value::Special(_) => "#<special-form>".to_string(),
+            Value::Undefined => "#<undefined>".to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl std::fmt::Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Value({})", self.to_external())
     }
 }
 

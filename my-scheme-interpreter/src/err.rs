@@ -12,6 +12,7 @@ pub enum Error {
 pub enum ScanError {
     Eof(usize),
     BadChar(usize, char),
+    BadToken(usize, String),
     BadIdentifier(usize, String),
     BadEscape(usize, String),
     BadNumber(usize, String),
