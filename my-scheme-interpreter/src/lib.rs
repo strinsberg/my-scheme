@@ -13,7 +13,7 @@ pub mod char;
 pub mod env;
 pub mod err;
 //pub mod error;
-//pub mod eval_helpers;
+pub mod eval_helpers;
 //pub mod interpreter;
 pub mod number;
 pub mod proc;

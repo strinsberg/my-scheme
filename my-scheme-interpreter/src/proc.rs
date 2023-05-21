@@ -82,17 +82,17 @@ pub struct Closure<T>
 where
     T: Clone,
 {
-    pub name: Str,
+    pub name: Option<Str>,
     pub env: Rc<Env<Str, T>>,
     pub formals: Formals,
-    pub body: Vec<T>,
+    pub body: T,
 }
 
 impl<T> Closure<T>
 where
     T: Clone,
 {
-    pub fn new(name: Str, env: Rc<Env<Str, T>>, formals: Formals, body: Vec<T>) -> Closure<T> {
+    pub fn new(name: Option<Str>, env: Rc<Env<Str, T>>, formals: Formals, body: T) -> Closure<T> {
         Closure {
             name: name,
             env: env,
@@ -108,6 +108,8 @@ where
         }
     }
 }
+
+// Closure Traits /////////////////////////////////////////////////////////////
 
 impl<T> DisplayRep for Closure<T>
 where
@@ -131,9 +133,9 @@ where
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Formals {
-    Collect(Str),
-    Fixed(Vec<Str>),
-    Rest(Vec<Str>, Str),
+    Collect(Rc<Str>),
+    Fixed(Vec<Rc<Str>>),
+    Rest(Vec<Rc<Str>>, Rc<Str>),
 }
 
 // Testing ////////////////////////////////////////////////////////////////////

@@ -62,6 +62,26 @@ pub fn rest_take_1(args: &Value) -> Result<(Value, Value), Error> {
     Ok((first, second))
 }
 
+pub fn rest_take_2(args: &Value) -> Result<(Value, Value, Value), Error> {
+    let cell = Value::get_pair_cell(args).ok_or(Error::ArgsNotList)?;
+    let mut iter = cell.cells();
+    let first = match iter.next() {
+        Some(cell) => cell.head().clone(),
+        None => return Err(Error::Arity),
+    };
+    let (second, third) = match iter.next() {
+        Some(cell) => (
+            cell.head().clone(),
+            match cell.tail().clone() {
+                Some(val) => val,
+                None => Value::Empty,
+            },
+        ),
+        None => return Err(Error::Arity),
+    };
+    Ok((first, second, third))
+}
+
 // For Optional Arg Lists /////////////////////////////////////////////////////
 
 pub fn opt_last_take_2(args: &Value) -> Result<(Value, Option<Value>), Error> {
@@ -74,4 +94,20 @@ pub fn opt_last_take_2(args: &Value) -> Result<(Value, Option<Value>), Error> {
         None => return Err(Error::Arity),
     };
     Ok((first, iter.next()))
+}
+
+pub fn opt_last_take_3(args: &Value) -> Result<(Value, Value, Option<Value>), Error> {
+    let mut iter = match Value::get_pair_cell(args) {
+        Some(cell) => cell.values(),
+        None => return Err(Error::ArgsNotList),
+    };
+    let first = match iter.next() {
+        Some(val) => val,
+        None => return Err(Error::Arity),
+    };
+    let second = match iter.next() {
+        Some(val) => val,
+        None => return Err(Error::Arity),
+    };
+    Ok((first, second, iter.next()))
 }

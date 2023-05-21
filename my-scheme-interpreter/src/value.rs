@@ -166,6 +166,12 @@ impl From<Array<Value>> for Value {
     }
 }
 
+impl From<Closure<Value>> for Value {
+    fn from(c: Closure<Value>) -> Value {
+        Value::Closure(Rc::new(c))
+    }
+}
+
 // Cell Value //
 
 impl CellValue<Value> for Value {
