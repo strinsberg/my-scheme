@@ -7,11 +7,11 @@ const NULL: u8 = '\0' as u8;
 const LF: u8 = '\n' as u8;
 const TAB: u8 = '\t' as u8;
 const SPACE: u8 = ' ' as u8;
-const UNSUP: u8 = 24;
 const FIRST_ASCII: u8 = 33;
 const LAST_ASCII: u8 = 126;
+const UNSUP: u8 = 127;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Char {
     Char(u8),
     Null,
@@ -115,6 +115,16 @@ impl From<char> for Char {
     }
 }
 
+impl From<i64> for Char {
+    fn from(int: i64) -> Char {
+        if int < 0 || int > LAST_ASCII as i64 {
+            Char::Unsupported
+        } else {
+            Char::from(int as u8)
+        }
+    }
+}
+
 impl DisplayRep for Char {
     fn to_display(&self) -> String {
         match self {
@@ -186,7 +196,7 @@ mod test {
         assert_eq!(Char::from('\t').to_display(), "\t".to_owned());
         assert_eq!(Char::from('\n').to_display(), "\n".to_owned());
         assert_eq!(Char::from(' ').to_display(), " ".to_owned());
-        assert_eq!(Char::from('\x18').to_display(), "**UNSUP**".to_owned());
+        assert_eq!(Char::from('\x7f').to_display(), "**UNSUP**".to_owned());
     }
 
     #[test]
@@ -319,7 +329,9 @@ mod test {
         }
 
         assert!(!Char::from(LAST_ASCII).is_unsup());
-        assert!(Char::from(127).is_unsup());
+        assert!(Char::from(127i64).is_unsup());
+        assert!(Char::from(-23i64).is_unsup());
+        assert!(Char::from(800i64).is_unsup());
     }
 
     #[test]
@@ -464,12 +476,12 @@ mod test {
         assert_eq!(Char::from('\n').to_byte(), LF);
         assert_eq!(Char::from(' ').to_byte(), SPACE);
         assert_eq!(Char::from('\0').to_byte(), NULL);
-        assert_eq!(Char::from('\x18').to_byte(), UNSUP);
+        assert_eq!(Char::from('\x7f').to_byte(), UNSUP);
 
         assert_eq!(Char::from('\t').to_int(), TAB as i64);
         assert_eq!(Char::from('\n').to_int(), LF as i64);
         assert_eq!(Char::from(' ').to_int(), SPACE as i64);
         assert_eq!(Char::from('\0').to_int(), NULL as i64);
-        assert_eq!(Char::from('\x18').to_int(), UNSUP as i64);
+        assert_eq!(Char::from('\x7f').to_int(), UNSUP as i64);
     }
 }

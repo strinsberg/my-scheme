@@ -1,17 +1,11 @@
+use crate::err::Error;
 use std::cmp::Ordering;
 use std::fmt;
 
+// TODO test divide by zero errors.
 // TODO add necessary arithmetic functions from the report that are needed
 // to implement others in core_proc or in scheme code.
 // TODO implement Display, ExternalRep, Default, etc.
-
-// Arithmetic Errors //////////////////////////////////////////////////////////
-
-#[derive(Debug, PartialEq)]
-pub enum ArithErr {
-    DivideByZero,
-    FailedParse(String),
-}
 
 // Num ////////////////////////////////////////////////////////////////////////
 
@@ -31,12 +25,13 @@ impl Default for Num {
 impl Num {
     // construtors //
 
+    // TODO make this a from trait.
     // This should be used everywhere a user can create a rational number. It
     // does the necessary checks and simplifications to ensure they are always
     // in a consistent state.
-    pub fn new_rat(a: i64, b: i64) -> Result<Num, ArithErr> {
+    pub fn new_rat(a: i64, b: i64) -> Result<Num, Error> {
         if b == 0 {
-            Err(ArithErr::DivideByZero)
+            Err(Error::DivideByZero)
         } else if a == 0 {
             Ok(Num::default())
         } else if b == 1 {
@@ -49,7 +44,7 @@ impl Num {
     }
 
     // Arithmetic //
-    pub fn add(&self, right: &Num) -> Result<Num, ArithErr> {
+    pub fn add(&self, right: &Num) -> Result<Num, Error> {
         match (self, right) {
             (Num::Flt(_), _) | (_, Num::Flt(_)) => Ok(Num::Flt(self.as_f64() + right.as_f64())),
             (Num::Rat(a, b), Num::Rat(c, d)) => Num::simplify((a * d) + (b * c), b * d),
@@ -60,7 +55,7 @@ impl Num {
         }
     }
 
-    pub fn sub(&self, right: &Num) -> Result<Num, ArithErr> {
+    pub fn sub(&self, right: &Num) -> Result<Num, Error> {
         match (self, right) {
             (Num::Flt(_), _) | (_, Num::Flt(_)) => Ok(Num::Flt(self.as_f64() - right.as_f64())),
             (Num::Rat(a, b), Num::Rat(c, d)) => Num::simplify((a * d) - (b * c), b * d),
@@ -70,7 +65,7 @@ impl Num {
         }
     }
 
-    pub fn mult(&self, right: &Num) -> Result<Num, ArithErr> {
+    pub fn mult(&self, right: &Num) -> Result<Num, Error> {
         match (self, right) {
             (Num::Flt(_), _) | (_, Num::Flt(_)) => Ok(Num::Flt(self.as_f64() * right.as_f64())),
             (Num::Rat(a, b), Num::Rat(c, d)) => Num::simplify(a * c, b * d),
@@ -81,9 +76,9 @@ impl Num {
         }
     }
 
-    pub fn div(&self, right: &Num) -> Result<Num, ArithErr> {
+    pub fn div(&self, right: &Num) -> Result<Num, Error> {
         if right.is_zero() {
-            return Err(ArithErr::DivideByZero);
+            return Err(Error::DivideByZero);
         }
 
         match (self, right) {
@@ -125,7 +120,7 @@ impl Num {
         }
     }
 
-    fn simplify(n: i64, d: i64) -> Result<Num, ArithErr> {
+    fn simplify(n: i64, d: i64) -> Result<Num, Error> {
         let m = gcd(abs(n) as u64, abs(d) as u64) as i64;
         Num::new_rat(n / m, d / m)
     }
@@ -207,7 +202,7 @@ impl Num {
 // Only exponent marker allowed is e/E
 // No exactness is allowed/required, as we have only exact rational, int and inexact float
 impl std::str::FromStr for Num {
-    type Err = ArithErr;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with("#b") {
@@ -218,7 +213,7 @@ impl std::str::FromStr for Num {
             };
             return match i64::from_str_radix(&rust_style, 2) {
                 Ok(i) => Ok(Num::Int(i)),
-                Err(_) => Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => Err(Error::CantParseNum(s.to_owned())),
             };
         } else if s.starts_with("#o") {
             let rust_style = match s.as_bytes()[2] as char {
@@ -228,7 +223,7 @@ impl std::str::FromStr for Num {
             };
             return match i64::from_str_radix(&rust_style, 8) {
                 Ok(i) => Ok(Num::Int(i)),
-                Err(_) => Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => Err(Error::CantParseNum(s.to_owned())),
             };
         } else if s.starts_with("#x") {
             let rust_style = match s.as_bytes()[2] as char {
@@ -238,7 +233,7 @@ impl std::str::FromStr for Num {
             };
             return match i64::from_str_radix(&rust_style, 16) {
                 Ok(i) => Ok(Num::Int(i)),
-                Err(_) => Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => Err(Error::CantParseNum(s.to_owned())),
             };
         }
 
@@ -251,22 +246,22 @@ impl std::str::FromStr for Num {
             let idx = slc.find("/").unwrap();
             let a = match &slc[..idx].parse::<i64>() {
                 Ok(i) => *i,
-                Err(_) => return Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => return Err(Error::CantParseNum(s.to_owned())),
             };
             let b = match &slc[idx + 1..].parse::<i64>() {
                 Ok(i) => *i,
-                Err(_) => return Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => return Err(Error::CantParseNum(s.to_owned())),
             };
             Num::new_rat(a, b)
         } else if slc.contains(".") {
             match slc.parse::<f64>() {
                 Ok(f) => Ok(Num::Flt(f)),
-                Err(_) => return Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => return Err(Error::CantParseNum(s.to_owned())),
             }
         } else {
             match slc.parse::<i64>() {
                 Ok(i) => Ok(Num::Int(i)),
-                Err(_) => return Err(ArithErr::FailedParse(s.to_owned())),
+                Err(_) => return Err(Error::CantParseNum(s.to_owned())),
             }
         }
     }
@@ -583,11 +578,11 @@ mod tests {
         // With exponent is error
         assert_eq!(
             "123e2".parse::<Num>(),
-            Err(ArithErr::FailedParse("123e2".to_owned()))
+            Err(Error::CantParseNum("123e2".to_owned()))
         );
         assert_eq!(
             "123e-2".parse::<Num>(),
-            Err(ArithErr::FailedParse("123e-2".to_owned()))
+            Err(Error::CantParseNum("123e-2".to_owned()))
         );
     }
 
@@ -626,15 +621,15 @@ mod tests {
         // With exponent is error
         assert_eq!(
             "1/2e2".parse::<Num>(),
-            Err(ArithErr::FailedParse("1/2e2".to_owned()))
+            Err(Error::CantParseNum("1/2e2".to_owned()))
         );
         assert_eq!(
             "1/2e-2".parse::<Num>(),
-            Err(ArithErr::FailedParse("1/2e-2".to_owned()))
+            Err(Error::CantParseNum("1/2e-2".to_owned()))
         );
         assert_eq!(
             "1e3/2".parse::<Num>(),
-            Err(ArithErr::FailedParse("1e3/2".to_owned()))
+            Err(Error::CantParseNum("1e3/2".to_owned()))
         );
     }
 
@@ -647,24 +642,24 @@ mod tests {
         // With exponent, /, . is error
         assert_eq!(
             "#b010e1".parse::<Num>(),
-            Err(ArithErr::FailedParse("#b010e1".to_owned()))
+            Err(Error::CantParseNum("#b010e1".to_owned()))
         );
         assert_eq!(
             "#b010e-1".parse::<Num>(),
-            Err(ArithErr::FailedParse("#b010e-1".to_owned()))
+            Err(Error::CantParseNum("#b010e-1".to_owned()))
         );
         assert_eq!(
             "#b0/10".parse::<Num>(),
-            Err(ArithErr::FailedParse("#b0/10".to_owned()))
+            Err(Error::CantParseNum("#b0/10".to_owned()))
         );
         assert_eq!(
             "#b0.10".parse::<Num>(),
-            Err(ArithErr::FailedParse("#b0.10".to_owned()))
+            Err(Error::CantParseNum("#b0.10".to_owned()))
         );
         // Bad digit
         assert_eq!(
             "#b102".parse::<Num>(),
-            Err(ArithErr::FailedParse("#b102".to_owned()))
+            Err(Error::CantParseNum("#b102".to_owned()))
         );
         // Without #b is decimal
         assert_eq!("1010".parse::<Num>(), Ok(Num::Int(1010)));
@@ -680,24 +675,24 @@ mod tests {
         // With exponent, /, . is error
         assert_eq!(
             "#o010e1".parse::<Num>(),
-            Err(ArithErr::FailedParse("#o010e1".to_owned()))
+            Err(Error::CantParseNum("#o010e1".to_owned()))
         );
         assert_eq!(
             "#o010e-1".parse::<Num>(),
-            Err(ArithErr::FailedParse("#o010e-1".to_owned()))
+            Err(Error::CantParseNum("#o010e-1".to_owned()))
         );
         assert_eq!(
             "#o0/10".parse::<Num>(),
-            Err(ArithErr::FailedParse("#o0/10".to_owned()))
+            Err(Error::CantParseNum("#o0/10".to_owned()))
         );
         assert_eq!(
             "#o0.10".parse::<Num>(),
-            Err(ArithErr::FailedParse("#o0.10".to_owned()))
+            Err(Error::CantParseNum("#o0.10".to_owned()))
         );
         // Bad digit
         assert_eq!(
             "#o108".parse::<Num>(),
-            Err(ArithErr::FailedParse("#o108".to_owned()))
+            Err(Error::CantParseNum("#o108".to_owned()))
         );
         // Without #o is decimal
         assert_eq!("1070".parse::<Num>(), Ok(Num::Int(1070)));
@@ -715,29 +710,29 @@ mod tests {
         // With negative exponent, /, . is error
         assert_eq!(
             "#x010e-2".parse::<Num>(),
-            Err(ArithErr::FailedParse("#x010e-2".to_owned()))
+            Err(Error::CantParseNum("#x010e-2".to_owned()))
         );
         assert_eq!(
             "#x0/10".parse::<Num>(),
-            Err(ArithErr::FailedParse("#x0/10".to_owned()))
+            Err(Error::CantParseNum("#x0/10".to_owned()))
         );
         assert_eq!(
             "#x0.10".parse::<Num>(),
-            Err(ArithErr::FailedParse("#x0.10".to_owned()))
+            Err(Error::CantParseNum("#x0.10".to_owned()))
         );
         // Bad digit
         assert_eq!(
             "#x10g".parse::<Num>(),
-            Err(ArithErr::FailedParse("#x10g".to_owned()))
+            Err(Error::CantParseNum("#x10g".to_owned()))
         );
         // Without #x is error
         assert_eq!(
             "a4f".parse::<Num>(),
-            Err(ArithErr::FailedParse("a4f".to_owned()))
+            Err(Error::CantParseNum("a4f".to_owned()))
         );
         assert_eq!(
             "034b".parse::<Num>(),
-            Err(ArithErr::FailedParse("034b".to_owned()))
+            Err(Error::CantParseNum("034b".to_owned()))
         );
     }
 

@@ -18,6 +18,7 @@ pub enum Type {
     Float,
     Symbol,
     Procedure(Box<Arity>),
+    Proc(usize),
     String,
     Pair,
     Empty,
@@ -26,6 +27,7 @@ pub enum Type {
     Env,
     ListOf(Box<Type>),
     Opt(Box<Type>),
+    Dots(Box<Type>),
 }
 
 impl Type {
@@ -39,6 +41,10 @@ impl Type {
 
     pub fn opt(t: Type) -> Type {
         Type::Opt(Box::new(t))
+    }
+
+    pub fn dots(t: Type) -> Type {
+        Type::Dots(Box::new(t))
     }
 }
 

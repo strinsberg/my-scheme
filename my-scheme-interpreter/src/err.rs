@@ -1,10 +1,11 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     OutOfRange,
-    DividByZero,
     ArgsNotList,
     Arity,
     BadArg(usize),
+    DivideByZero,
+    CantParseNum(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
