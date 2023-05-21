@@ -193,6 +193,17 @@ impl Num {
             _ => false,
         }
     }
+
+    pub fn eqv(&self, other: &Num) -> bool {
+        // Inexact is never eqv Exact
+        if (self.is_rat() || self.is_int()) && other.is_flt() {
+            false
+        } else if (other.is_rat() || other.is_int()) && self.is_flt() {
+            false
+        } else {
+            self == other
+        }
+    }
 }
 
 // Traits /////////////////////////////////////////////////////////////////////
