@@ -44,7 +44,7 @@ where
     T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn to_display(&self) -> String {
-        "s".to_owned()
+        format!("#<procedure {}>", self.name.to_string())
     }
 }
 
@@ -53,7 +53,7 @@ where
     T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn to_external(&self) -> String {
-        "s".to_owned()
+        format!("#<procedure {}>", self.name.to_string())
     }
 }
 
@@ -116,7 +116,7 @@ where
     T: Debug + Clone + DisplayRep,
 {
     fn to_display(&self) -> String {
-        "s".to_owned()
+        format!("{:?}", self)
     }
 }
 
@@ -125,7 +125,7 @@ where
     T: Debug + Clone + ExternalRep,
 {
     fn to_external(&self) -> String {
-        "s".to_owned()
+        format!("{:?}", self)
     }
 }
 

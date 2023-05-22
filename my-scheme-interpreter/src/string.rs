@@ -170,7 +170,7 @@ impl std::fmt::Display for Str {
 
 impl std::fmt::Debug for Str {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Array{{ {} }}", self.to_external())
+        write!(f, "String{{ {} }}", self.to_external())
     }
 }
 

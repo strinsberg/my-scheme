@@ -1,5 +1,30 @@
-use std::fmt;
+use crate::array_procs;
+use crate::char_procs;
+use crate::env::Env;
+use crate::list_procs;
+use crate::number_procs;
+use crate::other_procs;
+use crate::string::Str;
+use crate::string_procs;
+use crate::value::Value;
+use std::rc::Rc;
 
+pub fn null_env() -> Rc<Env<Str, Value>> {
+    let env = Env::new();
+    for proc in list_procs::make_procs()
+        .iter()
+        .chain(array_procs::make_procs().iter())
+        .chain(char_procs::make_procs().iter())
+        .chain(string_procs::make_procs().iter())
+        .chain(number_procs::make_procs().iter())
+        .chain(other_procs::make_procs().iter())
+    {
+        env.insert(proc.name.clone(), Value::from(proc.clone()));
+    }
+    Rc::new(env)
+}
+
+/*
 // Builtin Procedures /////////////////////////////////////////////////////////
 
 // NOTE when adding new procedures to the enum you have to add them to all three
@@ -217,3 +242,4 @@ impl fmt::Display for Builtin {
         write!(f, "{}", s)
     }
 }
+*/

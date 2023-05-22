@@ -23,6 +23,7 @@ pub enum ScanError {
     MultiLineString(usize),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum UserError {
     Undeclared(Str),
     ArgType(String, Type, Value),

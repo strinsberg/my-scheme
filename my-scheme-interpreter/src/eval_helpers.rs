@@ -69,10 +69,10 @@ pub fn transform_let_star(args: &Value) -> Result<Value, Error> {
         Ok((bind, rest)) => {
             // bind is (sym pair), rest is ((sym pair)...)
             // want (let ((sym pair)) (let* ((sym pair) ...) body ...))
-            let let_star = Value::list_from_vec(vec![Value::from(Str::from("let*")), rest], body);
+            let let_star = Value::list_from_vec(vec![Value::symbol(Str::from("let*")), rest], body);
             Ok(Value::list_from_vec(
                 vec![
-                    Value::from(Str::from("let")),
+                    Value::symbol(Str::from("let")),
                     Value::from(Cell::new(bind, None)),
                     let_star,
                 ],
@@ -80,7 +80,7 @@ pub fn transform_let_star(args: &Value) -> Result<Value, Error> {
             ))
         }
         Err(_) => Ok(Value::from(Cell::new(
-            Value::from(Str::from("begin")),
+            Value::symbol(Str::from("begin")),
             Some(body),
         ))),
     }
@@ -197,15 +197,20 @@ pub fn bind_closure_args(
     match closure.formals.clone() {
         Formals::Collect(s) => new_env.insert((*s).clone(), args.clone()),
         Formals::Fixed(params) => {
-            let mut iter = Value::get_pair_cell(args)
-                .ok_or(Error::ArgsNotList)?
-                .values();
-            for s in params.into_iter() {
-                match iter.next() {
-                    Some(val) => new_env.insert((*s).clone(), val),
-                    None => return Err(Error::Arity),
+            println!("bind closure args - fixed");
+            if !params.is_empty() {
+                let mut iter = Value::get_pair_cell(args)
+                    .ok_or(Error::ArgsNotList)?
+                    .values();
+                for s in params.into_iter() {
+                    match iter.next() {
+                        Some(val) => new_env.insert((*s).clone(), val),
+                        None => return Err(Error::Arity),
+                    }
                 }
             }
+            // TODO what if the params are empty, but the args are not? do
+            // we error on fixed?
         }
         Formals::Rest(params, symbol) => {
             let mut iter = Value::get_pair_cell(args)

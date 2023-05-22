@@ -180,6 +180,13 @@ impl From<Closure<Value>> for Value {
         Value::Closure(Rc::new(c))
     }
 }
+
+impl From<Proc<Value>> for Value {
+    fn from(p: Proc<Value>) -> Value {
+        Value::Procedure(Rc::new(p))
+    }
+}
+
 impl From<SpecialForm> for Value {
     fn from(f: SpecialForm) -> Value {
         Value::Special(Box::new(f))
@@ -233,7 +240,7 @@ impl ExternalRep for Value {
             Value::Char(val) => val.to_external(),
             Value::Number(val) => val.to_external(),
             Value::Procedure(val) => val.to_external(),
-            Value::Symbol(val) => val.to_external(),
+            Value::Symbol(val) => val.to_display(),
             Value::Closure(val) => val.to_external(),
             Value::Pair(val) => val.to_external(),
             Value::String(val) => val.to_external(),
@@ -254,7 +261,7 @@ impl std::fmt::Display for Value {
 
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Value({})", self.to_external())
+        write!(f, "Value{{ {} }}", self.to_external())
     }
 }
 
