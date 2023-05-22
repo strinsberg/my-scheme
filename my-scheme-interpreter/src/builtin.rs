@@ -4,8 +4,10 @@ use crate::env::Env;
 use crate::list_procs;
 use crate::number_procs;
 use crate::other_procs;
+use crate::proc::Proc;
 use crate::string::Str;
 use crate::string_procs;
+use crate::types::Arity;
 use crate::value::Value;
 use std::rc::Rc;
 
@@ -18,10 +20,17 @@ pub fn null_env() -> Rc<Env<Str, Value>> {
         .chain(string_procs::make_procs().iter())
         .chain(number_procs::make_procs().iter())
         .chain(other_procs::make_procs().iter())
+        .chain(make_null_env_procs().iter())
     {
         env.insert(proc.name.clone(), Value::from(proc.clone()));
     }
     Rc::new(env)
+}
+
+pub fn make_null_env_procs() -> Vec<Proc<Value>> {
+    vec![Proc::new("null-environment", Arity::Fixed(vec![]), |_| {
+        Ok(Value::Env(null_env()))
+    })]
 }
 
 /*

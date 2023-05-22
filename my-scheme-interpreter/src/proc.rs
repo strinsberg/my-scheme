@@ -77,7 +77,7 @@ where
 
 // Closure ////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Closure<T>
 where
     T: Clone,
@@ -116,7 +116,7 @@ where
     T: Debug + Clone + DisplayRep,
 {
     fn to_display(&self) -> String {
-        format!("{:?}", self)
+        format!("#<closure>")
     }
 }
 
@@ -125,7 +125,25 @@ where
     T: Debug + Clone + ExternalRep,
 {
     fn to_external(&self) -> String {
-        format!("{:?}", self)
+        format!("#<closure>")
+    }
+}
+
+impl<T> std::fmt::Display for Closure<T>
+where
+    T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl<T> std::fmt::Debug for Closure<T>
+where
+    T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Cell{{ {} }}", self.to_external())
     }
 }
 

@@ -233,27 +233,6 @@ impl Vm {
                 self.push_op(VmOp::UserApply);
                 self.push_op(VmOp::Eval(func));
                 self.eval_list(&rest);
-
-                /*
-
-                let cell = Value::get_pair_cell(&rest).ok_or(UserError::Syntax(args.clone()))?;
-                let vec: Vec<Value> = cell.values().collect();
-                let last = vec[vec.len() - 1].clone();
-                let args = match Value::get_pair_cell(&last) {
-                    Some(_) => {
-                        let mut result = Value::from(Cell::new(last, None));
-                        for val in vec[..vec.len() - 1].iter() {
-                            result = Value::from(Cell::new(val.clone(), Some(result)));
-                        }
-                        result
-                    }
-                    None => return Err(UserError::bad_arg("apply", Type::Pair, last.clone())),
-                };
-                println!("eval-proc: args {}", args);
-                self.push_op(VmOp::ApplyRes);
-                self.push_op(VmOp::Eval(func));
-                self.eval_list(&args);
-                */
             }
             "eval" => {
                 let (expr, opt) =
@@ -278,17 +257,18 @@ impl Vm {
     }
 
     fn eval_special(&mut self, name: &Str, args: &Value) -> Result<(), UserError> {
-        println!("eval special");
+        println!("eval special - {name}, {args}");
         let lookup = self.env.lookup(name);
         match lookup {
             Some(val) => {
+                println!("eval special name found -- {}", val);
                 self.push_op(VmOp::Eval(Value::from(Cell::new(
                     val.clone(),
                     Some(args.clone()),
                 ))));
             }
             None => {
-                println!("eval special - {}", name);
+                println!("eval special name not found");
                 let expr = Value::from(Cell::new(Value::symbol(name.clone()), Some(args.clone())));
                 match name.to_string().as_str() {
                     "quote" => {
@@ -399,10 +379,12 @@ impl Vm {
                 }
             }
         };
+        println!("end eval special");
         Ok(())
     }
 
     fn eval_body(&mut self, args: &Value) {
+        println!("eval body -- {}", args);
         let vec: Vec<Value> = match Value::get_pair_cell(args) {
             Some(cell) => cell.values().collect(),
             None => return self.push_op(VmOp::Eval(Value::Empty)),
@@ -475,7 +457,7 @@ impl Vm {
             Value::Special(form) => self.apply_special(form)?,
             Value::Procedure(p) => {
                 let args = self.pop_res();
-                println!("apply-proc: args{}", args);
+                println!("apply-proc: args {}", args);
                 let func = p.func;
                 let result = match func(&args) {
                     Ok(v) => v,
@@ -494,13 +476,15 @@ impl Vm {
                     }
                     Err(_) => return Err(UserError::Syntax(val)),
                 };
+                println!("result - {}", result);
                 self.push_res(result);
             }
             Value::Closure(c) => {
                 println!("apply - closure");
                 self.push_op(VmOp::SetEnv(Rc::clone(&self.env)));
                 self.env = evh::bind_closure_args(c.clone(), &self.pop_res())
-                    .or(Err(UserError::Syntax(val)))?;
+                    .or(Err(UserError::Syntax(val)))?; // TODO only prints the closure, not args
+                println!("{}", c.body);
                 self.eval_body(&c.body);
             }
             _ => return Err(UserError::Syntax(val)),
@@ -848,7 +832,7 @@ mod tests {
             Ok(Value::from(Cell::new(Value::from(1), Some(Value::from(2)))))
         );
 
-        let expr = StringReader::new("((lambda (x) (cons x 2)) 1 2 3 4)")
+        let expr = StringReader::new("((lambda (x y) (cons x y)) 1 2 3 4)")
             .read()
             .unwrap();
         assert_eq!(
@@ -918,10 +902,10 @@ mod tests {
             .unwrap();
         assert_eq!(vm.eval(expr), Ok(Value::from(14)));
 
-        let expr = StringReader::new("(let* ((a 2) (f (lambda (x) (+ x a))) (b 6)) (f b))")
+        let expr = StringReader::new("(let* ((a 2) (f (lambda (x y) (+ x y a))) (b 6)) (f 4 b))")
             .read()
             .unwrap();
-        assert_eq!(vm.eval(expr), Ok(Value::from(8)));
+        assert_eq!(vm.eval(expr), Ok(Value::from(12)));
     }
 
     #[test]
@@ -932,8 +916,6 @@ mod tests {
         let expr = StringReader::new("(letrec ((a 5)) a)").read().unwrap();
         assert_eq!(vm.eval(expr), Ok(Value::from(5)));
 
-        /* stack overflow, the lambda must not be bound properly since a simple one
-         * works like this in let and letrec
         let expr = StringReader::new("(letrec ((f (lambda (x) (+ x 1))) (b 6)) (f b))")
             .read()
             .unwrap();
@@ -945,7 +927,6 @@ mod tests {
         .read()
         .unwrap();
         assert_eq!(vm.eval(expr), Ok(Value::from(9)));
-        */
     }
 
     #[test]
@@ -1011,7 +992,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // stack overflow likely because it uses letrec
     fn test_eval_do() {
         let env = null_env();
         let mut vm = Vm::new(Rc::clone(&env));
@@ -1023,9 +1003,9 @@ mod tests {
 
         let expr = StringReader::new(
             "(do ((vec (make-vector 5))
-                      (i 0 (+ i 1)))
-                     ((eqv? i 5) vec)
-                   (vector-set! vec i i))",
+                  (i 0 (+ i 1)))
+                 ((= i 5) vec)
+               (vector-set! vec i i))",
         )
         .read()
         .unwrap();
@@ -1063,12 +1043,10 @@ mod tests {
             .unwrap();
         assert_eq!(vm.eval_forms(&forms), Ok(Value::from(15)));
 
-        /* lambda problems
         let forms = StringReader::new("(define (f) 13) (f)")
             .read_forms()
             .unwrap();
         assert_eq!(vm.eval_forms(&forms), Ok(Value::from(13)));
-
 
         let forms = StringReader::new(
             "(define vec (make-vector 5))
@@ -1080,13 +1058,13 @@ mod tests {
         .unwrap();
         assert_eq!(
             vm.eval_forms(&forms),
-            Ok(Value::new_vec_mut(vec![
+            Ok(Value::from(Array::from(vec![
                 Value::from(0),
                 Value::from(1),
                 Value::from(2),
                 Value::from(3),
                 Value::from(4),
-            ]))
+            ])))
         );
 
         let forms = StringReader::new("(define (f . x) (cons 1 x)) (f 2)")
@@ -1099,7 +1077,6 @@ mod tests {
                 Value::Empty
             ))
         );
-        */
     }
 
     #[test]
@@ -1190,7 +1167,6 @@ mod tests {
             .unwrap();
         assert_eq!(vm.eval(expr), Ok(Value::from(12)));
 
-        /*
         let expr = StringReader::new(
             "(let ((compose (lambda (f g)
                                   (lambda args
@@ -1200,11 +1176,9 @@ mod tests {
         .read()
         .unwrap();
         assert_eq!(vm.eval(expr), Ok(Value::from(-10)));
-         */
     }
 
     #[test]
-    #[ignore] // no null-environment yet
     fn test_eval_user_eval() {
         let env = null_env();
         let mut vm = Vm::new(Rc::clone(&env));

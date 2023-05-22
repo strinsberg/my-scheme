@@ -1,7 +1,7 @@
+use crate::builtin::null_env;
 use crate::reader::StringReader;
 use crate::rep::ExternalRep;
-//use crate::scheme_libs::std::SCM_LIB_STD;
-use crate::builtin::null_env;
+use crate::scheme_libs::std::SCM_LIB_STD;
 use crate::vm::Vm;
 
 // TODO other libraries need to be loadable with require or something. Since some
@@ -56,7 +56,6 @@ impl Interpreter {
     }
 
     fn load_std(&mut self) {
-        /*
         let lib_std_str = StringReader::new(SCM_LIB_STD)
             .read_forms()
             .expect("failed to read SCM_LIB_STD: Err: {e}");
@@ -65,7 +64,6 @@ impl Interpreter {
         self.vm
             .eval_forms(&lib_std_str)
             .expect("failed to eval SCM_LIB_STD: Err: {e}");
-            */
     }
 }
 
@@ -90,13 +88,11 @@ mod tests {
         assert_eq!(int.eval_string("(+ a 10)"), "15".to_string());
 
         // Define and call a lambda
-        /* calling closures is broken right now
         assert_eq!(
             int.eval_string("(define f (lambda (x) (+ x 1)))"),
             "()".to_string()
         );
         assert_eq!(int.eval_string("(f a)"), "6".to_string());
-        */
 
         // Redefine a
         assert_eq!(int.eval_string("(define a 33)"), "()".to_string());

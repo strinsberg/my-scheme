@@ -24,6 +24,7 @@ pub fn make_closure(args: &Value, env: Rc<Env<Str, Value>>) -> Result<Value, Err
 }
 
 fn formals_from_cell(cell: Rc<Cell<Value>>) -> Result<Formals, Error> {
+    println!("formals -- {}", cell);
     let mut vec = Vec::new();
     for c in cell.cells() {
         if c.is_dotted() {
@@ -37,12 +38,13 @@ fn formals_from_cell(cell: Rc<Cell<Value>>) -> Result<Formals, Error> {
                 _ => return Err(Error::BadArg(1)),
             }
         } else {
-            match cell.head().clone() {
+            match c.head().clone() {
                 Value::Symbol(s) => vec.push(s),
                 _ => return Err(Error::BadArg(1)),
             }
         }
     }
+    println!("{:?}", vec);
     Ok(Formals::Fixed(vec))
 }
 
@@ -143,7 +145,7 @@ pub fn transform_do(args: &Value) -> Result<Value, Error> {
     //    (loop init)))
 
     // Destructure the do
-    let (bindings, cond_expr, body) = utils::rest_take_2(args)?;
+    let (bindings, cond_expr, rest) = utils::rest_take_2(args)?;
     let (vars, inits, steps) = unbind_do(bindings.clone())?;
     let (cond, res) = utils::opt_last_take_2(&cond_expr).or(Err(Error::BadArg(2)))?;
     let result = match res {
@@ -153,12 +155,16 @@ pub fn transform_do(args: &Value) -> Result<Value, Error> {
 
     // Build the false branch with begin, commands, and recursive call to loop
     let loop_expr = Value::from(Cell::new(Value::symbol(Str::from("loop")), Some(steps)));
-    let begin = match body {
+    let begin = match rest {
         Value::Empty => loop_expr,
-        _ => Value::list_from_vec(
-            vec![Value::symbol(Str::from("begin")), body, loop_expr],
-            Value::Empty,
-        ),
+        _ => {
+            let mut result = Value::from(Cell::new(loop_expr, None));
+            let cell = Value::get_pair_cell(&rest).expect("rest should be pair from rest_take_2");
+            for val in cell.values() {
+                result = Value::from(Cell::new(val, Some(result)));
+            }
+            Value::from(Cell::new(Value::symbol(Str::from("begin")), Some(result)))
+        }
     };
 
     // Build the if expr with the condition, result, and begin branch
@@ -184,6 +190,7 @@ pub fn transform_do(args: &Value) -> Result<Value, Error> {
     );
 
     // Return the new expression to be evaluated
+    println!("{}", letrec);
     Ok(letrec)
 }
 
@@ -193,11 +200,12 @@ pub fn bind_closure_args(
     closure: Rc<Closure<Value>>,
     args: &Value,
 ) -> Result<Rc<Env<Str, Value>>, Error> {
+    println!("bind-closure-args -- {}", args);
     let new_env = Env::add_scope(closure.env.clone());
     match closure.formals.clone() {
         Formals::Collect(s) => new_env.insert((*s).clone(), args.clone()),
         Formals::Fixed(params) => {
-            println!("bind closure args - fixed");
+            println!("bind closure args - fixed {:?}", params);
             if !params.is_empty() {
                 let mut iter = Value::get_pair_cell(args)
                     .ok_or(Error::ArgsNotList)?
@@ -255,12 +263,13 @@ fn unbind_do(list: Value) -> Result<(Value, Value, Value), Error> {
     for val in cell.values() {
         let (var, init, step) = utils::opt_last_take_3(&val)?;
         match var {
-            Value::Symbol(_) => symbols.push(var),
+            Value::Symbol(_) => symbols.push(var.clone()),
             _ => return Err(Error::BadArg(1)),
         };
         initial.push(init);
-        if let Some(s) = step {
-            steps.push(s);
+        match step {
+            Some(s) => steps.push(s),
+            None => steps.push(var),
         }
     }
 
