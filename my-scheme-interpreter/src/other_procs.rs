@@ -141,7 +141,7 @@ fn string_to_symbol(string: Value) -> Result<Value, Error> {
 
 fn is_procedure(val: Value) -> Result<Value, Error> {
     match val {
-        Value::Procedure(_) => Ok(Value::Bool(true)),
+        Value::Procedure(_) | Value::Closure(_) => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
     }
 }
@@ -235,14 +235,14 @@ pub fn are_eqv(first: Value, second: Value) -> Result<Value, Error> {
     // all Rc values.
     match (first, second) {
         (Value::Bool(f), Value::Bool(s)) => Ok(Value::Bool(f == s)),
-        (Value::Symbol(f), Value::Symbol(s)) => Ok(Value::Bool(Rc::eq(&f, &s) || f == s)),
+        (Value::Symbol(f), Value::Symbol(s)) => Ok(Value::Bool(Rc::ptr_eq(&f, &s) || f == s)),
         (Value::Number(f), Value::Number(s)) => Ok(Value::Bool(f.eqv(&s))),
         (Value::Char(f), Value::Char(s)) => Ok(Value::Bool(f == s)),
-        (Value::Procedure(f), Value::Procedure(s)) => Ok(Value::Bool(Rc::eq(&f, &s))),
-        (Value::Closure(f), Value::Closure(s)) => Ok(Value::Bool(Rc::eq(&f, &s))),
-        (Value::Array(f), Value::Array(s)) => Ok(Value::Bool(Rc::eq(&f, &s))),
-        (Value::String(f), Value::String(s)) => Ok(Value::Bool(Rc::eq(&f, &s))),
-        (Value::Pair(f), Value::Pair(s)) => Ok(Value::Bool(Rc::eq(&f, &s))),
+        (Value::Procedure(f), Value::Procedure(s)) => Ok(Value::Bool(Rc::ptr_eq(&f, &s))),
+        (Value::Closure(f), Value::Closure(s)) => Ok(Value::Bool(Rc::ptr_eq(&f, &s))),
+        (Value::Array(f), Value::Array(s)) => Ok(Value::Bool(Rc::ptr_eq(&f, &s))),
+        (Value::String(f), Value::String(s)) => Ok(Value::Bool(Rc::ptr_eq(&f, &s))),
+        (Value::Pair(f), Value::Pair(s)) => Ok(Value::Bool(Rc::ptr_eq(&f, &s))),
         (Value::Empty, Value::Empty) => Ok(Value::Bool(true)),
         (Value::Undefined, Value::Undefined) => Ok(Value::Bool(true)),
         // Do not care about special forms, or environments for now

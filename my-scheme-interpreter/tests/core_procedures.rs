@@ -13,7 +13,6 @@ fn test_basic_data() {
     help::eval_assert("#f", "#f");
     help::eval_assert("#true", "#t");
     help::eval_assert("#false", "#f");
-    //help::eval_syntax_error("#cyclic#");
 }
 
 #[test]

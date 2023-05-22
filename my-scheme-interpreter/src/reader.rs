@@ -129,7 +129,6 @@ impl StringReader {
 mod tests {
     use super::*;
     use crate::number::Num;
-    use crate::rep::{DisplayRep, ExternalRep};
 
     #[test]
     fn test_reading_values_parsed_by_the_scanner() {

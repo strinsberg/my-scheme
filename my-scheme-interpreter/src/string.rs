@@ -146,14 +146,16 @@ impl DisplayRep for Str {
 
 impl ExternalRep for Str {
     fn to_external(&self) -> String {
+        let quote = '"' as u8;
         let mut strings = vec!["\"".to_owned()];
         for ch in self.chars.iter() {
             strings.push(match ch.borrow().clone() {
-                Char::Null => "\0".to_owned(),
-                Char::Tab => "\t".to_owned(),
-                Char::LineFeed => "\n".to_owned(),
+                Char::Null => "\\0".to_owned(),
+                Char::Tab => "\\t".to_owned(),
+                Char::LineFeed => "\\n".to_owned(),
                 Char::Space => " ".to_owned(),
                 Char::Unsupported => "UNSUP".to_owned(),
+                Char::Char(ch) if ch == quote => "\\\"".to_owned(),
                 _ => ch.borrow().to_display(),
             })
         }
@@ -267,7 +269,7 @@ mod tests {
     fn test_string_representation() {
         let string = Str::from("hello-world\n");
         assert_eq!(string.to_display(), "hello-world\n");
-        assert_eq!(string.to_external(), "\"hello-world\n\"");
+        assert_eq!(string.to_external(), "\"hello-world\\n\"");
     }
 
     #[test]

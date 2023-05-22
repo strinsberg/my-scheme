@@ -63,14 +63,14 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             },
         ),
         Proc::new(
-            "list-append",
+            "append",
             Arity::Fixed(vec![Type::Pair, Type::UInt]),
             |args| {
                 let (first, second) = utils::fixed_take_2(args)?;
                 list_append(&first, &second)
             },
         ),
-        Proc::new("list-reverse", Arity::Fixed(vec![Type::Pair]), |args| {
+        Proc::new("reverse", Arity::Fixed(vec![Type::Pair]), |args| {
             let first = utils::fixed_take_1(args)?;
             list_reverse(&first)
         }),

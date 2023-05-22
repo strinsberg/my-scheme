@@ -1,7 +1,6 @@
 mod help;
 
 #[test]
-#[ignore]
 fn test_is_procedure() {
     help::eval_assert("(procedure? car)", "#t");
     help::eval_assert("(procedure? (lambda (x) a))", "#t");

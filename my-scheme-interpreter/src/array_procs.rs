@@ -1,5 +1,4 @@
 use crate::array::Array;
-use crate::cell::Cell;
 use crate::err::Error;
 use crate::proc::Proc;
 use crate::proc_utils as utils;
