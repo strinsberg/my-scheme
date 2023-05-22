@@ -126,16 +126,7 @@ fn list_to_array(pair: Value) -> Result<Value, Error> {
 
 fn array_to_list(array: Value) -> Result<Value, Error> {
     let arr = Value::get_array(&array).ok_or(Error::BadArg(1))?;
-    let mut result = Value::Empty;
-
-    for i in arr.len() - 1..=0 {
-        result = Value::from(Cell::new(
-            arr.get(i)
-                .expect("index should not be out of range")
-                .clone(),
-            Some(result),
-        ));
-    }
+    let result = Value::list_from_vec(arr.values().collect(), Value::Empty);
     Ok(result)
 }
 
@@ -160,3 +151,170 @@ fn array_fill(array: Value, val: Value) -> Result<Value, Error> {
 }
 
 // Testing ////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_array_procs_new_array() {
+        let arg_vec = vec![Value::from(1), Value::from(2), Value::from(3)];
+        let args = Value::list_from_vec(arg_vec.clone(), Value::Empty);
+        assert_eq!(new_array(args), Ok(Value::from(Array::from(arg_vec))));
+
+        assert_eq!(new_array(Value::from(1)), Err(Error::ArgsNotList));
+    }
+
+    #[test]
+    fn test_array_procs_make_array() {
+        let vec = vec![Value::default(), Value::default(), Value::default()];
+        assert_eq!(
+            make_array(Value::from(3), None),
+            Ok(Value::from(Array::from(vec)))
+        );
+
+        let vec = vec![Value::from(1), Value::from(1), Value::from(1)];
+        assert_eq!(
+            make_array(Value::from(3), Some(Value::from(1))),
+            Ok(Value::from(Array::from(vec)))
+        );
+
+        assert_eq!(
+            make_array(Value::from("hello"), None),
+            Err(Error::BadArg(1))
+        );
+    }
+
+    #[test]
+    fn test_array_procs_is_array() {
+        assert_eq!(
+            is_array(Value::from(Array::from(vec![]))),
+            Ok(Value::Bool(true))
+        );
+        assert_eq!(
+            is_array(Value::from(Array::from(vec![
+                Value::from(1),
+                Value::from("hello")
+            ]))),
+            Ok(Value::Bool(true))
+        );
+        assert_eq!(is_array(Value::from(99)), Ok(Value::Bool(false)));
+        assert_eq!(is_array(Value::from("hello")), Ok(Value::Bool(false)));
+    }
+
+    #[test]
+    fn test_array_procs_length() {
+        let arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(2),
+            Value::from(3),
+        ]));
+        assert_eq!(array_length(arr.clone()), Ok(Value::from(3)));
+
+        assert_eq!(array_length(Value::from("hello")), Err(Error::BadArg(1)));
+    }
+
+    #[test]
+    fn test_array_procs_ref() {
+        let arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(2),
+            Value::from(3),
+        ]));
+        assert_eq!(array_ref(arr.clone(), Value::from(0)), Ok(Value::from(1)));
+        assert_eq!(array_ref(arr.clone(), Value::from(1)), Ok(Value::from(2)));
+        assert_eq!(array_ref(arr.clone(), Value::from(2)), Ok(Value::from(3)));
+        assert_eq!(
+            array_ref(arr.clone(), Value::from(3)),
+            Err(Error::OutOfRange)
+        );
+
+        assert_eq!(
+            array_ref(Value::from("hello"), Value::from(0)),
+            Err(Error::BadArg(1))
+        );
+        assert_eq!(array_ref(arr, Value::from("hello")), Err(Error::BadArg(2)));
+    }
+
+    #[test]
+    fn test_array_procs_to_list() {
+        let arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(2),
+            Value::from(3),
+        ]));
+        let list = Value::list_from_vec(
+            vec![Value::from(1), Value::from(2), Value::from(3)],
+            Value::Empty,
+        );
+        assert_eq!(array_to_list(arr), Ok(list));
+        assert_eq!(array_to_list(Value::from("hello")), Err(Error::BadArg(1)));
+    }
+
+    #[test]
+    fn test_array_procs_from_list() {
+        let arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(2),
+            Value::from(3),
+        ]));
+        let list = Value::list_from_vec(
+            vec![Value::from(1), Value::from(2), Value::from(3)],
+            Value::Empty,
+        );
+        assert_eq!(list_to_array(list), Ok(arr));
+        assert_eq!(list_to_array(Value::from("hello")), Err(Error::BadArg(1)));
+    }
+
+    #[test]
+    fn test_array_procs_set() {
+        let arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(2),
+            Value::from(3),
+        ]));
+        let set_arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(99),
+            Value::from(3),
+        ]));
+        assert_eq!(
+            array_set(arr.clone(), Value::from(1), Value::from(99)),
+            Ok(Value::from(2))
+        );
+        assert_eq!(
+            array_set(arr.clone(), Value::from(3), Value::from(99)),
+            Err(Error::OutOfRange)
+        );
+        assert_eq!(arr.clone(), set_arr);
+
+        assert_eq!(
+            array_set(Value::from("hello"), Value::from(0), Value::from(2)),
+            Err(Error::BadArg(1))
+        );
+        assert_eq!(
+            array_set(arr, Value::from("hello"), Value::from(2)),
+            Err(Error::BadArg(2))
+        );
+    }
+
+    #[test]
+    fn test_array_procs_fill() {
+        let arr = Value::from(Array::from(vec![
+            Value::from(1),
+            Value::from(2),
+            Value::from(3),
+        ]));
+        let set_arr = Value::from(Array::from(vec![
+            Value::from(99),
+            Value::from(99),
+            Value::from(99),
+        ]));
+        assert_eq!(array_fill(arr.clone(), Value::from(99)), Ok(set_arr));
+
+        assert_eq!(
+            array_fill(Value::from("hello"), Value::from(0)),
+            Err(Error::BadArg(1))
+        );
+    }
+}
