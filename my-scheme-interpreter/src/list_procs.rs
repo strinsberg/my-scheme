@@ -66,8 +66,8 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             "append",
             Arity::Fixed(vec![Type::Pair, Type::UInt]),
             |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                list_append(&first, &second)
+                let (first, rest) = utils::rest_take_1(args)?;
+                list_append(&first, &rest)
             },
         ),
         Proc::new("reverse", Arity::Fixed(vec![Type::Pair]), |args| {
@@ -120,8 +120,12 @@ fn cons(first: &Value, second: &Value) -> Result<Value, Error> {
 }
 
 fn new_list(args: &Value) -> Result<Value, Error> {
-    Value::get_pair_cell(args).ok_or(Error::ArgsNotList)?;
-    Ok(args.clone())
+    if args == &Value::Empty {
+        Ok(Value::Empty)
+    } else {
+        Value::get_pair_cell(args).ok_or(Error::ArgsNotList)?;
+        Ok(args.clone())
+    }
 }
 
 // Predicates //
@@ -134,7 +138,11 @@ fn is_pair(value: &Value) -> Result<Value, Error> {
 }
 
 fn is_list(value: &Value) -> Result<Value, Error> {
-    is_pair(value)
+    if value == &Value::Empty {
+        Ok(Value::Bool(true))
+    } else {
+        is_pair(value)
+    }
 }
 
 fn is_null(value: &Value) -> Result<Value, Error> {
@@ -194,22 +202,27 @@ fn list_ref(pair: &Value, index: &Value) -> Result<Value, Error> {
     Err(Error::OutOfRange)
 }
 
-fn list_append(pair: &Value, other: &Value) -> Result<Value, Error> {
-    if pair == &Value::Empty {
-        return Ok(other.clone());
+fn list_append(pair: &Value, rest: &Value) -> Result<Value, Error> {
+    let mut arg_vec = vec![pair.clone()];
+    if rest != &Value::Empty {
+        let args = Value::get_pair_cell(rest).ok_or(Error::ArgsNotList)?;
+        for arg in args.values() {
+            arg_vec.push(arg);
+        }
     }
 
-    let rev = &list_reverse(pair).or(Err(Error::BadArg(1)))?;
-    let rev_cell = Value::get_pair_cell(rev).expect("reversed list should not be None");
-    let mut result = match other {
-        Value::Empty => None,
-        o => Some(o.clone()),
-    };
-
-    for value in rev_cell.values() {
-        result = Some(Value::from(Cell::new(value.clone(), result)));
+    let last = arg_vec[arg_vec.len() - 1].clone();
+    let mut res_vec = Vec::new();
+    for (i, arg) in arg_vec[..arg_vec.len() - 1].iter().enumerate() {
+        if arg != &Value::Empty {
+            let cell = Value::get_pair_cell(arg).ok_or(Error::BadArg(i + 1))?;
+            for val in cell.values() {
+                res_vec.push(val.clone());
+            }
+        }
     }
-    Ok(result.expect("result should not be None"))
+
+    Ok(Value::list_from_vec(res_vec, last))
 }
 
 fn list_reverse(pair: &Value) -> Result<Value, Error> {
@@ -428,41 +441,45 @@ mod tests {
     #[test]
     fn test_list_append() {
         let list = make_list_5();
-        let list2 = list_append(&list, &list).unwrap();
+        let rest =
+            Value::list_from_vec(vec![list.clone(), list.clone(), list.clone()], Value::Empty);
+        let list2 = list_append(&list, &rest).unwrap();
         assert_eq!(list_ref(&list2, &Value::from(0)), Ok(Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(1)), Ok(Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(2)), Ok(Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(3)), Ok(Value::from(4)));
         assert_eq!(list_ref(&list2, &Value::from(4)), Ok(Value::from(5)));
-        assert_eq!(list_ref(&list2, &Value::from(5)), Ok(Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(6)), Ok(Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(7)), Ok(Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(8)), Ok(Value::from(4)));
         assert_eq!(list_ref(&list2, &Value::from(9)), Ok(Value::from(5)));
-        assert_eq!(list_ref(&list2, &Value::from(10)), Err(Error::OutOfRange));
+        assert_eq!(list_ref(&list2, &Value::from(14)), Ok(Value::from(5)));
+        assert_eq!(list_ref(&list2, &Value::from(19)), Ok(Value::from(5)));
+        assert_eq!(list_ref(&list2, &Value::from(20)), Err(Error::OutOfRange));
 
         let list = make_list_6_dotted();
-        let list2 = list_append(&list, &list).unwrap();
+        let rest =
+            Value::list_from_vec(vec![list.clone(), list.clone(), list.clone()], Value::Empty);
+        let list2 = list_append(&list, &rest).unwrap();
         assert_eq!(list_ref(&list2, &Value::from(0)), Ok(Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(1)), Ok(Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(2)), Ok(Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(3)), Ok(Value::from(4)));
-        assert_eq!(list_ref(&list2, &Value::from(4)), Ok(Value::from(5)));
         assert_eq!(list_ref(&list2, &Value::from(5)), Ok(Value::from(6)));
-        assert_eq!(list_ref(&list2, &Value::from(6)), Ok(Value::from(1)));
-        assert_eq!(list_ref(&list2, &Value::from(7)), Ok(Value::from(2)));
-        assert_eq!(list_ref(&list2, &Value::from(8)), Ok(Value::from(3)));
-        assert_eq!(list_ref(&list2, &Value::from(9)), Ok(Value::from(4)));
-        assert_eq!(list_ref(&list2, &Value::from(10)), Ok(Value::from(5)));
         assert_eq!(list_ref(&list2, &Value::from(11)), Ok(Value::from(6)));
-        assert_eq!(list_ref(&list2, &Value::from(12)), Err(Error::OutOfRange));
+        assert_eq!(list_ref(&list2, &Value::from(17)), Ok(Value::from(6)));
+        assert_eq!(list_ref(&list2, &Value::from(23)), Ok(Value::from(6)));
+        assert_eq!(list_ref(&list2, &Value::from(24)), Err(Error::OutOfRange));
 
         // Other
-        assert_eq!(list_append(&Value::Empty, &list), Ok(list.clone()));
-        assert_eq!(list_append(&list, &Value::Empty), Ok(make_list_6()));
+        assert_eq!(
+            list_append(
+                &Value::Empty,
+                &Value::from(Cell::new(make_list_6_dotted(), None))
+            ),
+            Ok(make_list_6_dotted())
+        );
+        assert_eq!(
+            list_append(&make_list_6_dotted(), &Value::Empty),
+            Ok(make_list_6_dotted())
+        );
         assert_eq!(list_append(&Value::from(5), &list), Err(Error::BadArg(1)));
         assert_eq!(
-            list_append(&make_list_5(), &Value::from(6)),
+            list_append(
+                &make_list_5(),
+                &Value::from(Cell::new(Value::from(6), None))
+            ),
             Ok(make_list_6_dotted())
         );
     }
