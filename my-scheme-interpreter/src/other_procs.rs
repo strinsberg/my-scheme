@@ -18,7 +18,7 @@ pub fn make_procs() -> Vec<Proc<Value>> {
         }),
         Proc::new("not", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
-            is_bool(first)
+            not(first)
         }),
         // Symbol
         Proc::new("symbol?", Arity::Fixed(vec![Type::Any]), |args| {
@@ -106,6 +106,13 @@ pub fn make_procs() -> Vec<Proc<Value>> {
 fn is_bool(val: Value) -> Result<Value, Error> {
     match val {
         Value::Bool(_) => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn not(val: Value) -> Result<Value, Error> {
+    match val {
+        Value::Bool(b) => Ok(Value::Bool(!b)),
         _ => Ok(Value::Bool(false)),
     }
 }

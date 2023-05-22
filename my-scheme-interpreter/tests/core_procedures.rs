@@ -383,3 +383,13 @@ fn test_redefining_keywords() {
     help::eval_assert("(define if 4) if", "4");
     help::eval_assert("(define (if x) (+ x 1)) (if 4)", "5");
 }
+
+#[test]
+fn test_not() {
+    help::eval_assert("(not #t)", "#f");
+    help::eval_assert("(not 3)", "#f");
+    help::eval_assert("(not '(1 2 3))", "#f");
+    help::eval_assert("(not '())", "#f");
+    help::eval_assert("(not 'nil)", "#f");
+    help::eval_assert("(not #f)", "#t");
+}
