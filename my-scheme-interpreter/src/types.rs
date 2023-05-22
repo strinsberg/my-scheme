@@ -49,6 +49,18 @@ impl Type {
     }
 }
 
+// TODO make this a proper display
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let string = match self {
+            _ => format!("{:?}", self),
+        };
+        write!(f, "{string}")
+    }
+}
+
+// Arity //////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Arity {
     Collect(Type),
