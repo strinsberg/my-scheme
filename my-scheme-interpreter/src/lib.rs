@@ -24,4 +24,4 @@ pub mod value;
 //pub mod scheme_libs;
 pub mod string;
 pub mod types;
-//pub mod vm;
+pub mod vm;

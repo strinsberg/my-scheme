@@ -41,6 +41,15 @@ impl Value {
         Value::Symbol(Rc::new(string))
     }
 
+    // Predicates //
+
+    pub fn is_true(&self) -> bool {
+        match self {
+            Value::Bool(false) => false,
+            _ => true,
+        }
+    }
+
     // Extractors //
 
     pub fn get_bool(val: Value) -> Option<bool> {
@@ -171,6 +180,11 @@ impl From<Closure<Value>> for Value {
         Value::Closure(Rc::new(c))
     }
 }
+impl From<SpecialForm> for Value {
+    fn from(f: SpecialForm) -> Value {
+        Value::Special(Box::new(f))
+    }
+}
 
 // Cell Value //
 
@@ -248,10 +262,10 @@ impl std::fmt::Debug for Value {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SpecialForm {
-    If(Vec<Value>),
-    Set(Value),
-    And(Vec<Value>),
-    Or(Vec<Value>),
-    Cond(Vec<Value>, bool, Vec<Value>),
-    Case(Value, Vec<Value>),
+    If(Value, Option<Value>),
+    Set(Str),
+    And(Value),
+    Or(Value),
+    Cond(Value, bool, Value),
+    Case(Value, Value),
 }

@@ -221,7 +221,7 @@ fn fold(initial: Value, procedure: Value, list: Value) -> Result<Value, Error> {
 
 // Equality
 
-fn are_eqv(first: Value, second: Value) -> Result<Value, Error> {
+pub fn are_eqv(first: Value, second: Value) -> Result<Value, Error> {
     // The only thing off about this possibly is that they say something about
     // closures not being eqv when they return different args or have different
     // side effects. Since they must be the same closure to be eqv this does not make

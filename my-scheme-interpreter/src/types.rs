@@ -28,6 +28,7 @@ pub enum Type {
     ListOf(Box<Type>),
     Opt(Box<Type>),
     Dots(Box<Type>),
+    Fail,
 }
 
 impl Type {
@@ -53,6 +54,28 @@ pub enum Arity {
     Collect(Type),
     Fixed(Vec<Type>),
     Rest(Vec<Type>, Type),
+}
+
+impl Arity {
+    pub fn get(&self, i: usize) -> Type {
+        match self {
+            Arity::Collect(t) => t.clone(),
+            Arity::Fixed(vec) => {
+                if i < vec.len() {
+                    vec[i].clone()
+                } else {
+                    Type::Fail
+                }
+            }
+            Arity::Rest(vec, t) => {
+                if i >= vec.len() {
+                    t.clone()
+                } else {
+                    vec[i].clone()
+                }
+            }
+        }
+    }
 }
 
 /*
