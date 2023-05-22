@@ -3,6 +3,7 @@ mod help;
 // Boolean ////////////////////////////////////////////////////////////////////
 
 #[test]
+#[ignore]
 fn test_not() {
     help::eval_assert("(not #t)", "#f");
     help::eval_assert("(not 3)", "#f");

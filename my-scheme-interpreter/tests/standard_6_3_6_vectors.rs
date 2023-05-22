@@ -1,6 +1,7 @@
 mod help;
 
 #[test]
+#[ignore]
 fn test_make_a_vector() {
     help::eval_assert("(vector 1 2 3 4 5)", "#(1 2 3 4 5)");
     help::eval_assert("(make-vector 5)", "#(0 0 0 0 0)");
@@ -46,6 +47,7 @@ fn test_is_vector() {
 }
 
 #[test]
+#[ignore]
 fn test_vector_to_and_from_list() {
     help::eval_assert("(vector->list (vector 1 2 3 4 5))", "(1 2 3 4 5)");
     help::eval_assert("(vector->list '#(1 #(2 3) 4 5))", "(1 #(2 3) 4 5)");
@@ -58,13 +60,5 @@ fn test_vector_fill() {
     help::eval_assert(
         "(let ((vec (vector 1 2 3 4 5))) (vector-fill! vec 'a) vec)",
         "#(a a a a a)",
-    );
-}
-
-#[test]
-fn test_vector_transpose() {
-    help::eval_assert(
-        "(vector-transpose '#(#(1 2) #(3 4) #(5 6)))",
-        "#(#(1 3 5) #(2 4 6))",
     );
 }

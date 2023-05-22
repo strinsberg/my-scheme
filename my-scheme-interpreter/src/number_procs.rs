@@ -12,6 +12,10 @@ use crate::value::Value;
 pub fn make_procs() -> Vec<Proc<Value>> {
     vec![
         // predicates
+        Proc::new("number?", Arity::Fixed(vec![Type::Any]), |args| {
+            let first = utils::fixed_take_1(args)?;
+            is_number(first)
+        }),
         Proc::new("real?", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
             is_real(first)
@@ -72,6 +76,13 @@ pub fn make_procs() -> Vec<Proc<Value>> {
 // Number Procedures //////////////////////////////////////////////////////////
 
 // Predicates //
+
+fn is_number(val: Value) -> Result<Value, Error> {
+    match Value::get_number(&val) {
+        Some(_) => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)),
+    }
+}
 
 fn is_real(val: Value) -> Result<Value, Error> {
     match Value::get_number(&val) {

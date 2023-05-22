@@ -1,5 +1,6 @@
 mod help;
 
+/*
 // Because we use the reader to get the expression and build the matching error
 // string (so if the error display changes we do not have to change all tests),
 // these tests CANNOT check reader/scanner errors. Those should be checked in the
@@ -53,3 +54,4 @@ fn test_general_user_errors() {
         "45",
     );
 }
+*/

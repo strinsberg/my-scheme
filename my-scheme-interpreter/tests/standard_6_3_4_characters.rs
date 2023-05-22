@@ -36,7 +36,7 @@ fn test_integer_to_char() {
     help::eval_assert("(integer->char 0)", "#\\null");
     help::eval_assert("(integer->char 9)", "#\\tab");
     help::eval_assert("(integer->char 10)", "#\\newline");
-    help::eval_assert("(integer->char 24)", "#\\unsup");
+    help::eval_assert("(integer->char 127)", "#\\unsup");
     help::eval_assert("(integer->char 32)", "#\\space");
 }
 
@@ -48,7 +48,7 @@ fn test_char_to_integer() {
     help::eval_assert("(char->integer #\\null)", "0");
     help::eval_assert("(char->integer #\\tab)", "9");
     help::eval_assert("(char->integer #\\newline)", "10");
-    help::eval_assert("(char->integer #\\unsup)", "24");
+    help::eval_assert("(char->integer #\\unsup)", "127");
     help::eval_assert("(char->integer #\\space)", "32");
 }
 

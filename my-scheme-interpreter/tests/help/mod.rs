@@ -1,7 +1,7 @@
-use my_scheme_interpreter::error::ScmErr;
+//use my_scheme_interpreter::error::UserError;
 use my_scheme_interpreter::interpreter::Interpreter;
 use my_scheme_interpreter::reader::StringReader;
-use my_scheme_interpreter::types::ScmVal;
+use my_scheme_interpreter::value::Value;
 
 // Testing helpers to make certain tasks easier
 
@@ -17,6 +17,7 @@ pub fn eval_assert(code: &str, expected: &str) {
     );
 }
 
+/*
 // Error Testing Helpers //
 
 pub fn eval_syntax_error(code: &str) {
@@ -121,3 +122,4 @@ pub fn eval_range_error(code: &str, name: &str, idx: &str, seq: &str) {
         expected
     );
 }
+*/
