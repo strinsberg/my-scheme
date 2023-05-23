@@ -1,9 +1,11 @@
+use crate::cell::Cell;
 use crate::err::Error;
 use crate::number::Num;
 use crate::proc::Proc;
 use crate::proc_utils as utils;
 use crate::types::{Arity, Type};
 use crate::value::Value;
+use std::rc::Rc;
 
 // TODO add all remaining number procedures from the standard.
 
@@ -16,6 +18,7 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             let first = utils::fixed_take_1(args)?;
             is_number(first)
         }),
+        // TODO these are supposed to be a tower, i.e. an integer is a real
         Proc::new("real?", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
             is_real(first)
@@ -29,8 +32,12 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             is_integer(first)
         }),
         // basic arithmetic
-        Proc::new("+", Arity::Collect(Type::Number), |args| add(args.clone())),
+        Proc::new("+", Arity::Collect(Type::Number), |args| {
+            utils::validate_args_list(args);
+            add(args.clone())
+        }),
         Proc::new("*", Arity::Collect(Type::Number), |args| {
+            utils::validate_args_list(args);
             multiply(args.clone())
         }),
         Proc::new("-", Arity::Rest(vec![Type::Number], Type::Number), |args| {
@@ -107,152 +114,114 @@ fn is_integer(val: Value) -> Result<Value, Error> {
 
 // Basic Arithmetic //
 
-fn add(args: Value) -> Result<Value, Error> {
-    if args == Value::Empty {
-        return Ok(Value::Number(Num::Int(0)));
-    }
-    let cell = Value::get_pair_cell(&args).ok_or(Error::ArgsNotList)?;
-    let mut result = Num::Int(0);
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 1))?;
-        result = result.add(num)?;
+fn cell_arith(
+    cell: Rc<Cell<Value>>,
+    init: Num,
+    func: fn(a: Num, b: Num) -> Result<Num, Error>,
+) -> Result<Value, Error> {
+    let mut result = init;
+    for val in cell.values() {
+        let num = Value::get_number(&val).ok_or(Error::BadType(Type::Number, val.clone()))?;
+        result = func(result, *num)?;
     }
     Ok(Value::Number(result))
+}
+
+fn add(args: Value) -> Result<Value, Error> {
+    match args {
+        Value::Pair(cell) => cell_arith(cell, Num::Int(0), |a, b| a.add(&b)),
+        Value::Empty => Ok(Value::Number(Num::Int(0))),
+        _ => panic!("args list should be list"),
+    }
 }
 
 fn multiply(args: Value) -> Result<Value, Error> {
-    if args == Value::Empty {
-        return Ok(Value::Number(Num::Int(1)));
+    match args {
+        Value::Pair(cell) => cell_arith(cell, Num::Int(1), |a, b| a.mult(&b)),
+        Value::Empty => Ok(Value::Number(Num::Int(1))),
+        _ => panic!("args list should be list"),
     }
-    let cell = Value::get_pair_cell(&args).ok_or(Error::ArgsNotList)?;
-    let mut result = Num::Int(1);
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 1))?;
-        result = result.mult(num)?;
-    }
-    Ok(Value::Number(result))
 }
 
 fn subtract(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Number(number.negate()));
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_arith(cell, number.clone(), |a, b| a.sub(&b)),
+        Value::Empty => Ok(Value::Number(number.negate())),
+        _ => panic!("args list should be list"),
     }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut result = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        result = result.sub(num)?;
-    }
-    Ok(Value::Number(result))
 }
 
 fn divide(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Number(number.invert()));
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_arith(cell, number.clone(), |a, b| a.div(&b)),
+        Value::Empty => Ok(Value::Number(number.invert())),
+        _ => panic!("args list should be list"),
     }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut result = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        result = result.div(num)?;
-    }
-    Ok(Value::Number(result))
 }
 
 // Comparisson //
 
-fn num_eq(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Bool(true));
-    }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut last = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        if last != *num {
+fn cell_comp(
+    cell: Rc<Cell<Value>>,
+    init: Num,
+    func: fn(a: Num, b: Num) -> bool,
+) -> Result<Value, Error> {
+    let mut last = init;
+    for val in cell.values() {
+        let num = Value::get_number(&val).ok_or(Error::BadType(Type::Number, val.clone()))?;
+        if !func(last, *num) {
             return Ok(Value::Bool(false));
         }
         last = num.clone();
     }
     Ok(Value::Bool(true))
+}
+
+fn num_eq(first: Value, rest: Value) -> Result<Value, Error> {
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_comp(cell, number.clone(), |a, b| a == b),
+        Value::Empty => Ok(Value::Bool(false)),
+        _ => panic!("rest args list should be list"),
+    }
 }
 
 fn num_less(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Bool(true));
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_comp(cell, number.clone(), |a, b| a < b),
+        Value::Empty => Ok(Value::Bool(false)),
+        _ => panic!("rest args list should be list"),
     }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut last = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        if last >= *num {
-            return Ok(Value::Bool(false));
-        }
-        last = num.clone();
-    }
-    Ok(Value::Bool(true))
 }
 
 fn num_greater(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Bool(true));
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_comp(cell, number.clone(), |a, b| a > b),
+        Value::Empty => Ok(Value::Bool(false)),
+        _ => panic!("rest args list should be list"),
     }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut last = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        if last <= *num {
-            return Ok(Value::Bool(false));
-        }
-        last = num.clone();
-    }
-    Ok(Value::Bool(true))
 }
 
 fn num_leq(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Bool(true));
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_comp(cell, number.clone(), |a, b| a <= b),
+        Value::Empty => Ok(Value::Bool(false)),
+        _ => panic!("rest args list should be list"),
     }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut last = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        if last > *num {
-            return Ok(Value::Bool(false));
-        }
-        last = num.clone();
-    }
-    Ok(Value::Bool(true))
 }
 
 fn num_geq(first: Value, rest: Value) -> Result<Value, Error> {
-    let number = Value::get_number(&first).ok_or(Error::BadArg(1))?;
-    if rest == Value::Empty {
-        return Ok(Value::Bool(true));
+    let number = Value::get_number(&first).ok_or(Error::BadType(Type::Number, first.clone()))?;
+    match rest {
+        Value::Pair(cell) => cell_comp(cell, number.clone(), |a, b| a <= b),
+        Value::Empty => Ok(Value::Bool(false)),
+        _ => panic!("rest args list should be list"),
     }
-
-    let cell = Value::get_pair_cell(&rest).ok_or(Error::ArgsNotList)?;
-    let mut last = number.clone();
-    for (i, val) in cell.values().enumerate() {
-        let num = Value::get_number(&val).ok_or(Error::BadArg(i + 2))?;
-        if last < *num {
-            return Ok(Value::Bool(false));
-        }
-        last = num.clone();
-    }
-    Ok(Value::Bool(true))
 }
 
 // Testing ////////////////////////////////////////////////////////////////////

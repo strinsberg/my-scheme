@@ -11,6 +11,7 @@ pub enum Error {
     BadArg(usize),
     BadType(Type, Value),
     DivideByZero,
+    // TODO replace with a scan error
     CantParseNum(String),
 }
 

@@ -9,7 +9,7 @@ use crate::value::Value;
 
 pub fn make_procs() -> Vec<Proc<Value>> {
     vec![
-        Proc::new("char?", Arity::Fixed(vec![Type::Char]), |args| {
+        Proc::new("char?", Arity::Fixed(vec![Type::Any]), |args| {
             let first = utils::fixed_take_1(args)?;
             is_char(first)
         }),
@@ -160,7 +160,7 @@ fn is_char(val: Value) -> Result<Value, Error> {
 }
 
 fn is_alpha(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_alpha() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -168,7 +168,7 @@ fn is_alpha(val: Value) -> Result<Value, Error> {
 }
 
 fn is_numeric(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_numeric() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -176,7 +176,7 @@ fn is_numeric(val: Value) -> Result<Value, Error> {
 }
 
 fn is_alphanumeric(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_alphanumeric() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -184,7 +184,7 @@ fn is_alphanumeric(val: Value) -> Result<Value, Error> {
 }
 
 fn is_whitespace(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_whitespace() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -192,7 +192,7 @@ fn is_whitespace(val: Value) -> Result<Value, Error> {
 }
 
 fn is_unsup(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_unsup() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -200,7 +200,7 @@ fn is_unsup(val: Value) -> Result<Value, Error> {
 }
 
 fn is_upcase(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_upper_case() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -208,7 +208,7 @@ fn is_upcase(val: Value) -> Result<Value, Error> {
 }
 
 fn is_downcase(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     match ch.is_lower_case() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -217,8 +217,8 @@ fn is_downcase(val: Value) -> Result<Value, Error> {
 
 // Comparisson
 fn char_eq(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_byte() == ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -226,8 +226,8 @@ fn char_eq(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_less(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_byte() < ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -235,8 +235,8 @@ fn char_less(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_greater(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_byte() > ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -244,8 +244,8 @@ fn char_greater(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_leq(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_byte() <= ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -253,8 +253,8 @@ fn char_leq(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_geq(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_byte() >= ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -262,8 +262,8 @@ fn char_geq(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_eq_ci(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_lower_case().to_byte() == ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -271,8 +271,8 @@ fn char_eq_ci(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_less_ci(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_lower_case().to_byte() < ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -280,8 +280,8 @@ fn char_less_ci(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_greater_ci(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_lower_case().to_byte() > ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -289,8 +289,8 @@ fn char_greater_ci(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_leq_ci(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_lower_case().to_byte() <= ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -298,8 +298,8 @@ fn char_leq_ci(val: Value, other: Value) -> Result<Value, Error> {
 }
 
 fn char_geq_ci(val: Value, other: Value) -> Result<Value, Error> {
-    let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
-    let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
+    let ch1 = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
+    let ch2 = Value::get_char(&other).ok_or(Error::BadType(Type::Char, other.clone()))?;
     match ch1.to_lower_case().to_byte() >= ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
@@ -309,22 +309,22 @@ fn char_geq_ci(val: Value, other: Value) -> Result<Value, Error> {
 // Conversion
 // char-upcase, char-downcase, char-integer, integer-char
 fn char_upcase(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     Ok(Value::Char(ch.to_upper_case()))
 }
 
 fn char_downcase(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     Ok(Value::Char(ch.to_lower_case()))
 }
 
 fn char_to_integer(val: Value) -> Result<Value, Error> {
-    let ch = Value::get_char(&val).ok_or(Error::BadArg(1))?;
+    let ch = Value::get_char(&val).ok_or(Error::BadType(Type::Char, val.clone()))?;
     Ok(Value::from(ch.to_int()))
 }
 
 fn integer_to_char(val: Value) -> Result<Value, Error> {
-    let int = Value::get_int(&val).ok_or(Error::BadArg(1))?;
+    let int = Value::get_int(&val).ok_or(Error::BadType(Type::Int, val.clone()))?;
     Ok(Value::Char(Char::from(int)))
 }
 

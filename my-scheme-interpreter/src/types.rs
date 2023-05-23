@@ -18,7 +18,7 @@ pub enum Type {
     Float,
     Symbol,
     Procedure(Box<Arity>),
-    Proc(usize),
+    Proc,
     String,
     Pair,
     Empty,

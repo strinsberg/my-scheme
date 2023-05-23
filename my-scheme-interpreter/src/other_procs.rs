@@ -37,21 +37,6 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             let first = utils::fixed_take_1(args)?;
             is_procedure(first)
         }),
-        // Eval/Apply
-        // These exist here just because they need procedures, but they are
-        // essentially special forms that get evaluated by the vm directly.
-        Proc::new("eval", Arity::Fixed(vec![Type::Any, Type::Env]), |_| {
-            panic!("eval is evaluated by the vm")
-        }),
-        Proc::new(
-            "apply",
-            Arity::Fixed(vec![
-                Type::Any,
-                Type::dots(Type::Any),
-                Type::list(Type::Any),
-            ]),
-            |_| panic!("apply is evaluated by the vm"),
-        ),
         // Equality
         Proc::new("eqv?", Arity::Fixed(vec![Type::Any, Type::Any]), |args| {
             let (first, second) = utils::fixed_take_2(args)?;
@@ -65,6 +50,21 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             let (first, second) = utils::fixed_take_2(args)?;
             are_equal(first, second)
         }),
+        // Eval/Apply
+        // These exist here just because they need procedures, but they are
+        // essentially special forms that get evaluated by the vm directly.
+        Proc::new("eval", Arity::Fixed(vec![Type::Any, Type::Env]), |_| {
+            panic!("eval is evaluated by the vm")
+        }),
+        Proc::new(
+            "apply",
+            Arity::Fixed(vec![
+                Type::Proc,
+                Type::dots(Type::Any),
+                Type::list(Type::Any),
+            ]),
+            |_| panic!("apply is evaluated by the vm"),
+        ),
     ]
 }
 
@@ -94,7 +94,7 @@ fn is_symbol(val: Value) -> Result<Value, Error> {
 }
 
 fn symbol_to_string(symbol: Value) -> Result<Value, Error> {
-    let s = Value::get_symbol_str(&symbol).ok_or(Error::BadArg(1))?;
+    let s = Value::get_symbol_str(&symbol).ok_or(Error::BadType(Type::Symbol, symbol.clone()))?;
     let mut chars = Vec::new();
     for ch in s.chars() {
         chars.push(ch.clone())
@@ -103,7 +103,7 @@ fn symbol_to_string(symbol: Value) -> Result<Value, Error> {
 }
 
 fn string_to_symbol(string: Value) -> Result<Value, Error> {
-    let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
+    let s = Value::get_string(&string).ok_or(Error::BadType(Type::String, string.clone()))?;
     let mut chars = Vec::new();
     for ch in s.chars() {
         chars.push(ch.clone())
