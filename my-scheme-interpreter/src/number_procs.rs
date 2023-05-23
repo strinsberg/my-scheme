@@ -148,7 +148,7 @@ fn subtract(first: Value, rest: Value) -> Result<Value, Error> {
     match rest {
         Value::Pair(cell) => cell_arith(cell, number.clone(), |a, b| a.sub(&b)),
         Value::Empty => Ok(Value::Number(number.negate())),
-        _ => panic!("args list should be list"),
+        _ => panic!("rest args list should be list"),
     }
 }
 
@@ -157,7 +157,7 @@ fn divide(first: Value, rest: Value) -> Result<Value, Error> {
     match rest {
         Value::Pair(cell) => cell_arith(cell, number.clone(), |a, b| a.div(&b)),
         Value::Empty => Ok(Value::Number(number.invert())),
-        _ => panic!("args list should be list"),
+        _ => panic!("rest args list should be list"),
     }
 }
 
