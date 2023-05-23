@@ -76,6 +76,12 @@ where
     T: Clone + CellValue<T> + ExternalRep + DisplayRep,
 {
     fn from(val: T) -> Array<T> {
+        if val.is_empty() {
+            return Array {
+                vals: Rc::new(vec![]),
+            };
+        }
+
         match val.get_cell() {
             Some(cell) => Array {
                 vals: Rc::new(cell.values().map(|v| RefCell::new(v)).collect()),

@@ -10,6 +10,43 @@ use crate::types::Type;
 use crate::value::{SpecialForm, Value};
 use std::rc::Rc;
 
+// TODO In addition to all the issues listed below, there are some things that
+// need to be done after all of the changes.
+//
+// 1. Errors are not good when using the builtin procedures. Things like BadArg
+// are not being processed properly in many places and can be unintuitive. Either
+// I need to put more work into processing them in the VM or I need to go back to
+// having a single error type and build the right errors in the procedures.
+//
+// 2. Not all of the builtin procedures are tested in rust. This needs to happen
+// before this branch is considered finished. The tests folder is useful, but it
+// is not a substitute for testing rust functions properly.
+//
+// 3. The Value::get_pair_cell is useful, but it creates some very akward calls
+// because I often want to test for both a pair and empty. This could be substituted
+// with matches and a branch for each instead of an if statement and a call to get
+// the cell afterwards. Really this is just going around and cleaning up.
+//
+// 4. Building functions in scheme is nice, but like before the thing missing is
+// being able to throw an error like we would in the builtin procedures. The
+// difficulty is that since R5RS does not have errors the scheme I write should
+// not include them if it is supposed to be included in an env where only
+// R5RS procedures are available. One way to cheese this is to give them really
+// bad names and just pretend they don't exist, even though they would be available
+// if someone tried hard enough. For now it only really affects the map and for-each
+// functions.
+//
+// 5. With the transition to calling all procedures with a list of arguments
+// there are some things in the vm that could be given their own functions or
+// even be moved elswhere and turned into transformations instead of vm functions.
+// These would be the derived expressions and, or, cond, case, etc.
+//
+// 6. The environments that are supposed to be available for eval need to be split
+// up. So all extensions need to be in separate files, or proc creation functions,
+// to be added to the env. That way the null-env can just be all the make_proc
+// functions and then a full-env (or whatever it is called) can be the null env
+// with more added to it.
+
 // TODO A closure evaluation is not completely tail recursive. The environment
 // switch is placed on the stack to allow the env to be replaced when we are done
 // evaluating the body expressions. However, the environment is needed for the
@@ -229,14 +266,15 @@ impl Vm {
         let proc_val = Value::Procedure(proc.clone());
         match proc.name.to_string().as_str() {
             "apply" => {
-                let (func, rest) = utils::rest_take_1(args).or(Err(UserError::Arity(proc_val)))?;
+                let (func, rest) =
+                    utils::rest_take_1(args).or(Err(UserError::Arity(proc.name.to_string())))?;
                 self.push_op(VmOp::UserApply);
                 self.push_op(VmOp::Eval(func));
                 self.eval_list(&rest);
             }
             "eval" => {
-                let (expr, opt) =
-                    utils::opt_last_take_2(args).or(Err(UserError::Arity(proc_val)))?;
+                let (expr, opt) = utils::opt_last_take_2(args)
+                    .or(Err(UserError::Arity(proc.name.to_string())))?;
                 match opt {
                     Some(env_expr) => {
                         self.push_op(VmOp::UserEval(true));
@@ -464,12 +502,18 @@ impl Vm {
                     Err(Error::BadArg(i)) => {
                         return Err(UserError::bad_arg(
                             &p.name.to_string(),
-                            p.arity.get(i),
+                            p.arity.get(i - 1),
                             args,
                         ))
                     }
+                    Err(Error::BadType(t, v)) => {
+                        return Err(UserError::bad_arg(&p.name.to_string(), t, v))
+                    }
+                    Err(Error::BadIndex(t, v)) => {
+                        return Err(UserError::IndexError(p.name.to_string(), t, v))
+                    }
                     Err(Error::Arity) => {
-                        return Err(UserError::Arity(val));
+                        return Err(UserError::Arity(p.name.to_string()));
                     }
                     Err(Error::ArgsNotList) => {
                         panic!("arguments passed to procedures should be pair: got {args}");

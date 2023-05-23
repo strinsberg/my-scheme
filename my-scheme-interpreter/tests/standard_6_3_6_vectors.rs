@@ -5,6 +5,14 @@ fn test_make_a_vector() {
     help::eval_assert("(vector 1 2 3 4 5)", "#(1 2 3 4 5)");
     help::eval_assert("(make-vector 5)", "#(() () () () ())");
     help::eval_assert("(make-vector 5 'a)", "#(a a a a a)");
+    help::eval_assert(
+        "(make-vector 'a)",
+        "Error in make-vector: a must be exact non-negative integer",
+    );
+    help::eval_assert(
+        "(make-vector)",
+        "Error in make-vector: incorrect argument count",
+    );
 }
 
 #[test]
@@ -17,6 +25,14 @@ fn test_vector_length() {
 fn test_vector_ref() {
     help::eval_assert("(vector-ref '#(1 2 3 4 5) 2)", "3");
     help::eval_assert("(vector-ref (vector 1 2 3 4 5) 4)", "5");
+    help::eval_assert(
+        "(vector-ref (vector 1 2 3 4 5) 9)",
+        "Error in vector-ref: 9 is not a valid index for #(1 2 3 4 5)",
+    );
+    help::eval_assert(
+        "(vector-ref (vector 1 2 3 4 5) -20)",
+        "Error in vector-ref: -20 must be exact non-negative integer",
+    );
 }
 
 #[test]

@@ -5,9 +5,11 @@ use crate::value::Value;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     OutOfRange,
+    BadIndex(usize, Value),
     ArgsNotList,
     Arity,
     BadArg(usize),
+    BadType(Type, Value),
     DivideByZero,
     CantParseNum(String),
 }
@@ -63,7 +65,8 @@ pub enum UserError {
     Undeclared(Str),
     ArgType(String, Type, Value),
     OutOfRange(usize, Value),
-    Arity(Value),
+    IndexError(String, usize, Value),
+    Arity(String),
     Syntax(Value),
     ReadError(ScanError),
 }
@@ -84,14 +87,17 @@ impl std::fmt::Display for UserError {
             UserError::Undeclared(name) => {
                 write!(f, "Error: undeclared symbol: {name}")
             }
-            UserError::Arity(val) => {
-                write!(f, "Error: incorrect argument count in {val}")
+            UserError::Arity(name) => {
+                write!(f, "Error in {name}: incorrect argument count")
             }
             UserError::ArgType(name, kind, expr) => {
-                write!(f, "Error in {name}: {expr} is not a {kind}")
+                write!(f, "Error in {name}: {expr} must be {kind}")
             }
             UserError::OutOfRange(idx, val) => {
-                write!(f, "Error: {idx} is out of range for {val}")
+                write!(f, "Error: {idx} is not a valid index for {val}")
+            }
+            UserError::IndexError(name, idx, val) => {
+                write!(f, "Error in {name}: {idx} is not a valid index for {val}")
             }
             UserError::Syntax(expr) => {
                 write!(f, "Error: invalid syntax: {expr}")

@@ -80,6 +80,13 @@ impl Value {
         }
     }
 
+    pub fn get_uint(val: &Value) -> Option<i64> {
+        match val {
+            Value::Number(Num::Int(n)) if n >= &0 => Some(*n),
+            _ => None,
+        }
+    }
+
     pub fn get_symbol_str<'a>(val: &'a Value) -> Option<&'a Str> {
         match val {
             Value::Symbol(s) => Some(s),

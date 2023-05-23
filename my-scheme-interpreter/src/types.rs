@@ -53,6 +53,7 @@ impl Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let string = match self {
+            Type::UInt => "exact non-negative integer".to_string(),
             _ => format!("{:?}", self),
         };
         write!(f, "{string}")
