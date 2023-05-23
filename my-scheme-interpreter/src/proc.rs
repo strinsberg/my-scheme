@@ -71,7 +71,7 @@ where
     T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Cell{{ {} }}", self.to_external())
+        write!(f, "Procedure{{ {} }}", self.to_external())
     }
 }
 
@@ -116,7 +116,10 @@ where
     T: Debug + Clone + DisplayRep,
 {
     fn to_display(&self) -> String {
-        format!("#<closure>")
+        match self.name.clone() {
+            Some(name) => format!("#<procedure {}>", name),
+            None => format!("#<closure>",),
+        }
     }
 }
 
@@ -125,7 +128,10 @@ where
     T: Debug + Clone + ExternalRep,
 {
     fn to_external(&self) -> String {
-        format!("#<closure>")
+        match self.name.clone() {
+            Some(name) => format!("#<procedure {}>", name),
+            None => format!("#<closure>",),
+        }
     }
 }
 
@@ -143,7 +149,7 @@ where
     T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Cell{{ {} }}", self.to_external())
+        write!(f, "Closure{{ {} }}", self.to_external())
     }
 }
 

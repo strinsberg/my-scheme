@@ -107,7 +107,7 @@ impl Vm {
 
         loop {
             let op = self.pop_op();
-            println!("{:?}", op);
+            //println!("{:?}", op);
             match op {
                 VmOp::Eval(ref expr) => match expr {
                     Value::Symbol(name) => self.eval_symbol(name)?,

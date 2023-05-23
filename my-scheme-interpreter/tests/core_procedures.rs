@@ -60,7 +60,6 @@ fn test_basic_arithmetic() {
 }
 
 #[test]
-#[ignore]
 fn test_lambda() {
     help::eval_assert("((lambda (x) (+ x 1)) 6)", "7");
     help::eval_assert("((lambda (x) (- x 1) (+ x 1)) (- 10 5) (+ 10 5))", "6");
@@ -82,7 +81,6 @@ fn test_lambda() {
 }
 
 #[test]
-#[ignore]
 fn test_define() {
     // Assignments
     help::eval_assert("(define a 5) (+ a 6)", "11");

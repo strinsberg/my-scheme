@@ -27,6 +27,11 @@ fn formals_from_cell(cell: Rc<Cell<Value>>) -> Result<Formals, Error> {
     println!("formals -- {}", cell);
     let mut vec = Vec::new();
     for c in cell.cells() {
+        match c.head().clone() {
+            Value::Symbol(s) => vec.push(s),
+            _ => return Err(Error::BadArg(1)),
+        }
+
         if c.is_dotted() {
             match c
                 .tail()
@@ -34,12 +39,9 @@ fn formals_from_cell(cell: Rc<Cell<Value>>) -> Result<Formals, Error> {
                 .expect("dotted cell tail should not be None")
                 .clone()
             {
-                Value::Symbol(s) => return Ok(Formals::Rest(vec, s)),
-                _ => return Err(Error::BadArg(1)),
-            }
-        } else {
-            match c.head().clone() {
-                Value::Symbol(s) => vec.push(s),
+                Value::Symbol(s) => {
+                    return Ok(Formals::Rest(vec, s));
+                }
                 _ => return Err(Error::BadArg(1)),
             }
         }
@@ -221,19 +223,24 @@ pub fn bind_closure_args(
             // we error on fixed?
         }
         Formals::Rest(params, symbol) => {
+            println!("{:?}, {:?}", params, symbol);
             let mut iter = Value::get_pair_cell(args)
                 .ok_or(Error::ArgsNotList)?
-                .values();
+                .cells();
+            let mut next_cell = iter.next();
             for s in params.into_iter() {
-                match iter.next() {
-                    Some(val) => new_env.insert((*s).clone(), val),
+                match next_cell.clone() {
+                    Some(val) => new_env.insert((*s).clone(), val.head().clone()),
                     None => return Err(Error::Arity),
                 }
+                next_cell = iter.next();
+                println!("{:?}", next_cell);
             }
-            match iter.next() {
-                Some(val) => new_env.insert((*symbol).clone(), val),
-                None => new_env.insert((*symbol).clone(), Value::Empty),
-            }
+            let last = match next_cell {
+                Some(val) => Value::from(val),
+                None => Value::Empty,
+            };
+            new_env.insert((*symbol).clone(), last);
         }
     }
     Ok(new_env)
