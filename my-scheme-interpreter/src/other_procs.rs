@@ -154,6 +154,10 @@ fn is_procedure(val: Value) -> Result<Value, Error> {
 }
 
 fn map(procedure: Value, list: Value) -> Result<Value, Error> {
+    // TODO like some other things this could be a list or a bunch of lists, the
+    // number of lists must correspond to the arity of the procedure. Not really
+    // sure how this works with collect and rest arity. Either way, this is not
+    // correct, even if it was working.
     let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(1))?;
     match proc.arity {
         Arity::Fixed(ref args) if args.len() != 1 => return Err(Error::BadArg(1)),
@@ -172,6 +176,10 @@ fn map(procedure: Value, list: Value) -> Result<Value, Error> {
 }
 
 fn for_each(procedure: Value, list: Value) -> Result<Value, Error> {
+    // TODO like some other things this could be a list or a bunch of lists, the
+    // number of lists must correspond to the arity of the procedure. Not really
+    // sure how this works with collect and rest arity. Either way, this is not
+    // correct, even if it was working.
     let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(1))?;
     match proc.arity {
         Arity::Fixed(ref args) if args.len() != 1 => return Err(Error::BadArg(1)),
@@ -190,6 +198,8 @@ fn for_each(procedure: Value, list: Value) -> Result<Value, Error> {
 }
 
 fn filter(procedure: Value, list: Value) -> Result<Value, Error> {
+    // TODO not tested and liekly not working as it is based on the map and for each
+    // that are not working either.
     let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(1))?;
     match proc.arity {
         Arity::Fixed(ref args) if args.len() != 1 => return Err(Error::BadArg(1)),
@@ -210,6 +220,8 @@ fn filter(procedure: Value, list: Value) -> Result<Value, Error> {
 }
 
 fn fold(initial: Value, procedure: Value, list: Value) -> Result<Value, Error> {
+    // TODO not tested and liekly not working as it is based on the map and for each
+    // that are not working either.
     let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(2))?;
     match proc.arity {
         Arity::Fixed(ref args) if args.len() != 2 => return Err(Error::BadArg(2)),

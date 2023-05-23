@@ -228,7 +228,7 @@ fn char_eq(val: Value, other: Value) -> Result<Value, Error> {
 fn char_less(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_byte() >= ch2.to_byte() {
+    match ch1.to_byte() < ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -237,7 +237,7 @@ fn char_less(val: Value, other: Value) -> Result<Value, Error> {
 fn char_greater(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_byte() <= ch2.to_byte() {
+    match ch1.to_byte() > ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -246,7 +246,7 @@ fn char_greater(val: Value, other: Value) -> Result<Value, Error> {
 fn char_leq(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_byte() > ch2.to_byte() {
+    match ch1.to_byte() <= ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -255,7 +255,7 @@ fn char_leq(val: Value, other: Value) -> Result<Value, Error> {
 fn char_geq(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_byte() < ch2.to_byte() {
+    match ch1.to_byte() >= ch2.to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -264,7 +264,7 @@ fn char_geq(val: Value, other: Value) -> Result<Value, Error> {
 fn char_eq_ci(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_upper_case().to_byte() == ch2.to_upper_case().to_byte() {
+    match ch1.to_lower_case().to_byte() == ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -273,7 +273,7 @@ fn char_eq_ci(val: Value, other: Value) -> Result<Value, Error> {
 fn char_less_ci(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_upper_case().to_byte() >= ch2.to_upper_case().to_byte() {
+    match ch1.to_lower_case().to_byte() < ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -282,7 +282,7 @@ fn char_less_ci(val: Value, other: Value) -> Result<Value, Error> {
 fn char_greater_ci(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_upper_case().to_byte() <= ch2.to_upper_case().to_byte() {
+    match ch1.to_lower_case().to_byte() > ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -291,7 +291,7 @@ fn char_greater_ci(val: Value, other: Value) -> Result<Value, Error> {
 fn char_leq_ci(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_upper_case().to_byte() > ch2.to_upper_case().to_byte() {
+    match ch1.to_lower_case().to_byte() <= ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
@@ -300,7 +300,7 @@ fn char_leq_ci(val: Value, other: Value) -> Result<Value, Error> {
 fn char_geq_ci(val: Value, other: Value) -> Result<Value, Error> {
     let ch1 = Value::get_char(&val).ok_or(Error::BadArg(1))?;
     let ch2 = Value::get_char(&other).ok_or(Error::BadArg(2))?;
-    match ch1.to_upper_case().to_byte() < ch2.to_upper_case().to_byte() {
+    match ch1.to_lower_case().to_byte() >= ch2.to_lower_case().to_byte() {
         true => Ok(Value::Bool(true)),
         false => Ok(Value::Bool(false)),
     }
