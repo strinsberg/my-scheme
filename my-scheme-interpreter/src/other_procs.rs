@@ -1,4 +1,3 @@
-use crate::cell::Cell;
 use crate::err::Error;
 use crate::proc::Proc;
 use crate::proc_utils as utils;
@@ -38,38 +37,6 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             let first = utils::fixed_take_1(args)?;
             is_procedure(first)
         }),
-        Proc::new(
-            "map",
-            Arity::Fixed(vec![Type::Proc(1), Type::Pair]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                map(first, second)
-            },
-        ),
-        Proc::new(
-            "for-each",
-            Arity::Fixed(vec![Type::Proc(1), Type::Pair]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                for_each(first, second)
-            },
-        ),
-        Proc::new(
-            "filter",
-            Arity::Fixed(vec![Type::Proc(1), Type::Pair]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                filter(first, second)
-            },
-        ),
-        Proc::new(
-            "fold",
-            Arity::Fixed(vec![Type::Any, Type::Proc(2), Type::Pair]),
-            |args| {
-                let (first, second, third) = utils::fixed_take_3(args)?;
-                fold(first, second, third)
-            },
-        ),
         // Eval/Apply
         // These exist here just because they need procedures, but they are
         // essentially special forms that get evaluated by the vm directly.
@@ -151,91 +118,6 @@ fn is_procedure(val: Value) -> Result<Value, Error> {
         Value::Procedure(_) | Value::Closure(_) => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
     }
-}
-
-fn map(procedure: Value, list: Value) -> Result<Value, Error> {
-    // TODO like some other things this could be a list or a bunch of lists, the
-    // number of lists must correspond to the arity of the procedure. Not really
-    // sure how this works with collect and rest arity. Either way, this is not
-    // correct, even if it was working.
-    let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(1))?;
-    match proc.arity {
-        Arity::Fixed(ref args) if args.len() != 1 => return Err(Error::BadArg(1)),
-        Arity::Rest(ref args, _) if args.len() > 1 => return Err(Error::BadArg(1)),
-        _ => (),
-    }
-    let func = proc.func;
-    let cell = Value::get_pair_cell(&list).ok_or(Error::BadArg(2))?;
-    let values: Vec<Value> = cell.values().collect();
-
-    let mut result = Value::Empty;
-    for val in values.iter().rev() {
-        result = Value::from(Cell::new(func(val)?, Some(result)));
-    }
-    Ok(result)
-}
-
-fn for_each(procedure: Value, list: Value) -> Result<Value, Error> {
-    // TODO like some other things this could be a list or a bunch of lists, the
-    // number of lists must correspond to the arity of the procedure. Not really
-    // sure how this works with collect and rest arity. Either way, this is not
-    // correct, even if it was working.
-    let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(1))?;
-    match proc.arity {
-        Arity::Fixed(ref args) if args.len() != 1 => return Err(Error::BadArg(1)),
-        Arity::Rest(ref args, _) if args.len() > 1 => return Err(Error::BadArg(1)),
-        _ => (),
-    }
-    let func = proc.func;
-
-    let cell = Value::get_pair_cell(&list).ok_or(Error::BadArg(2))?;
-    let values: Vec<Value> = cell.values().collect();
-
-    for val in values.iter().rev() {
-        func(val)?;
-    }
-    Ok(Value::default())
-}
-
-fn filter(procedure: Value, list: Value) -> Result<Value, Error> {
-    // TODO not tested and liekly not working as it is based on the map and for each
-    // that are not working either.
-    let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(1))?;
-    match proc.arity {
-        Arity::Fixed(ref args) if args.len() != 1 => return Err(Error::BadArg(1)),
-        Arity::Rest(ref args, _) if args.len() > 1 => return Err(Error::BadArg(1)),
-        _ => (),
-    }
-    let func = proc.func;
-    let cell = Value::get_pair_cell(&list).ok_or(Error::BadArg(2))?;
-    let values: Vec<Value> = cell.values().collect();
-
-    let mut result = Value::Empty;
-    for val in values.iter().rev() {
-        if let Value::Bool(true) = func(val)? {
-            result = Value::from(Cell::new(val.clone(), Some(result)));
-        }
-    }
-    Ok(result)
-}
-
-fn fold(initial: Value, procedure: Value, list: Value) -> Result<Value, Error> {
-    // TODO not tested and liekly not working as it is based on the map and for each
-    // that are not working either.
-    let proc = Value::get_procedure(&procedure).ok_or(Error::BadArg(2))?;
-    match proc.arity {
-        Arity::Fixed(ref args) if args.len() != 2 => return Err(Error::BadArg(2)),
-        Arity::Rest(ref args, _) if args.len() > 2 => return Err(Error::BadArg(2)),
-        _ => (),
-    }
-    let func = proc.func;
-    let cell = Value::get_pair_cell(&list).ok_or(Error::BadArg(3))?;
-
-    let mut acc = initial;
-    for val in cell.values() {
-        acc = func(&Value::from(Cell::new(acc, Some(val.clone()))))?;
-    }
-    Ok(acc)
 }
 
 // Equality

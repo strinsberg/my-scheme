@@ -2,6 +2,46 @@
 
 ;; Functional ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; This might be optimizable still, but this is a pretty standard way of
+;; doing a map and a little tricky when you have to have multiple lists to
+;; apply it to. Also, does not check for arity or that all lists are the same
+;; size.
+(define (map f . lists)
+  (letrec ((map-single
+             (lambda (f xs acc)
+                (if (null? xs)
+                  (reverse acc)
+                  (map-single f
+                              (cdr xs)
+                              (cons (f (car xs)) acc)))))
+           (map-multi
+             (lambda (f lists acc)
+               (if (null? (car lists))
+                 (reverse acc)
+                 (map-multi f
+                            (map-single cdr lists '())
+                            (cons (apply f (map-single car lists '()))
+                                  acc))))))
+    (map-multi f lists '())))
+
+;; Same strategy as map, but with no accumulators and we return '()
+(define (for-each f . lists)
+  (letrec ((for-each-single
+             (lambda (f xs)
+                (if (null? xs)
+                  '()
+                  (begin
+                    (f (car xs))
+                    (for-each-single f (cdr xs))))))
+           (for-each-multi
+             (lambda (f lists)
+               (if (null? (car lists))
+                 '()
+                 (begin
+                   (apply f (map car lists))
+                   (for-each-multi f (map cdr lists)))))))
+    (for-each-multi f lists)))
+
 ;; Lists ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Extra car,cdr, etc. helpers
