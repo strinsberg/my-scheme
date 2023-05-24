@@ -13,6 +13,7 @@ pub enum Error {
     DivideByZero,
     // TODO replace with a scan error
     CantParseNum(String),
+    NotAProcedure(Value),
 }
 
 // Scan/Read Error ////////////////////////////////////////////////////////////

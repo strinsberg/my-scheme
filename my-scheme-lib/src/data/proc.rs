@@ -165,45 +165,29 @@ pub enum Formals {
 // Alternate Closure for compilation testing //////////////////////////////////
 
 #[derive(Clone, PartialEq)]
-pub struct CompClos<T>
+pub struct Lambda<T>
 where
     T: Clone,
 {
     pub name: Option<Str>,
-    pub env: Rc<Env<Str, T>>,
-    pub formals: Formals,
-    pub func: fn(Rc<Env<Str, T>>) -> Result<T, Error>,
+    pub func: fn(Vec<T>) -> Result<T, Error>,
 }
 
-impl<T> CompClos<T>
+impl<T> Lambda<T>
 where
     T: Clone,
 {
-    pub fn new(
-        name: Option<Str>,
-        env: Rc<Env<Str, T>>,
-        formals: Formals,
-        func: fn(Rc<Env<Str, T>>) -> Result<T, Error>,
-    ) -> CompClos<T> {
-        CompClos {
+    pub fn new(name: Option<Str>, func: fn(Vec<T>) -> Result<T, Error>) -> Lambda<T> {
+        Lambda {
             name: name,
-            env: env,
-            formals: formals,
             func: func,
-        }
-    }
-
-    pub fn arity(&self) -> usize {
-        match &self.formals {
-            Formals::Collect(_) => 0,
-            Formals::Fixed(vec) | Formals::Rest(vec, _) => vec.len(),
         }
     }
 }
 
-// CompClos Traits /////////////////////////////////////////////////////////////
+// Lambda Traits /////////////////////////////////////////////////////////////
 
-impl<T> DisplayRep for CompClos<T>
+impl<T> DisplayRep for Lambda<T>
 where
     T: Debug + Clone + DisplayRep,
 {
@@ -215,7 +199,7 @@ where
     }
 }
 
-impl<T> ExternalRep for CompClos<T>
+impl<T> ExternalRep for Lambda<T>
 where
     T: Debug + Clone + ExternalRep,
 {
@@ -227,7 +211,7 @@ where
     }
 }
 
-impl<T> std::fmt::Display for CompClos<T>
+impl<T> std::fmt::Display for Lambda<T>
 where
     T: Clone + Debug + DisplayRep + ExternalRep,
 {
@@ -236,11 +220,11 @@ where
     }
 }
 
-impl<T> std::fmt::Debug for CompClos<T>
+impl<T> std::fmt::Debug for Lambda<T>
 where
     T: Clone + Debug + DisplayRep + ExternalRep,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "CompClos{{ {} }}", self.to_external())
+        write!(f, "Lambda{{ {} }}", self.to_external())
     }
 }
