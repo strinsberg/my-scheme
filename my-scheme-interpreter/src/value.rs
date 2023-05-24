@@ -3,7 +3,7 @@ use crate::cell::{Cell, CellValue};
 use crate::char::Char;
 use crate::env::Env;
 use crate::number::Num;
-use crate::proc::{Closure, Proc};
+use crate::proc::{Closure, CompClos, Proc};
 use crate::rep::{DisplayRep, ExternalRep};
 use crate::string::Str;
 use std::rc::Rc;
@@ -26,6 +26,8 @@ pub enum Value {
     // Other
     Special(Box<SpecialForm>),
     Undefined,
+    // test for compilation
+    CompClos(Rc<CompClos<Value>>),
 }
 
 impl Value {
@@ -236,6 +238,7 @@ impl DisplayRep for Value {
             Value::Env(_) => "#<environment>".to_string(),
             Value::Special(_) => "#<special-form>".to_string(),
             Value::Undefined => "#<undefined>".to_string(),
+            Value::CompClos(val) => val.to_display(),
         }
     }
 }
@@ -256,6 +259,7 @@ impl ExternalRep for Value {
             Value::Env(_) => "#<environment>".to_string(),
             Value::Special(_) => "#<special-form>".to_string(),
             Value::Undefined => "#<undefined>".to_string(),
+            Value::CompClos(val) => val.to_external(),
         }
     }
 }

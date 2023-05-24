@@ -162,4 +162,85 @@ pub enum Formals {
     Rest(Vec<Rc<Str>>, Rc<Str>),
 }
 
-// Testing ////////////////////////////////////////////////////////////////////
+// Alternate Closure for compilation testing //////////////////////////////////
+
+#[derive(Clone, PartialEq)]
+pub struct CompClos<T>
+where
+    T: Clone,
+{
+    pub name: Option<Str>,
+    pub env: Rc<Env<Str, T>>,
+    pub formals: Formals,
+    pub func: fn(Rc<Env<Str, T>>) -> Result<T, Error>,
+}
+
+impl<T> CompClos<T>
+where
+    T: Clone,
+{
+    pub fn new(
+        name: Option<Str>,
+        env: Rc<Env<Str, T>>,
+        formals: Formals,
+        func: fn(Rc<Env<Str, T>>) -> Result<T, Error>,
+    ) -> CompClos<T> {
+        CompClos {
+            name: name,
+            env: env,
+            formals: formals,
+            func: func,
+        }
+    }
+
+    pub fn arity(&self) -> usize {
+        match &self.formals {
+            Formals::Collect(_) => 0,
+            Formals::Fixed(vec) | Formals::Rest(vec, _) => vec.len(),
+        }
+    }
+}
+
+// CompClos Traits /////////////////////////////////////////////////////////////
+
+impl<T> DisplayRep for CompClos<T>
+where
+    T: Debug + Clone + DisplayRep,
+{
+    fn to_display(&self) -> String {
+        match self.name.clone() {
+            Some(name) => format!("#<procedure {}>", name),
+            None => format!("#<closure>",),
+        }
+    }
+}
+
+impl<T> ExternalRep for CompClos<T>
+where
+    T: Debug + Clone + ExternalRep,
+{
+    fn to_external(&self) -> String {
+        match self.name.clone() {
+            Some(name) => format!("#<procedure {}>", name),
+            None => format!("#<closure>",),
+        }
+    }
+}
+
+impl<T> std::fmt::Display for CompClos<T>
+where
+    T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl<T> std::fmt::Debug for CompClos<T>
+where
+    T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "CompClos{{ {} }}", self.to_external())
+    }
+}

@@ -26,7 +26,6 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             cons(first, second)
         }),
         Proc::new("list", Arity::Collect(Type::Any), |args| {
-            utils::validate_args_list(args);
             new_list(args.clone())
         }),
         // Predicates //

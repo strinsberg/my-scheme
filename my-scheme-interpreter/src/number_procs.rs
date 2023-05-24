@@ -32,12 +32,8 @@ pub fn make_procs() -> Vec<Proc<Value>> {
             is_integer(first)
         }),
         // basic arithmetic
-        Proc::new("+", Arity::Collect(Type::Number), |args| {
-            utils::validate_args_list(args);
-            add(args.clone())
-        }),
+        Proc::new("+", Arity::Collect(Type::Number), |args| add(args.clone())),
         Proc::new("*", Arity::Collect(Type::Number), |args| {
-            utils::validate_args_list(args);
             multiply(args.clone())
         }),
         Proc::new("-", Arity::Rest(vec![Type::Number], Type::Number), |args| {
@@ -127,7 +123,7 @@ fn cell_arith(
     Ok(Value::Number(result))
 }
 
-fn add(args: Value) -> Result<Value, Error> {
+pub fn add(args: Value) -> Result<Value, Error> {
     match args {
         Value::Pair(cell) => cell_arith(cell, Num::Int(0), |a, b| a.add(&b)),
         Value::Empty => Ok(Value::Number(Num::Int(0))),
