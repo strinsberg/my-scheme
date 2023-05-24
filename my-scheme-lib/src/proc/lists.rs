@@ -1,109 +1,21 @@
 use crate::data::cell::Cell;
 use crate::data::err::Error;
-use crate::data::proc::Proc;
-use crate::data::types::{Arity, Type};
+use crate::data::types::Type;
 use crate::data::value::Value;
-use crate::proc::utils;
 
 // NOTE car, cdr, variants will stay in std.scm
 // TODO test new procedures
-
-// Exported Procedures ////////////////////////////////////////////////////////
-
-pub fn make_procs() -> Vec<Proc<Value>> {
-    vec![
-        // Core //
-        Proc::new("car", Arity::Fixed(vec![Type::Pair]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            car(first)
-        }),
-        Proc::new("cdr", Arity::Fixed(vec![Type::Pair]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            cdr(first)
-        }),
-        Proc::new("cons", Arity::Fixed(vec![Type::Any, Type::Any]), |args| {
-            let (first, second) = utils::fixed_take_2(args)?;
-            cons(first, second)
-        }),
-        Proc::new("list", Arity::Collect(Type::Any), |args| {
-            new_list(args.clone())
-        }),
-        // Predicates //
-        Proc::new("list?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_list(first)
-        }),
-        Proc::new("pair?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_pair(first)
-        }),
-        Proc::new("null?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_null(first)
-        }),
-        // Non-Mutating //
-        Proc::new("length", Arity::Fixed(vec![Type::Pair]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            list_length(first)
-        }),
-        Proc::new(
-            "list-tail",
-            Arity::Fixed(vec![Type::Pair, Type::UInt]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                list_tail(first, second)
-            },
-        ),
-        Proc::new(
-            "list-ref",
-            Arity::Fixed(vec![Type::Pair, Type::UInt]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                list_ref(first, second)
-            },
-        ),
-        Proc::new(
-            "append",
-            Arity::Fixed(vec![Type::Pair, Type::UInt]),
-            |args| {
-                let (first, rest) = utils::rest_take_1(args)?;
-                list_append(first, rest)
-            },
-        ),
-        Proc::new("reverse", Arity::Fixed(vec![Type::Pair]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            list_reverse(first)
-        }),
-        // Mutating //
-        Proc::new(
-            "set-car!",
-            Arity::Fixed(vec![Type::Pair, Type::Any]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                set_car(first, second)
-            },
-        ),
-        Proc::new(
-            "set-cdr!",
-            Arity::Fixed(vec![Type::Pair, Type::Any]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                set_cdr(first, second)
-            },
-        ),
-    ]
-}
 
 // Scheme List/Pair Procedures ////////////////////////////////////////////////
 
 // Core Procedures //
 
-fn car(pair: Value) -> Result<Value, Error> {
+pub fn car(pair: Value) -> Result<Value, Error> {
     let cell = Value::get_pair_cell(&pair).ok_or(Error::BadType(Type::Pair, pair.clone()))?;
     Ok(cell.head().clone())
 }
 
-fn cdr(pair: Value) -> Result<Value, Error> {
+pub fn cdr(pair: Value) -> Result<Value, Error> {
     let cell = Value::get_pair_cell(&pair).ok_or(Error::BadType(Type::Pair, pair.clone()))?;
     match cell.tail().clone() {
         Some(tail) => Ok(tail),
@@ -111,7 +23,7 @@ fn cdr(pair: Value) -> Result<Value, Error> {
     }
 }
 
-fn cons(first: Value, second: Value) -> Result<Value, Error> {
+pub fn cons(first: Value, second: Value) -> Result<Value, Error> {
     let tail = match second {
         Value::Empty => None,
         _ => Some(second.clone()),
@@ -119,7 +31,7 @@ fn cons(first: Value, second: Value) -> Result<Value, Error> {
     Ok(Value::from(Cell::new(first.clone(), tail)))
 }
 
-fn new_list(args: Value) -> Result<Value, Error> {
+pub fn new_list(args: Value) -> Result<Value, Error> {
     match args {
         Value::Empty => Ok(Value::Empty),
         _ => {
@@ -131,21 +43,21 @@ fn new_list(args: Value) -> Result<Value, Error> {
 
 // Predicates //
 
-fn is_pair(value: Value) -> Result<Value, Error> {
+pub fn is_pair(value: Value) -> Result<Value, Error> {
     match Value::get_pair_cell(&value) {
         Some(_) => Ok(Value::Bool(true)),
         None => Ok(Value::Bool(false)),
     }
 }
 
-fn is_list(value: Value) -> Result<Value, Error> {
+pub fn is_list(value: Value) -> Result<Value, Error> {
     match value {
         Value::Pair(_) | Value::Empty => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
     }
 }
 
-fn is_null(value: Value) -> Result<Value, Error> {
+pub fn is_null(value: Value) -> Result<Value, Error> {
     match value {
         Value::Empty => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
@@ -154,7 +66,7 @@ fn is_null(value: Value) -> Result<Value, Error> {
 
 // Non-Mutating Procedures //
 
-fn list_length(pair: Value) -> Result<Value, Error> {
+pub fn list_length(pair: Value) -> Result<Value, Error> {
     match pair {
         Value::Pair(cell) => {
             let mut len = 0;
@@ -168,7 +80,7 @@ fn list_length(pair: Value) -> Result<Value, Error> {
     }
 }
 
-fn list_tail(pair: Value, index: Value) -> Result<Value, Error> {
+pub fn list_tail(pair: Value, index: Value) -> Result<Value, Error> {
     let idx = Value::get_uint(&index).ok_or(Error::BadType(Type::UInt, index))? as usize;
     if idx == 0 {
         return Ok(pair);
@@ -191,7 +103,7 @@ fn list_tail(pair: Value, index: Value) -> Result<Value, Error> {
     }
 }
 
-fn list_ref(pair: Value, index: Value) -> Result<Value, Error> {
+pub fn list_ref(pair: Value, index: Value) -> Result<Value, Error> {
     let idx = Value::get_uint(&index).ok_or(Error::BadType(Type::UInt, index))? as usize;
     match pair.clone() {
         Value::Pair(cell) => {
@@ -207,7 +119,7 @@ fn list_ref(pair: Value, index: Value) -> Result<Value, Error> {
     }
 }
 
-fn list_append(pair: Value, rest: Value) -> Result<Value, Error> {
+pub fn list_append(pair: Value, rest: Value) -> Result<Value, Error> {
     let mut arg_vec = vec![pair.clone()];
     if rest != Value::Empty {
         let args = Value::get_pair_cell(&rest).expect("rest args list should be list");
@@ -231,7 +143,7 @@ fn list_append(pair: Value, rest: Value) -> Result<Value, Error> {
     Ok(Value::list_from_vec(res_vec, last))
 }
 
-fn list_reverse(pair: Value) -> Result<Value, Error> {
+pub fn list_reverse(pair: Value) -> Result<Value, Error> {
     if pair == Value::Empty {
         return Ok(pair.clone());
     }
@@ -264,13 +176,13 @@ fn list_reverse(pair: Value) -> Result<Value, Error> {
 
 // Mutating Procedures //
 
-fn set_car(pair: Value, val: Value) -> Result<Value, Error> {
+pub fn set_car(pair: Value, val: Value) -> Result<Value, Error> {
     let cell =
         Value::get_pair_cell(&pair).ok_or(Error::BadType(Type::list(Type::Any), pair.clone()))?;
     Ok(cell.set_head(val.clone()))
 }
 
-fn set_cdr(pair: Value, val: Value) -> Result<Value, Error> {
+pub fn set_cdr(pair: Value, val: Value) -> Result<Value, Error> {
     let cell =
         Value::get_pair_cell(&pair).ok_or(Error::BadType(Type::list(Type::Any), pair.clone()))?;
     let result = match val {

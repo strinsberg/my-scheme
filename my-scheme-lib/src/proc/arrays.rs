@@ -1,88 +1,19 @@
 use crate::data::array::Array;
 use crate::data::err::Error;
-use crate::data::proc::Proc;
-use crate::data::types::{Arity, Type};
+use crate::data::types::Type;
 use crate::data::value::Value;
-use crate::proc::utils;
 
 // TODO testing
-
-// Exported Procedures ////////////////////////////////////////////////////////
-
-pub fn make_procs() -> Vec<Proc<Value>> {
-    vec![
-        // Construct
-        Proc::new("vector", Arity::Collect(Type::Any), |args| {
-            utils::validate_args_list(args);
-            new_array(args.clone())
-        }),
-        Proc::new(
-            "make-vector",
-            Arity::Fixed(vec![Type::UInt, Type::opt(Type::Any)]),
-            |args| {
-                let (first, second) = utils::opt_last_take_2(args)?;
-                make_array(first, second)
-            },
-        ),
-        // Predicate
-        Proc::new("vector?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_array(first)
-        }),
-        // Non-Mutating
-        Proc::new("vector-length", Arity::Fixed(vec![Type::Array]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            array_length(first)
-        }),
-        Proc::new(
-            "vector-ref",
-            Arity::Fixed(vec![Type::Array, Type::UInt]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                array_ref(first, second)
-            },
-        ),
-        Proc::new(
-            "list->vector",
-            Arity::Fixed(vec![Type::list(Type::Any)]),
-            |args| {
-                let first = utils::fixed_take_1(args)?;
-                list_to_array(first)
-            },
-        ),
-        Proc::new("vector->list", Arity::Fixed(vec![Type::Array]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            array_to_list(first)
-        }),
-        // Mutating
-        Proc::new(
-            "vector-set!",
-            Arity::Fixed(vec![Type::Array, Type::UInt, Type::Any]),
-            |args| {
-                let (first, second, third) = utils::fixed_take_3(args)?;
-                array_set(first, second, third)
-            },
-        ),
-        Proc::new(
-            "vector-fill!",
-            Arity::Fixed(vec![Type::Array, Type::Any]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                array_fill(first, second)
-            },
-        ),
-    ]
-}
 
 // Array Procedures ///////////////////////////////////////////////////////////
 
 // Construct //
 
-fn new_array(args: Value) -> Result<Value, Error> {
+pub fn new_array(args: Value) -> Result<Value, Error> {
     Ok(Value::from(Array::from(args)))
 }
 
-fn make_array(size: Value, fill: Option<Value>) -> Result<Value, Error> {
+pub fn make_array(size: Value, fill: Option<Value>) -> Result<Value, Error> {
     let size = Value::get_uint(&size).ok_or(Error::BadType(Type::UInt, size))?;
     let val = match fill {
         Some(val) => val.clone(),
@@ -93,7 +24,7 @@ fn make_array(size: Value, fill: Option<Value>) -> Result<Value, Error> {
 
 // Predicates //
 
-fn is_array(array: Value) -> Result<Value, Error> {
+pub fn is_array(array: Value) -> Result<Value, Error> {
     match Value::get_array(&array) {
         Some(_) => Ok(Value::Bool(true)),
         None => Ok(Value::Bool(false)),
@@ -102,12 +33,12 @@ fn is_array(array: Value) -> Result<Value, Error> {
 
 // Non-Mutating Procedures //
 
-fn array_length(array: Value) -> Result<Value, Error> {
+pub fn array_length(array: Value) -> Result<Value, Error> {
     let arr = Value::get_array(&array).ok_or(Error::BadType(Type::Array, array.clone()))?;
     Ok(Value::from(arr.len() as i64))
 }
 
-fn array_ref(array: Value, index: Value) -> Result<Value, Error> {
+pub fn array_ref(array: Value, index: Value) -> Result<Value, Error> {
     let arr = Value::get_array(&array).ok_or(Error::BadType(Type::Array, array.clone()))?;
     let idx = Value::get_uint(&index).ok_or(Error::BadType(Type::UInt, index))?;
     match arr.get(idx as usize) {
@@ -116,14 +47,14 @@ fn array_ref(array: Value, index: Value) -> Result<Value, Error> {
     }
 }
 
-fn list_to_array(pair: Value) -> Result<Value, Error> {
+pub fn list_to_array(pair: Value) -> Result<Value, Error> {
     match pair {
         Value::Pair(_) | Value::Empty => Ok(Value::from(Array::from(pair))),
         _ => Err(Error::BadType(Type::Array, pair)),
     }
 }
 
-fn array_to_list(array: Value) -> Result<Value, Error> {
+pub fn array_to_list(array: Value) -> Result<Value, Error> {
     let arr = Value::get_array(&array).ok_or(Error::BadType(Type::Array, array.clone()))?;
     let result = Value::list_from_vec(arr.values().collect(), Value::Empty);
     Ok(result)
@@ -131,7 +62,7 @@ fn array_to_list(array: Value) -> Result<Value, Error> {
 
 // Mutating Procedures //
 
-fn array_set(array: Value, index: Value, val: Value) -> Result<Value, Error> {
+pub fn array_set(array: Value, index: Value, val: Value) -> Result<Value, Error> {
     let arr = Value::get_array(&array).ok_or(Error::BadType(Type::Array, array.clone()))?;
     let idx = Value::get_uint(&index).ok_or(Error::BadType(Type::UInt, index))?;
     match arr.set(val, idx as usize) {
@@ -140,7 +71,7 @@ fn array_set(array: Value, index: Value, val: Value) -> Result<Value, Error> {
     }
 }
 
-fn array_fill(array: Value, val: Value) -> Result<Value, Error> {
+pub fn array_fill(array: Value, val: Value) -> Result<Value, Error> {
     let arr = Value::get_array(&array).ok_or(Error::BadType(Type::Array, array.clone()))?;
     arr.fill(val);
     Ok(array)

@@ -1,83 +1,19 @@
 use crate::data::err::Error;
-use crate::data::proc::Proc;
 use crate::data::string::Str;
-use crate::data::types::{Arity, Type};
+use crate::data::types::Type;
 use crate::data::value::Value;
-use crate::proc::utils;
 use std::rc::Rc;
-
-// Exported Procedures ////////////////////////////////////////////////////////
-
-pub fn make_procs() -> Vec<Proc<Value>> {
-    vec![
-        // Boolean
-        Proc::new("boolean?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_bool(first)
-        }),
-        Proc::new("not", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            not(first)
-        }),
-        // Symbol
-        Proc::new("symbol?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_symbol(first)
-        }),
-        Proc::new("symbol->string", Arity::Fixed(vec![Type::Symbol]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            symbol_to_string(first)
-        }),
-        Proc::new("string->symbol", Arity::Fixed(vec![Type::String]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            string_to_symbol(first)
-        }),
-        // Control flow
-        Proc::new("procedure?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_procedure(first)
-        }),
-        // Equality
-        Proc::new("eqv?", Arity::Fixed(vec![Type::Any, Type::Any]), |args| {
-            let (first, second) = utils::fixed_take_2(args)?;
-            are_eqv(first, second)
-        }),
-        Proc::new("eq?", Arity::Fixed(vec![Type::Any, Type::Any]), |args| {
-            let (first, second) = utils::fixed_take_2(args)?;
-            are_eq(first, second)
-        }),
-        Proc::new("equal?", Arity::Fixed(vec![Type::Any, Type::Any]), |args| {
-            let (first, second) = utils::fixed_take_2(args)?;
-            are_equal(first, second)
-        }),
-        // Eval/Apply
-        // These exist here just because they need procedures, but they are
-        // essentially special forms that get evaluated by the vm directly.
-        Proc::new("eval", Arity::Fixed(vec![Type::Any, Type::Env]), |_| {
-            panic!("eval is evaluated by the vm")
-        }),
-        Proc::new(
-            "apply",
-            Arity::Fixed(vec![
-                Type::Proc,
-                Type::dots(Type::Any),
-                Type::list(Type::Any),
-            ]),
-            |_| panic!("apply is evaluated by the vm"),
-        ),
-    ]
-}
 
 // Boolean Procedures /////////////////////////////////////////////////////////
 
-fn is_bool(val: Value) -> Result<Value, Error> {
+pub fn is_bool(val: Value) -> Result<Value, Error> {
     match val {
         Value::Bool(_) => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
     }
 }
 
-fn not(val: Value) -> Result<Value, Error> {
+pub fn not(val: Value) -> Result<Value, Error> {
     match val {
         Value::Bool(b) => Ok(Value::Bool(!b)),
         _ => Ok(Value::Bool(false)),
@@ -86,14 +22,14 @@ fn not(val: Value) -> Result<Value, Error> {
 
 // Symbol Procedures //////////////////////////////////////////////////////////
 
-fn is_symbol(val: Value) -> Result<Value, Error> {
+pub fn is_symbol(val: Value) -> Result<Value, Error> {
     match val {
         Value::Symbol(_) => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
     }
 }
 
-fn symbol_to_string(symbol: Value) -> Result<Value, Error> {
+pub fn symbol_to_string(symbol: Value) -> Result<Value, Error> {
     let s = Value::get_symbol_str(&symbol).ok_or(Error::BadType(Type::Symbol, symbol.clone()))?;
     let mut chars = Vec::new();
     for ch in s.chars() {
@@ -102,7 +38,7 @@ fn symbol_to_string(symbol: Value) -> Result<Value, Error> {
     Ok(Value::from(Str::from(chars)))
 }
 
-fn string_to_symbol(string: Value) -> Result<Value, Error> {
+pub fn string_to_symbol(string: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadType(Type::String, string.clone()))?;
     let mut chars = Vec::new();
     for ch in s.chars() {
@@ -113,7 +49,7 @@ fn string_to_symbol(string: Value) -> Result<Value, Error> {
 
 // Control Flow ///////////////////////////////////////////////////////////////
 
-fn is_procedure(val: Value) -> Result<Value, Error> {
+pub fn is_procedure(val: Value) -> Result<Value, Error> {
     match val {
         Value::Procedure(_) | Value::Closure(_) => Ok(Value::Bool(true)),
         _ => Ok(Value::Bool(false)),
@@ -151,7 +87,7 @@ pub fn are_eqv(first: Value, second: Value) -> Result<Value, Error> {
     }
 }
 
-fn are_eq(first: Value, second: Value) -> Result<Value, Error> {
+pub fn are_eq(first: Value, second: Value) -> Result<Value, Error> {
     // The things that the standard says that eq? may differ from eqv? are
     // things that we do not have the ability to do. I.e. numbers and characters
     // are not held in pointers so there is no way to do pointer comparisson.
@@ -159,7 +95,7 @@ fn are_eq(first: Value, second: Value) -> Result<Value, Error> {
     are_eqv(first, second)
 }
 
-fn are_equal(first: Value, second: Value) -> Result<Value, Error> {
+pub fn are_equal(first: Value, second: Value) -> Result<Value, Error> {
     // Assuming that our Partial equal implementations correctly check the
     // equality of collections recursively based on contents and not pointers
     // just changing the collections from Rc::eq to == should do the trick.

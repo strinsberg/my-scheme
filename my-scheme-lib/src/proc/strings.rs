@@ -1,181 +1,17 @@
 use crate::data::char::Char;
 use crate::data::err::Error;
-use crate::data::proc::Proc;
 use crate::data::string::Str;
-use crate::data::types::{Arity, Type};
+//use crate::data::types::Type;
 use crate::data::value::Value;
-use crate::proc::utils;
 
+// TODO use new Type error
 // TODO testing
-
-// Exported Procedures ////////////////////////////////////////////////////////
-
-pub fn make_procs() -> Vec<Proc<Value>> {
-    vec![
-        // Construct
-        Proc::new("string", Arity::Collect(Type::Char), |args| {
-            new_string(args.clone())
-        }),
-        Proc::new(
-            "make-string",
-            Arity::Fixed(vec![Type::UInt, Type::opt(Type::Char)]),
-            |args| {
-                let (first, second) = utils::opt_last_take_2(args)?;
-                make_string(first, second)
-            },
-        ),
-        // Predicates
-        Proc::new("string?", Arity::Fixed(vec![Type::Any]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            is_string(first)
-        }),
-        // Non-Mutating
-        Proc::new("string-length", Arity::Fixed(vec![Type::String]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            string_length(first)
-        }),
-        Proc::new(
-            "string-ref",
-            Arity::Fixed(vec![Type::String, Type::UInt]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_ref(first, second)
-            },
-        ),
-        Proc::new("list->string", Arity::Fixed(vec![Type::Pair]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            list_to_string(first)
-        }),
-        Proc::new("string->list", Arity::Fixed(vec![Type::String]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            string_to_list(first)
-        }),
-        Proc::new(
-            "substring",
-            Arity::Fixed(vec![Type::String, Type::UInt, Type::UInt]),
-            |args| {
-                let (first, second, third) = utils::fixed_take_3(args)?;
-                substring(first, second, third)
-            },
-        ),
-        Proc::new(
-            "string-append",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, rest) = utils::rest_take_1(args)?;
-                string_append(first, rest)
-            },
-        ),
-        Proc::new("string-copy", Arity::Fixed(vec![Type::String]), |args| {
-            let first = utils::fixed_take_1(args)?;
-            string_copy(first)
-        }),
-        // Mutating
-        Proc::new(
-            "string-set!",
-            Arity::Fixed(vec![Type::String, Type::UInt, Type::Char]),
-            |args| {
-                let (first, second, third) = utils::fixed_take_3(args)?;
-                string_set(first, second, third)
-            },
-        ),
-        Proc::new(
-            "string-fill!",
-            Arity::Fixed(vec![Type::String, Type::Any]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_fill(first, second)
-            },
-        ),
-        // Comparisson
-        Proc::new(
-            "string=?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_eq(first, second)
-            },
-        ),
-        Proc::new(
-            "string<?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_less(first, second)
-            },
-        ),
-        Proc::new(
-            "string>?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_greater(first, second)
-            },
-        ),
-        Proc::new(
-            "string<=?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_leq(first, second)
-            },
-        ),
-        Proc::new(
-            "string>=?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_geq(first, second)
-            },
-        ),
-        Proc::new(
-            "string-ci=?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_eq_ci(first, second)
-            },
-        ),
-        Proc::new(
-            "string-ci<?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_less_ci(first, second)
-            },
-        ),
-        Proc::new(
-            "string-ci>?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_greater_ci(first, second)
-            },
-        ),
-        Proc::new(
-            "string-ci<=?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_leq_ci(first, second)
-            },
-        ),
-        Proc::new(
-            "string-ci>=?",
-            Arity::Fixed(vec![Type::String, Type::String]),
-            |args| {
-                let (first, second) = utils::fixed_take_2(args)?;
-                string_geq_ci(first, second)
-            },
-        ),
-    ]
-}
 
 // String Procedures //////////////////////////////////////////////////////////
 
 // Constructors //
 
-fn new_string(args: Value) -> Result<Value, Error> {
+pub fn new_string(args: Value) -> Result<Value, Error> {
     let cell = Value::get_pair_cell(&args).ok_or(Error::ArgsNotList)?;
     let mut chars = Vec::new();
     for (i, val) in cell.values().enumerate() {
@@ -185,7 +21,7 @@ fn new_string(args: Value) -> Result<Value, Error> {
     Ok(Value::from(Str::from(chars)))
 }
 
-fn make_string(size: Value, fill: Option<Value>) -> Result<Value, Error> {
+pub fn make_string(size: Value, fill: Option<Value>) -> Result<Value, Error> {
     let size = Value::get_int(&size).ok_or(Error::BadArg(1))?;
     if size < 0 {
         return Err(Error::BadArg(1));
@@ -199,7 +35,7 @@ fn make_string(size: Value, fill: Option<Value>) -> Result<Value, Error> {
 
 // Predicates //
 
-fn is_string(string: Value) -> Result<Value, Error> {
+pub fn is_string(string: Value) -> Result<Value, Error> {
     match Value::get_string(&string) {
         Some(_) => Ok(Value::Bool(true)),
         None => Ok(Value::Bool(false)),
@@ -208,12 +44,12 @@ fn is_string(string: Value) -> Result<Value, Error> {
 
 // Non-Mutating Procedures //
 
-fn string_length(string: Value) -> Result<Value, Error> {
+pub fn string_length(string: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     Ok(Value::from(s.len() as i64))
 }
 
-fn string_ref(string: Value, index: Value) -> Result<Value, Error> {
+pub fn string_ref(string: Value, index: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let idx = Value::get_int(&index).ok_or(Error::BadArg(2))?;
     if idx < 0 {
@@ -225,7 +61,7 @@ fn string_ref(string: Value, index: Value) -> Result<Value, Error> {
     }
 }
 
-fn list_to_string(pair: Value) -> Result<Value, Error> {
+pub fn list_to_string(pair: Value) -> Result<Value, Error> {
     let cell = Value::get_pair_cell(&pair).ok_or(Error::BadArg(1))?;
     let mut chars = Vec::new();
     for val in cell.values() {
@@ -235,7 +71,7 @@ fn list_to_string(pair: Value) -> Result<Value, Error> {
     Ok(Value::from(Str::from(chars)))
 }
 
-fn string_to_list(string: Value) -> Result<Value, Error> {
+pub fn string_to_list(string: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let result = Value::list_from_vec(
         s.chars().map(|ch| Value::Char(ch.clone())).collect(),
@@ -244,7 +80,7 @@ fn string_to_list(string: Value) -> Result<Value, Error> {
     Ok(result)
 }
 
-fn substring(string: Value, begin: Value, end: Value) -> Result<Value, Error> {
+pub fn substring(string: Value, begin: Value, end: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let first = Value::get_int(&begin).ok_or(Error::BadArg(2))?;
     if first < 0 {
@@ -257,7 +93,7 @@ fn substring(string: Value, begin: Value, end: Value) -> Result<Value, Error> {
     Ok(Value::from(s.substring(first as usize, last as usize)))
 }
 
-fn string_append(string: Value, rest: Value) -> Result<Value, Error> {
+pub fn string_append(string: Value, rest: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let mut result = s.clone();
     // TODO this is the bad way, as it creates a new allocation for every append
@@ -274,7 +110,7 @@ fn string_append(string: Value, rest: Value) -> Result<Value, Error> {
     Ok(Value::from(result))
 }
 
-fn string_copy(string: Value) -> Result<Value, Error> {
+pub fn string_copy(string: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let chars: Vec<Char> = s.chars().map(|ch| ch.clone()).collect();
     Ok(Value::from(Str::from(chars)))
@@ -282,7 +118,7 @@ fn string_copy(string: Value) -> Result<Value, Error> {
 
 // Mutating Procedures //
 
-fn string_set(string: Value, index: Value, val: Value) -> Result<Value, Error> {
+pub fn string_set(string: Value, index: Value, val: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let idx = Value::get_int(&index).ok_or(Error::BadArg(2))?;
     if idx < 0 {
@@ -295,7 +131,7 @@ fn string_set(string: Value, index: Value, val: Value) -> Result<Value, Error> {
     }
 }
 
-fn string_fill(string: Value, val: Value) -> Result<Value, Error> {
+pub fn string_fill(string: Value, val: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let ch = Value::get_char(&val).ok_or(Error::BadArg(2))?;
     s.fill(ch.clone());
@@ -304,7 +140,7 @@ fn string_fill(string: Value, val: Value) -> Result<Value, Error> {
 
 // Comparissons //
 
-fn string_eq(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_eq(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     match s == o {
@@ -313,7 +149,7 @@ fn string_eq(string: Value, other: Value) -> Result<Value, Error> {
     }
 }
 
-fn string_less(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_less(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     if s.len() == 0 && o.len() == 0 {
@@ -337,7 +173,7 @@ fn string_less(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true && !equal))
 }
 
-fn string_greater(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_greater(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     if s.len() == 0 && o.len() == 0 {
@@ -364,7 +200,7 @@ fn string_greater(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true && !equal))
 }
 
-fn string_leq(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_leq(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     for (i, ch) in s.chars().enumerate() {
@@ -380,7 +216,7 @@ fn string_leq(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true))
 }
 
-fn string_geq(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_geq(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     for (i, ch) in s.chars().enumerate() {
@@ -398,7 +234,7 @@ fn string_geq(string: Value, other: Value) -> Result<Value, Error> {
 
 // case insensitive
 
-fn string_eq_ci(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_eq_ci(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     for (i, ch) in s.chars().enumerate() {
@@ -414,7 +250,7 @@ fn string_eq_ci(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true && s.len() == o.len()))
 }
 
-fn string_less_ci(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_less_ci(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     if s.len() == 0 && o.len() == 0 {
@@ -438,7 +274,7 @@ fn string_less_ci(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true && !equal))
 }
 
-fn string_greater_ci(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_greater_ci(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     if s.len() == 0 && o.len() == 0 {
@@ -465,7 +301,7 @@ fn string_greater_ci(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true && !equal))
 }
 
-fn string_leq_ci(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_leq_ci(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     for (i, ch) in s.chars().enumerate() {
@@ -481,7 +317,7 @@ fn string_leq_ci(string: Value, other: Value) -> Result<Value, Error> {
     Ok(Value::Bool(true))
 }
 
-fn string_geq_ci(string: Value, other: Value) -> Result<Value, Error> {
+pub fn string_geq_ci(string: Value, other: Value) -> Result<Value, Error> {
     let s = Value::get_string(&string).ok_or(Error::BadArg(1))?;
     let o = Value::get_string(&other).ok_or(Error::BadArg(2))?;
     for (i, ch) in s.chars().enumerate() {
