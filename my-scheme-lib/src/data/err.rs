@@ -2,9 +2,15 @@ use crate::data::string::Str;
 use crate::data::types::Type;
 use crate::data::value::Value;
 
+// TODO probably we will transition to a single error type for the compiler
+// to use. We can keep them both, but add necessary errors to Error and then
+// write a Display impl for it so that runtime errors from the compiled code
+// have nice output.
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     OutOfRange,
+    Undeclared(String),
     BadIndex(usize, Value),
     ArgsNotList,
     Arity,

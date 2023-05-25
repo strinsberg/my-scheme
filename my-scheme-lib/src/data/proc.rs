@@ -164,24 +164,55 @@ pub enum Formals {
 
 // Alternate Closure for compilation testing //////////////////////////////////
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Lambda<T>
 where
     T: Clone,
 {
     pub name: Option<Str>,
-    pub func: fn(Vec<T>) -> Result<T, Error>,
+    pub env: Rc<Env<Str, T>>,
+    pub func: fn(Vec<T>, Rc<Env<Str, T>>) -> Result<T, Error>,
 }
 
 impl<T> Lambda<T>
 where
     T: Clone,
 {
-    pub fn new(name: Option<Str>, func: fn(Vec<T>) -> Result<T, Error>) -> Lambda<T> {
+    pub fn new(
+        name: Option<Str>,
+        env: Rc<Env<Str, T>>,
+        func: fn(Vec<T>, Rc<Env<Str, T>>) -> Result<T, Error>,
+    ) -> Lambda<T> {
         Lambda {
             name: name,
+            env: env,
             func: func,
         }
+    }
+
+    pub fn new_std(
+        name: &str,
+        env: Rc<Env<Str, T>>,
+        func: fn(Vec<T>, Rc<Env<Str, T>>) -> Result<T, Error>,
+    ) -> Lambda<T> {
+        Lambda {
+            name: Some(Str::from(name)),
+            env: env,
+            func: func,
+        }
+    }
+}
+
+impl<T> PartialEq for Lambda<T>
+where
+    T: Clone,
+{
+    fn eq(&self, other: &Lambda<T>) -> bool {
+        self.name == other.name
+    }
+
+    fn ne(&self, other: &Lambda<T>) -> bool {
+        !self.eq(other)
     }
 }
 

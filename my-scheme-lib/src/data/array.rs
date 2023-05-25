@@ -1,7 +1,6 @@
 use crate::data::cell::CellValue;
 use crate::data::rep::{DisplayRep, ExternalRep};
 use std::cell::{Ref, RefCell};
-use std::rc::Rc;
 
 #[derive(Clone, PartialEq)]
 pub struct Array<T>

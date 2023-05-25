@@ -196,6 +196,12 @@ impl From<Proc<Value>> for Value {
     }
 }
 
+impl From<Lambda<Value>> for Value {
+    fn from(l: Lambda<Value>) -> Value {
+        Value::Lambda(Rc::new(l))
+    }
+}
+
 impl From<SpecialForm> for Value {
     fn from(f: SpecialForm) -> Value {
         Value::Special(Box::new(f))

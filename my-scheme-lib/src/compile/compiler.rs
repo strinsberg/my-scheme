@@ -1,15 +1,14 @@
-use crate::compile::proc_map;
 use crate::data::cell::Cell;
 use crate::data::number::Num;
 use crate::data::string::Str;
 use crate::data::value::Value;
 use crate::io::reader::StringReader;
-use std::collections::HashMap;
 use std::rc::Rc;
 
-// TODO test and clean up what we have and then add more
-// TODO try and find a better way of testing the actual compiled code works
-// maybe through a script in a tests folder.
+// TODO some simple tests are ok in here, but because we do not introduce line
+// breaks into the final compilations and use some spacing that is not standard
+// it is really hard to ensure the result is as expected. SO put more tests in
+// the tests/compiler_tests.rs to test more complex behaviour directly.
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompileError {
@@ -17,35 +16,59 @@ pub enum CompileError {
     Agh,
 }
 
-pub struct Compiler {
-    procs: HashMap<&'static str, &'static str>,
-}
+pub struct Compiler {}
 
 impl Compiler {
     pub fn new() -> Compiler {
-        Compiler {
-            procs: proc_map::make_proc_map(),
-        }
+        Compiler {}
+    }
+
+    pub fn compile_program_with_output(
+        &mut self,
+        c: &str,
+        s: &str,
+    ) -> Result<String, CompileError> {
+        let lines = vec![
+            // Imports
+            format!("use {c}::compile::core::*;"),
+            format!("use {c}::data::err::Error;"),
+            format!("use {c}::data::value::Value;"),
+            // Program function that includes compiled code
+            "fn program() -> Result<Value, Error> {".to_string(),
+            "let env = new_env();".to_string(),
+            format!("{}", self.compile_string(s)?),
+            "}".to_string(),
+            // Main to call program and print result
+            "fn main() {".to_string(),
+            "    match program() {".to_string(),
+            "        Ok(val) => println!(\"{val}\"),".to_string(),
+            "        Err(e) => println!(\"{:?}\", e),".to_string(),
+            "    }".to_string(),
+            "}".to_string(),
+        ];
+        Ok(lines.join("\n"))
     }
 
     pub fn compile_program(&mut self, c: &str, s: &str) -> Result<String, CompileError> {
-        let imports = vec![
+        let lines = vec![
+            // Imports
+            format!("use {c}::compile::core::*;"),
+            format!("use {c}::data::err::Error;"),
             format!("use {c}::data::value::Value;"),
-            format!("use {c}::compile::proc;"),
-            format!("use {c}::compile::core;"),
+            // Program function that includes compiled code
+            "fn program() -> Result<Value, Error> {".to_string(),
+            format!("{}", self.compile_string(s)?),
+            "}".to_string(),
+            // Main to call program and print result
+            "fn main() {".to_string(),
+            "    match program() {".to_string(),
+            "        Ok(_) => ()".to_string(),
+            // TODO this will not work until error has a display fn
+            "        Err(e) => println!(\"{e}\"),".to_string(),
+            "    }".to_string(),
+            "}".to_string(),
         ];
-        // TODO Once the compiler is used for something other than testing remove
-        // the println!()
-        // TODO the unwrap at the end will only work for compiling a single expr,
-        // plus we need a way to deal with runtime errors at the top level. It
-        // could be that every expr has to be evaluated in a match expr and
-        // if it errors the program has to print the error and exit. Perhaps this
-        // could be done to wrap each form compiled in compile_string()
-        Ok(format!(
-            "{}\n\nfn main () {{\nprintln!(\"{{}}\", {}.unwrap())\n}}",
-            imports.join("\n"),
-            self.compile_string(s)?
-        ))
+        Ok(lines.join("\n"))
     }
 
     pub fn compile_string(&mut self, s: &str) -> Result<String, CompileError> {
@@ -72,26 +95,13 @@ impl Compiler {
     }
 
     fn compile_symbol(&mut self, name: Rc<Str>) -> Result<String, CompileError> {
-        match self.procs.get(name.to_string().as_str()) {
-            Some(pname) => Ok(format!(
-                "core::lambda( Some({name}), |args| {pname}(args) )"
-            )),
-            None => Ok(name.to_string()),
-        }
+        Ok(format!("get(&env, \"{}\")?", name.to_string()))
     }
 
     fn compile_list(&mut self, cell: Rc<Cell<Value>>) -> Result<String, CompileError> {
         let args: Vec<Value> = cell.values().collect();
         match args[0].clone() {
             Value::Symbol(s) => match s.to_string().as_str() {
-                //
-                "car" => Ok(format!("core::car({})", self.compile(args[1].clone())?)),
-                "cdr" => Ok(format!("core::cdr({})", self.compile(args[1].clone())?)),
-                "cons" => Ok(format!(
-                    "core::cons({}, {})",
-                    self.compile(args[1].clone())?,
-                    self.compile(args[2].clone())?
-                )),
                 "lambda" => self.compile_lambda(&args[1..]),
                 "let" => self.compile_let(&args[1..]),
                 "letrec" => self.compile_letrec(&args[1..]),
@@ -107,28 +117,36 @@ impl Compiler {
         match num {
             Num::Int(i) => Ok(format!("Value::from({i})")),
             Num::Flt(f) => Ok(format!("Value::from({f})")),
-            Num::Rat(a, b) => Ok(format!("core::rational({a}, {b})")),
+            Num::Rat(a, b) => Ok(format!("rational({a}, {b})")),
         }
     }
 
+    // TODO Add name param for when this is called in define or let expr
+    // TODO this does not check arity and therefore will panic if the args vec
+    // passed is not the right size. It also does not account for collect or rest
+    // args which need to slice the vec and turn it into a list to save as the
+    // value in the env for rest or collect vars.
     fn compile_lambda(&mut self, args: &[Value]) -> Result<String, CompileError> {
         if args.len() < 2 {
             return Err(CompileError::Agh);
         }
 
         let cell = Value::get_pair_cell(&args[0]).expect("params is pair");
-        let mut strings = Vec::new();
+        let mut assignments = Vec::new();
+        let mut params = Vec::new();
         for (i, p) in cell.values().enumerate() {
-            let asgn = match p {
-                Value::Symbol(s) => format!("let mut {s} = args[{i}].clone();"),
+            match p {
+                Value::Symbol(s) => {
+                    assignments.push(format!("put(&env, \"{s}\", args[{i}].clone());"));
+                    params.push(s)
+                }
                 _ => panic!("params should be symbols"),
             };
-            strings.push(asgn);
         }
 
         Ok(format!(
-            "core::lambda(None, |args| {{ {} {} }})",
-            strings.join(" "),
+            "lambda(None, env.clone(), |args, env| {{ {} {} }})",
+            assignments.join(" "),
             self.compile_body(&args[1..])?
         ))
     }
@@ -138,7 +156,7 @@ impl Compiler {
             return Err(CompileError::Agh);
         }
 
-        let mut strings = vec!["{ ".to_string()];
+        let mut strings = vec!["{ let env = push(&env); ".to_string()];
         let cell = Value::get_pair_cell(&args[0]).expect("bindings should be list");
         for v in cell.values() {
             let bind: Vec<Value> = Value::get_pair_cell(&v)
@@ -149,11 +167,14 @@ impl Compiler {
                 return Err(CompileError::Agh);
             }
             match bind[0].clone() {
-                Value::Symbol(s) => strings.push(format!("let mut {s} = ")),
+                Value::Symbol(s) => strings.push(format!("put(&env, \"{s}\", ")),
                 _ => return Err(CompileError::Agh),
             }
+            // TODO here is where we would pass a name if the argument was a lambda
+            // but we have to check it is a lambda and not a symbol or another
+            // expression and either compile directly or compile_lambda
             strings.push(self.compile(bind[1].clone())?);
-            strings.push("; ".to_string());
+            strings.push("); ".to_string());
         }
         strings.push(self.compile_body(&args[1..])?);
         strings.push(" }".to_string());
@@ -165,7 +186,7 @@ impl Compiler {
             return Err(CompileError::Agh);
         }
 
-        let mut strings = vec!["{ ".to_string()];
+        let mut strings = vec!["{ let env = push(&env); ".to_string()];
         let cell = Value::get_pair_cell(&args[0]).expect("bindings should be list");
         // create undef bindings
         for v in cell.values() {
@@ -177,7 +198,7 @@ impl Compiler {
                 return Err(CompileError::Agh);
             }
             match bind[0].clone() {
-                Value::Symbol(s) => strings.push(format!("let mut {s} = Value::Undefined; ")),
+                Value::Symbol(s) => strings.push(format!("put(&env, \"{s}\", Value::Undefined); ")),
                 _ => return Err(CompileError::Agh),
             }
         }
@@ -191,11 +212,14 @@ impl Compiler {
                 return Err(CompileError::Agh);
             }
             match bind[0].clone() {
-                Value::Symbol(s) => strings.push(format!("{s} = ")),
+                Value::Symbol(s) => strings.push(format!("set(&env, \"{s}\", ")),
                 _ => return Err(CompileError::Agh),
             }
+            // TODO here is where we would pass a name if the argument was a lambda
+            // but we have to check it is a lambda and not a symbol or another
+            // expression and either compile directly or compile_lambda
             strings.push(self.compile(bind[1].clone())?);
-            strings.push("; ".to_string());
+            strings.push(")?; ".to_string());
         }
         strings.push(self.compile_body(&args[1..])?);
         strings.push(" }".to_string());
@@ -232,11 +256,10 @@ impl Compiler {
         for val in args.iter() {
             strings.push(self.compile(val.clone())?);
         }
-
-        match self.procs.get(s.to_string().as_str()) {
-            Some(name) => Ok(format!("{name}( vec![{}] )", strings.join(", "))),
-            None => Ok(format!("core::apply( {s}, vec![{}] )", strings.join(", "))),
-        }
+        Ok(format!(
+            "apply( get(&env, \"{s}\")?, vec![{}] )",
+            strings.join(", ")
+        ))
     }
 
     fn compile_apply_pair(&mut self, func: Value, args: &[Value]) -> Result<String, CompileError> {
@@ -245,7 +268,7 @@ impl Compiler {
             strings.push(self.compile(val.clone())?);
         }
         Ok(format!(
-            "core::apply( {}, vec![{}] )",
+            "apply( {}, vec![{}] )",
             self.compile(func)?,
             strings.join(", ")
         ))
@@ -259,18 +282,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_compile_builtin() {
+    fn test_compile_symbol() {
+        let mut comp = Compiler::new();
+        assert_eq!(
+            comp.compile_string("cons").unwrap(),
+            "get(&env, \"cons\")?".to_string(),
+        );
+    }
+
+    #[test]
+    fn test_compile_apply_symbol() {
         let mut comp = Compiler::new();
         assert_eq!(
             comp.compile_string("(+ 1 2)").unwrap(),
-            "proc::add( vec![Value::from(1), Value::from(2)] )".to_string()
-        );
-        // NOTE + is scanned as a peculiar identifier and they only return
-        // properly when a delimeter byte is reached, but that does not include
-        // eof, so "+" is a scanner error right now.
-        assert_eq!(
-            comp.compile_string(" + ").unwrap(),
-            "core::lambda( Some(+), |args| proc::add(args) )".to_string()
+            "apply( get(&env, \"+\")?, vec![Value::from(1), Value::from(2)] )".to_string()
         );
     }
 }
