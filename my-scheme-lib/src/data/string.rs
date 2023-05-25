@@ -2,13 +2,12 @@ use crate::data::char::Char;
 use crate::data::rep::{DisplayRep, ExternalRep};
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 
 // String /////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Str {
-    chars: Rc<Vec<RefCell<Char>>>,
+    chars: Vec<RefCell<Char>>,
 }
 
 impl Str {
@@ -17,9 +16,7 @@ impl Str {
         for _ in 0..size {
             chars.push(RefCell::new(ch.clone()));
         }
-        Str {
-            chars: Rc::new(chars),
-        }
+        Str { chars: chars }
     }
 
     pub fn fill(&self, ch: Char) {
@@ -94,7 +91,7 @@ impl Default for Str {
 impl From<&str> for Str {
     fn from(s: &str) -> Str {
         Str {
-            chars: Rc::new(s.chars().map(|ch| RefCell::new(Char::from(ch))).collect()),
+            chars: s.chars().map(|ch| RefCell::new(Char::from(ch))).collect(),
         }
     }
 }
@@ -102,7 +99,7 @@ impl From<&str> for Str {
 impl From<&[u8]> for Str {
     fn from(bytes: &[u8]) -> Str {
         Str {
-            chars: Rc::new(bytes.iter().map(|b| RefCell::new(Char::from(*b))).collect()),
+            chars: bytes.iter().map(|b| RefCell::new(Char::from(*b))).collect(),
         }
     }
 }
@@ -110,7 +107,7 @@ impl From<&[u8]> for Str {
 impl From<Vec<Char>> for Str {
     fn from(chars: Vec<Char>) -> Str {
         Str {
-            chars: Rc::new(chars.iter().map(|ch| RefCell::new(ch.clone())).collect()),
+            chars: chars.iter().map(|ch| RefCell::new(ch.clone())).collect(),
         }
     }
 }
@@ -178,21 +175,21 @@ impl std::fmt::Debug for Str {
 
 // Iterator ///////////////////////////////////////////////////////////////////
 
-pub struct StrIter {
+pub struct StrIter<'a> {
     idx: usize,
-    chars: Rc<Vec<RefCell<Char>>>,
+    chars: &'a Vec<RefCell<Char>>,
 }
 
-impl StrIter {
-    pub fn new(string: &Str) -> StrIter {
+impl<'a> StrIter<'a> {
+    pub fn new(string: &'a Str) -> StrIter<'a> {
         StrIter {
             idx: 0,
-            chars: Rc::clone(&string.chars),
+            chars: &string.chars,
         }
     }
 }
 
-impl Iterator for StrIter {
+impl<'a> Iterator for StrIter<'a> {
     type Item = Char;
 
     fn next(&mut self) -> Option<Self::Item> {

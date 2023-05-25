@@ -8,7 +8,7 @@ pub struct Array<T>
 where
     T: Clone + CellValue<T> + ExternalRep + DisplayRep,
 {
-    vals: Rc<Vec<RefCell<T>>>,
+    vals: Vec<RefCell<T>>,
 }
 
 impl<T> Array<T>
@@ -20,7 +20,7 @@ where
         for _ in 0..size {
             vec.push(RefCell::new(val.clone()));
         }
-        Array { vals: Rc::new(vec) }
+        Array { vals: vec }
     }
 
     pub fn fill(&self, val: T) {
@@ -66,7 +66,7 @@ where
 {
     fn from(vec: Vec<T>) -> Array<T> {
         Array {
-            vals: Rc::new(vec.into_iter().map(|v| RefCell::new(v)).collect()),
+            vals: vec.into_iter().map(|v| RefCell::new(v)).collect(),
         }
     }
 }
@@ -77,17 +77,15 @@ where
 {
     fn from(val: T) -> Array<T> {
         if val.is_empty() {
-            return Array {
-                vals: Rc::new(vec![]),
-            };
+            return Array { vals: vec![] };
         }
 
         match val.get_cell() {
             Some(cell) => Array {
-                vals: Rc::new(cell.values().map(|v| RefCell::new(v)).collect()),
+                vals: cell.values().map(|v| RefCell::new(v)).collect(),
             },
             None => Array {
-                vals: Rc::new(vec![RefCell::new(val)]),
+                vals: vec![RefCell::new(val)],
             },
         }
     }
@@ -145,27 +143,27 @@ where
 
 // Iterator ///////////////////////////////////////////////////////////////////
 
-pub struct ArrayIter<T>
+pub struct ArrayIter<'a, T>
 where
     T: Clone + CellValue<T> + ExternalRep + DisplayRep,
 {
     idx: usize,
-    arr: Rc<Vec<RefCell<T>>>,
+    arr: &'a Vec<RefCell<T>>,
 }
 
-impl<T> ArrayIter<T>
+impl<'a, T> ArrayIter<'a, T>
 where
     T: Clone + CellValue<T> + ExternalRep + DisplayRep,
 {
-    pub fn new(array: &Array<T>) -> ArrayIter<T> {
+    pub fn new(array: &'a Array<T>) -> ArrayIter<'a, T> {
         ArrayIter {
             idx: 0,
-            arr: Rc::clone(&array.vals),
+            arr: &array.vals,
         }
     }
 }
 
-impl<T> Iterator for ArrayIter<T>
+impl<'a, T> Iterator for ArrayIter<'a, T>
 where
     T: Clone + CellValue<T> + ExternalRep + DisplayRep,
 {
