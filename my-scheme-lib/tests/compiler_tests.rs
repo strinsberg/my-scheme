@@ -1,13 +1,12 @@
-use my_scheme_lib::compile::compiler::Compiler;
+use my_scheme_lib::compile::compiler::compile_program_with_output;
 use std::io::Write;
 
 // Helper for testing that creates a compiled version of the program and executes
 // it.
 fn test(input: &str, expected: &str) {
     // Compile the program
-    let code = Compiler::new()
-        .compile_program_with_output("my_scheme_lib", input)
-        .expect("program should have compiled");
+    let code =
+        compile_program_with_output("my_scheme_lib", input).expect("program should have compiled");
 
     // Create paths and write the program to the main file
     // NOTE tests are run from the crate root, not from the tests directory
@@ -45,4 +44,5 @@ fn test_simple_compilation() {
            (f 6))",
         "7\n",
     );
+    test("(do ((i 0 (+ i 1))) ((= i 10) i) 1 2 3)", "10\n")
 }

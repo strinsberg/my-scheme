@@ -14,8 +14,12 @@ pub fn lambda(
     name: Option<&str>,
     env: Rc<Env<Str, Value>>,
     func: fn(Vec<Value>, Rc<Env<Str, Value>>) -> Result<Value, Error>,
-) -> Value {
-    Value::Lambda(Rc::new(Lambda::new(name.map(|s| Str::from(s)), env, func)))
+) -> Result<Value, Error> {
+    Ok(Value::Lambda(Rc::new(Lambda::new(
+        name.map(|s| Str::from(s)),
+        env,
+        func,
+    ))))
 }
 
 pub fn apply(proc: Value, args: Vec<Value>) -> Result<Value, Error> {
