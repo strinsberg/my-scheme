@@ -14,13 +14,13 @@ pub enum Value {
     Bool(bool),
     Char(Char),
     Number(Num),
-    Procedure(Rc<Proc<Value>>),
     Symbol(Rc<Str>),
+    Procedure(Rc<Proc<Value>>),
     Closure(Rc<Closure<Value>>),
     // Collections
-    Pair(Rc<Cell<Value>>),
     String(Rc<Str>),
     Array(Rc<Array<Value>>),
+    Pair(Rc<Cell<Value>>),
     Env(Rc<Env<Str, Value>>),
     Empty,
     // Other
@@ -175,6 +175,12 @@ impl From<&str> for Value {
 impl From<Cell<Value>> for Value {
     fn from(cell: Cell<Value>) -> Value {
         Value::Pair(Rc::new(cell))
+    }
+}
+
+impl From<Vec<Value>> for Value {
+    fn from(vec: Vec<Value>) -> Value {
+        Value::Array(Rc::new(Array::from(vec)))
     }
 }
 

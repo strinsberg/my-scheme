@@ -44,5 +44,16 @@ fn test_simple_compilation() {
            (f 6))",
         "7\n",
     );
-    test("(do ((i 0 (+ i 1))) ((= i 10) i) 1 2 3)", "10\n")
+    test("(do ((i 0 (+ i 1))) ((= i 10) i) 1 2 3)", "10\n");
+    test(
+        "(string-append \"hello\" \"\\n\" \"world!\")",
+        "hello\nworld!\n",
+    );
+    test(
+        "(string #\\h #\\e #\\l #\\l #\\o #\\, #\\space #\\w #\\o #\\r #\\l #\\d #\\!)",
+        "hello, world!\n",
+    );
+    test("(if #t 1 2)", "1\n");
+    test("'(1 (+ a 4) 3)", "(1 (+ a 4) 3)\n");
+    test("'#(1 (+ a 4) 3)", "#(1 (+ a 4) 3)\n");
 }

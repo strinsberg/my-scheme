@@ -1,5 +1,8 @@
+use crate::data::array::Array;
 use crate::data::cell::Cell;
+use crate::data::char::Char;
 use crate::data::number::Num;
+use crate::data::rep::ExternalRep;
 use crate::data::string::Str;
 use crate::data::value::Value;
 use crate::io::reader::StringReader;
@@ -9,7 +12,11 @@ use std::rc::Rc;
 // breaks into the final compilations and use some spacing that is not standard
 // it is really hard to ensure the result is as expected. SO put more tests in
 // the tests/compiler_tests.rs to test more complex behaviour directly.
-// TODO add more special forms. Really all closures and buitil procs are just
+// Or at least use the compilation in tests to determine what the right output
+// is that will compile before trying to perfect the test string, and know that
+// any changes to the compilation of certain things could break all of the
+// unit tests.
+// TODO add more special forms. Really all closures and buitin procs are just
 // called with apply, so special forms are all that we have to add here.
 // TODO some of these use the same code over and over again when they could call
 // one of the other compile functions, try and clean it up.
@@ -33,6 +40,7 @@ pub fn compile_program_with_output(c: &str, s: &str) -> Result<String, CompileEr
         format!("use {c}::compile::core::*;"),
         format!("use {c}::data::err::Error;"),
         format!("use {c}::data::value::Value;"),
+        format!("use {c}::list;"),
         // Program function that includes compiled code
         "fn program() -> Result<Value, Error> {".to_string(),
         "let env = new_env();".to_string(),
@@ -55,6 +63,7 @@ pub fn compile_program(c: &str, s: &str) -> Result<String, CompileError> {
         format!("use {c}::compile::core::*;"),
         format!("use {c}::data::err::Error;"),
         format!("use {c}::data::value::Value;"),
+        format!("use {c}::list;"),
         // Program function that includes compiled code
         "fn program() -> Result<Value, Error> {".to_string(),
         format!("{}", compile_string(s)?),
@@ -88,8 +97,11 @@ fn compile(val: Value, qmark: bool) -> Result<String, CompileError> {
     match val {
         Value::Bool(b) => compile_bool(b, qmark),
         Value::Number(n) => compile_number(n, qmark),
+        Value::Char(n) => compile_char(n, qmark),
+        Value::String(n) => compile_str(n, qmark),
         Value::Symbol(s) => compile_symbol(s, qmark),
         Value::Pair(cell) => compile_list(cell, qmark),
+        Value::Array(arr) => compile_array(arr, qmark),
         Value::Empty => compile_empty(qmark),
         _ => Err(CompileError::Agh),
     }
@@ -97,9 +109,9 @@ fn compile(val: Value, qmark: bool) -> Result<String, CompileError> {
 
 fn compile_bool(b: bool, qmark: bool) -> Result<String, CompileError> {
     if qmark {
-        Ok(format!("Value::from({b})"))
+        Ok(format!("Value::Bool({b})"))
     } else {
-        Ok(format!("Ok(Value::from({b}))"))
+        Ok(format!("Ok(Value::Bool({b}))"))
     }
 }
 
@@ -127,6 +139,22 @@ fn compile_number(num: Num, qmark: bool) -> Result<String, CompileError> {
     }
 }
 
+fn compile_char(ch: Char, qmark: bool) -> Result<String, CompileError> {
+    if qmark {
+        Ok(format!("Value::from('{}')", ch.to_byte() as char))
+    } else {
+        Ok(format!("Ok(Value::from('{}'))", ch.to_byte() as char))
+    }
+}
+
+fn compile_str(s: Rc<Str>, qmark: bool) -> Result<String, CompileError> {
+    if qmark {
+        Ok(format!("Value::from({})", s.to_external()))
+    } else {
+        Ok(format!("Ok(Value::from({}))", s.to_external()))
+    }
+}
+
 fn compile_symbol(name: Rc<Str>, qmark: bool) -> Result<String, CompileError> {
     let q = if qmark { "?" } else { "" };
     Ok(format!("get(&env, \"{}\"){q}", name.to_string()))
@@ -137,6 +165,7 @@ fn compile_list(cell: Rc<Cell<Value>>, qmark: bool) -> Result<String, CompileErr
     match args[0].clone() {
         Value::Pair(_) => compile_apply_pair(args[0].clone(), &args[1..], qmark),
         Value::Symbol(s) => match s.to_string().as_str() {
+            "quote" => compile_quoted(args[1].clone(), qmark),
             "lambda" => compile_lambda(&args[1..], qmark),
             "if" => compile_if(&args[1..]),
             "define" => compile_define(&args[1..]),
@@ -149,6 +178,19 @@ fn compile_list(cell: Rc<Cell<Value>>, qmark: bool) -> Result<String, CompileErr
             _ => compile_apply_symbol(s, &args[1..], qmark),
         },
         _ => return Err(CompileError::Agh),
+    }
+}
+
+fn compile_array(arr: Rc<Array<Value>>, qmark: bool) -> Result<String, CompileError> {
+    let mut values = Vec::new();
+    for v in arr.values() {
+        values.push(compile(v, true)?);
+    }
+
+    if qmark {
+        Ok(format!("Value::from(vec![{}])", values.join(", ")))
+    } else {
+        Ok(format!("Ok(Value::from(vec![{}]))", values.join(", ")))
     }
 }
 
@@ -397,6 +439,57 @@ fn compile_do(args: &[Value], qmark: bool) -> Result<String, CompileError> {
     Ok(lines.join(" "))
 }
 
+// Quoted compilation //
+
+fn compile_quoted(val: Value, qmark: bool) -> Result<String, CompileError> {
+    match val {
+        Value::Bool(b) => compile_bool(b, qmark),
+        Value::Number(n) => compile_number(n, qmark),
+        Value::Char(n) => compile_char(n, qmark),
+        Value::String(n) => compile_str(n, qmark),
+        Value::Symbol(s) => compile_quoted_symbol(s, qmark),
+        Value::Pair(cell) => compile_quoted_list(cell, qmark),
+        Value::Array(arr) => compile_quoted_array(arr, qmark),
+        Value::Empty => compile_empty(qmark),
+        _ => Err(CompileError::Agh),
+    }
+}
+
+fn compile_quoted_symbol(s: Rc<Str>, qmark: bool) -> Result<String, CompileError> {
+    if qmark {
+        Ok(format!("symbol(\"{s}\")"))
+    } else {
+        Ok(format!("Ok(symbol(\"{s}\"))"))
+    }
+}
+
+fn compile_quoted_list(c: Rc<Cell<Value>>, qmark: bool) -> Result<String, CompileError> {
+    let mut values = Vec::new();
+    for v in c.values() {
+        values.push(compile_quoted(v, true)?);
+    }
+    values = values.into_iter().rev().collect();
+
+    if qmark {
+        Ok(format!("list![{}]", values.join(", ")))
+    } else {
+        Ok(format!("Ok(list![{}])", values.join(", ")))
+    }
+}
+
+fn compile_quoted_array(arr: Rc<Array<Value>>, qmark: bool) -> Result<String, CompileError> {
+    let mut values = Vec::new();
+    for v in arr.values() {
+        values.push(compile_quoted(v, true)?);
+    }
+
+    if qmark {
+        Ok(format!("Value::from(vec![{}])", values.join(", ")))
+    } else {
+        Ok(format!("Ok(Value::from(vec![{}]))", values.join(", ")))
+    }
+}
+
 // Helpers //
 
 fn compile_body(args: &[Value]) -> Result<String, CompileError> {
@@ -418,6 +511,30 @@ mod tests {
         assert_eq!(
             compile_string("cons").unwrap(),
             "get(&env, \"cons\")".to_string(),
+        );
+    }
+
+    #[test]
+    fn test_compile_bool() {
+        assert_eq!(
+            compile_string("#t").unwrap(),
+            "Ok(Value::Bool(true))".to_string(),
+        );
+    }
+
+    #[test]
+    fn test_compile_char() {
+        assert_eq!(
+            compile_string("#\\space").unwrap(),
+            "Ok(Value::from(' '))".to_string(),
+        );
+    }
+
+    #[test]
+    fn test_compile_string() {
+        assert_eq!(
+            compile_string("\"1 \\n 2 3\"").unwrap(),
+            "Ok(Value::from(\"1 \\n 2 3\"))".to_string(),
         );
     }
 
@@ -471,6 +588,26 @@ mod tests {
                 "} get(&env, \"i\") }".to_string(),
             ]
             .join(" ")
+        );
+    }
+
+    #[test]
+    fn test_compile_quoted_array() {
+        assert_eq!(
+            compile_string("'#(1 a 3)").unwrap(),
+            "Ok(Value::from(vec![Value::from(1), symbol(\"a\"), Value::from(3)]))".to_string(),
+        );
+    }
+
+    #[test]
+    fn test_compile_quoted_list() {
+        // NOTE the list macro just builds the list starting with the first element
+        // but this makes the result reversed, so we compile with the arguments
+        // to list! in reverse so the resulting list built at runtime is in the
+        // right order and does not have to do the reversal at runtime.
+        assert_eq!(
+            compile_string("'(1 (+ a 4) 3)").unwrap(),
+            "Ok(list![Value::from(3), list![Value::from(4), symbol(\"a\"), symbol(\"+\")], Value::from(1)])".to_string(),
         );
     }
 }

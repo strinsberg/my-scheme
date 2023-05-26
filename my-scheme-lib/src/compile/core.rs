@@ -38,6 +38,10 @@ pub fn apply(proc: Value, args: Vec<Value>) -> Result<Value, Error> {
 
 // Data Wrappers //
 
+pub fn symbol(s: &str) -> Value {
+    Value::Symbol(Rc::new(Str::from(s)))
+}
+
 pub fn rational(a: i64, b: i64) -> Value {
     Value::Number(Num::Rat(a, b))
 }
