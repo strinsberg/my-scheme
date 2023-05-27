@@ -1,11 +1,12 @@
-use crate::data::array::Array;
-use crate::data::cell::Cell;
-use crate::data::char::Char;
-use crate::data::number::Num;
-use crate::data::rep::ExternalRep;
-use crate::data::string::Str;
-use crate::data::value::Value;
-use crate::io::reader::StringReader;
+use crate::error::CompileError;
+use my_scheme_lib::data::array::Array;
+use my_scheme_lib::data::cell::Cell;
+use my_scheme_lib::data::char::Char;
+use my_scheme_lib::data::number::Num;
+use my_scheme_lib::data::rep::ExternalRep;
+use my_scheme_lib::data::string::Str;
+use my_scheme_lib::data::value::Value;
+use my_scheme_lib::io::reader::StringReader;
 use std::rc::Rc;
 
 // TODO some simple tests are ok in here, but because we do not introduce line
@@ -44,69 +45,6 @@ use std::rc::Rc;
 // puts the name in a map and gives it a unique int. So if a symbol is compiled
 // and is not in the map it will insert itself and use the returned var name,
 // if it is in the map it will use the associated var name.
-
-// Compiler errors //
-//
-// TODO move this elsewhere and make it more robust, most places are just panics
-// right now until I know what types of errors I need.
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CompileError {
-    ReadError,
-    Agh,
-}
-
-pub struct ProgramCompiler {
-    in_path: String,
-    out_path: String,
-    loads: Vec<String>,
-    symbols: Vec<String>,
-}
-
-impl ProgramCompiler {
-    pub fn new(in_path: &str, out_path: &str) -> ProgramCompiler {
-        ProgramCompiler {
-            in_path: in_path.to_string(),
-            out_path: out_path.to_string(),
-            loads: Vec::new(),
-            symbols: Vec::new(),
-        }
-    }
-
-    pub fn compile(&self) -> Result<(), CompileError> {
-        // load in the file
-        // compile the contents
-        // write the new file
-        Ok(())
-    }
-}
-
-pub struct ModuleCompiler {
-    in_path: String,
-    out_path: String,
-    loads: Vec<String>,
-    symbols: Vec<String>,
-}
-
-impl ModuleCompiler {
-    pub fn new(in_path: &str, out_path: &str) -> ModuleCompiler {
-        ModuleCompiler {
-            in_path: in_path.to_string(),
-            out_path: out_path.to_string(),
-            loads: Vec::new(),
-            symbols: Vec::new(),
-        }
-    }
-
-    pub fn compile(&self) -> Result<(), CompileError> {
-        // load in the file
-        // compile the contents
-        // write the new file
-        Ok(())
-    }
-}
-
-// Compilation functions //////////////////////////////////////////////////////
 
 // Program/String Compilation //
 
