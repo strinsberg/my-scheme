@@ -1,4 +1,4 @@
-use my_scheme_compiler::compilers::ProgramCompiler;
+use my_scheme_compiler::compile::compile_program;
 
 fn main() {
     println!("Hello, world!");

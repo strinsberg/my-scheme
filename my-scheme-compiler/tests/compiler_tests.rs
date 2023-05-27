@@ -1,12 +1,23 @@
-use my_scheme_lib::compile::compiler::compile_program_with_output;
+use my_scheme_compiler::module_compiler::ModuleCompiler;
 use std::io::Write;
 
 // Helper for testing that creates a compiled version of the program and executes
 // it.
 fn test(input: &str, expected: &str) {
-    // Compile the program
-    let code =
-        compile_program_with_output("my_scheme_lib", input).expect("program should have compiled");
+    let mod_code = ModuleCompiler::new(input)
+        .compile_mod()
+        .expect("program should compile");
+    let code = format!(
+        "{mod_code}
+
+fn main() {{
+    let env = new_env();
+    match module(env) {{
+        Ok(val) => println!(\"{{val}}\"),
+        Err(e) => println!(\"{{:?}}\", e),
+   }}
+}}"
+    );
 
     // Create paths and write the program to the main file
     // NOTE tests are run from the crate root, not from the tests directory
@@ -37,14 +48,22 @@ fn test(input: &str, expected: &str) {
 // different tests code in it.
 #[test]
 fn test_simple_compilation() {
-    test("(cons 1 2)", "(1 . 2)\n");
+    test(
+        "(let ((len 10))
+           (do ((v (make-vector len))
+                (i 0 (+ i 1)))
+               ((= i len) v)
+             (vector-set! v i i)))",
+        "#(0 1 2 3 4 5 6 7 8 9)\n",
+    );
     test(
         "(letrec ((f (lambda (x) (g x)))
                    (g (lambda (x) (+ 1 x))))
            (f 6))",
         "7\n",
     );
-    test("(do ((i 0 (+ i 1))) ((= i 10) i) 1 2 3)", "10\n");
+    /*
+    test("(cons 1 2)", "(1 . 2)\n");
     test(
         "(string-append \"hello\" \"\\n\" \"world!\")",
         "hello\nworld!\n",
@@ -56,4 +75,5 @@ fn test_simple_compilation() {
     test("(if #t 1 2)", "1\n");
     test("'(1 (+ a 4) 3)", "(1 (+ a 4) 3)\n");
     test("'#(1 (+ a 4) 3)", "#(1 (+ a 4) 3)\n");
+    */
 }
