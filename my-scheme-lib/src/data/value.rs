@@ -43,6 +43,10 @@ impl Value {
         Value::Symbol(Rc::new(string))
     }
 
+    pub fn symbol_from_str(s: &str) -> Value {
+        Value::Symbol(Rc::new(Str::from(s)))
+    }
+
     // Predicates //
 
     pub fn is_true(&self) -> bool {
@@ -151,6 +155,12 @@ impl From<i64> for Value {
 impl From<f64> for Value {
     fn from(f: f64) -> Value {
         Value::Number(Num::Flt(f))
+    }
+}
+
+impl From<(i64, i64)> for Value {
+    fn from(val: (i64, i64)) -> Value {
+        Value::Number(Num::Rat(val.0, val.1))
     }
 }
 

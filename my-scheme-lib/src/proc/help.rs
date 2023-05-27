@@ -7,6 +7,8 @@ use my_scheme_lib::data::value::Value;
 use my_scheme_lib::proc::env::null_env;
 use std::rc::Rc;
 
+pub type Environment = Rc<Env<Str, Value>>;
+
 // Procedures and Applications //
 
 pub fn lambda(
@@ -33,12 +35,6 @@ pub fn apply(proc: Value, args: Vec<Value>) -> Result<Value, Error> {
         }
         val => Err(Error::NotAProcedure(val.clone())),
     }
-}
-
-// Data Wrappers //
-
-pub fn cons(a: Value, b: Value) -> Value {
-    Value::from(Cell::new(a, Some(b)))
 }
 
 // Environment Wrappers //
@@ -76,6 +72,10 @@ pub fn push(env: &Rc<Env<Str, Value>>) -> Rc<Env<Str, Value>> {
 }
 
 // List Macro //
+
+pub fn cons(a: Value, b: Value) -> Value {
+    Value::from(Cell::new(a, Some(b)))
+}
 
 #[macro_export]
 macro_rules! list {
