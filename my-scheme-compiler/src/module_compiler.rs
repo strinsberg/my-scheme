@@ -1,5 +1,4 @@
 use crate::error::CompileError;
-//use crate::symbol_list::SymbolList;
 use my_scheme_lib::data::array::Array;
 use my_scheme_lib::data::cell::Cell;
 use my_scheme_lib::data::char::Char;
@@ -28,7 +27,6 @@ use std::rc::Rc;
 
 pub struct ModuleCompiler {
     code: String,
-    //symbols: SymbolList,
     using: Vec<String>,
     pub modules: HashMap<String, String>,
 }
@@ -37,7 +35,6 @@ impl ModuleCompiler {
     pub fn new(code: &str) -> ModuleCompiler {
         ModuleCompiler {
             code: code.to_string(),
-            //symbols: SymbolList::new(),
             using: Vec::new(),
             modules: HashMap::new(),
         }
@@ -48,7 +45,6 @@ impl ModuleCompiler {
         let lines = vec![
             format!("{}", self.compile_use()?),
             "pub fn module(env: Environment) -> Result<Value, Error> {".to_string(),
-            //format!("{}", self.compile_symbols()?),
             format!("{}", code),
             "}".to_string(),
         ];
@@ -68,18 +64,6 @@ impl ModuleCompiler {
         }
         Ok(lines.join("\n"))
     }
-
-    /*
-    pub fn compile_symbols(&self) -> Result<String, CompileError> {
-        let mut lines = Vec::new();
-        for (name, index) in self.symbols.map.iter() {
-            lines.push(format!(
-                "let __{index} = Value::symbol_from_str(\"{name}\");"
-            ));
-        }
-        Ok(lines.join("\n"))
-    }
-    */
 
     pub fn compile_code(&mut self) -> Result<String, CompileError> {
         let forms = StringReader::new(&self.code)
@@ -110,9 +94,9 @@ impl ModuleCompiler {
 
     fn compile_bool(&mut self, b: bool, qmark: bool) -> Result<String, CompileError> {
         if qmark {
-            Ok(format!("Value::from({b})"))
+            Ok(format!("Value::Bool({b})"))
         } else {
-            Ok(format!("Ok(Value::from({b}))"))
+            Ok(format!("Ok(Value::Bool({b}))"))
         }
     }
 
@@ -569,11 +553,11 @@ mod tests {
     fn test_compile_bool() {
         assert_eq!(
             ModuleCompiler::new("#t").compile_code().unwrap(),
-            "Ok(Value::from(true))".to_string(),
+            "Ok(Value::Bool(true))".to_string(),
         );
         assert_eq!(
             ModuleCompiler::new("'#t").compile_code().unwrap(),
-            "Ok(Value::from(true))".to_string(),
+            "Ok(Value::Bool(true))".to_string(),
         );
     }
 

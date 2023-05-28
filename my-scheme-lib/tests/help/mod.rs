@@ -1,7 +1,7 @@
 //use my_scheme_interpreter::error::UserError;
-use my_scheme_interpreter::interpreter::Interpreter;
-use my_scheme_interpreter::reader::StringReader;
-use my_scheme_interpreter::value::Value;
+use my_scheme_lib::data::value::Value;
+use my_scheme_lib::interpret::interpreter::Interpreter;
+use my_scheme_lib::io::reader::StringReader;
 
 // Testing helpers to make certain tasks easier
 

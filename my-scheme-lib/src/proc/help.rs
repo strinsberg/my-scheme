@@ -1,10 +1,10 @@
-use my_scheme_lib::data::cell::Cell;
-use my_scheme_lib::data::env::Env;
-use my_scheme_lib::data::err::Error;
-use my_scheme_lib::data::proc::Lambda;
-use my_scheme_lib::data::string::Str;
-use my_scheme_lib::data::value::Value;
-use my_scheme_lib::proc::env::null_env;
+use crate::data::cell::Cell;
+use crate::data::env::Env;
+use crate::data::err::Error;
+use crate::data::proc::Lambda;
+use crate::data::string::Str;
+use crate::data::value::Value;
+use crate::proc::env::null_env;
 use std::rc::Rc;
 
 pub type Environment = Rc<Env<Str, Value>>;
@@ -43,27 +43,19 @@ pub fn new_env() -> Rc<Env<Str, Value>> {
     null_env()
 }
 
-pub fn put(env: &Rc<Env<Str, Value>>, key: &Value, val: Value) {
-    match key {
-        Value::Symbol(s) => env.insert((**s).clone(), val),
-        _ => panic!("key should be symbol"),
-    }
+pub fn put(env: &Rc<Env<Str, Value>>, key: &str, val: Value) {
+    env.insert(Str::from(key), val)
 }
 
-pub fn get(env: &Rc<Env<Str, Value>>, key: &Value) -> Result<Value, Error> {
-    match key {
-        Value::Symbol(s) => env.lookup(&s).ok_or(Error::Undeclared(key.to_string())),
-        _ => panic!("key should be symbol"),
-    }
+pub fn get(env: &Rc<Env<Str, Value>>, key: &str) -> Result<Value, Error> {
+    env.lookup(&Str::from(key))
+        .ok_or(Error::Undeclared(key.to_string()))
 }
 
-pub fn set(env: &Rc<Env<Str, Value>>, key: &Value, val: Value) -> Result<Value, Error> {
-    match key {
-        Value::Symbol(s) => match env.set((**s).clone(), val) {
-            true => Ok(Value::Empty),
-            false => Err(Error::Undeclared(key.to_string())),
-        },
-        _ => panic!("key should be Symbol"),
+pub fn set(env: &Rc<Env<Str, Value>>, key: &str, val: Value) -> Result<Value, Error> {
+    match env.set(Str::from(key), val) {
+        true => Ok(Value::Empty),
+        false => Err(Error::Undeclared(key.to_string())),
     }
 }
 

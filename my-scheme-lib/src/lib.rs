@@ -1,4 +1,3 @@
-pub mod compile;
 pub mod data;
 pub mod interpret;
 pub mod io;
