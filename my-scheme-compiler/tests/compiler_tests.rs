@@ -61,24 +61,21 @@ fn test_simple_compilation() {
                     (lambda (x)
                       (if (= x 0)
                         #t
-                        (is-odd? (- x 1)))))
+                        (promise (is-odd? (- x 1))))))
                   (is-odd?
                     (lambda (x)
                       (if (= x 0)
                         #f
-                        (is-even? (- x 1))))))
-           (is-even? 1000))",
+                        (promise (is-even? (- x 1)))))))
+           (force (is-even? 1000)))",
         "#t\n",
     );
     // NOTE without the guarantee of tco the previous example can stack overflow
-    // in testing at 10,000
-    // Obviously, this makes using scheme a real bummer without a lazy sequence
-    // or using do everywhere we would blow the stack quite easily with letrec
-    // for even simple functions. Possibly on full optimization this might be
-    // optimized, but without the guarantee it is not exactly great to compile
-    // to rust. Would need to do like closure and decompose all recursion into
-    // do (like loop/recur) or build in a lazy sequence to allow for stackless
-    // recursion.
+    // in testing at 10,000. So like Clojure in order to get recursion that will
+    // not blow the stack it is necessary to use promise and force on recursive
+    // calls. This adds overhead, but will not blow the stack. The above test
+    // with promise and force will not stack overflow even for 1,000,000, though
+    // it is a slow function.
 
     /*
     test("(cons 1 2)", "(1 . 2)\n");

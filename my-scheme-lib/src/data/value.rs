@@ -3,7 +3,7 @@ use crate::data::cell::{Cell, CellValue};
 use crate::data::char::Char;
 use crate::data::env::Env;
 use crate::data::number::Num;
-use crate::data::proc::{Closure, Lambda, Proc};
+use crate::data::proc::{Closure, Lambda, Proc, Promise};
 use crate::data::rep::{DisplayRep, ExternalRep};
 use crate::data::string::Str;
 use std::rc::Rc;
@@ -25,6 +25,7 @@ pub enum Value {
     Empty,
     // Other
     Special(Box<SpecialForm>),
+    Promise(Rc<Promise<Value>>),
     Undefined,
     // Compiler specific
     Lambda(Rc<Lambda<Value>>),
@@ -259,6 +260,7 @@ impl DisplayRep for Value {
             Value::Empty => "()".to_string(),
             Value::Env(_) => "#<environment>".to_string(),
             Value::Special(_) => "#<special-form>".to_string(),
+            Value::Promise(val) => val.to_display(),
             Value::Undefined => "#<undefined>".to_string(),
             Value::Lambda(val) => val.to_display(),
         }
@@ -280,6 +282,7 @@ impl ExternalRep for Value {
             Value::Empty => "()".to_string(),
             Value::Env(_) => "#<environment>".to_string(),
             Value::Special(_) => "#<special-form>".to_string(),
+            Value::Promise(val) => val.to_external(),
             Value::Undefined => "#<undefined>".to_string(),
             Value::Lambda(val) => val.to_external(),
         }

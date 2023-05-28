@@ -1,7 +1,7 @@
 use crate::data::cell::Cell;
 use crate::data::env::Env;
 use crate::data::err::Error;
-use crate::data::proc::Lambda;
+use crate::data::proc::{Lambda, Promise};
 use crate::data::string::Str;
 use crate::data::value::Value;
 use crate::proc::env::null_env;
@@ -35,6 +35,21 @@ pub fn apply(proc: Value, args: Vec<Value>) -> Result<Value, Error> {
         }
         val => Err(Error::NotAProcedure(val.clone())),
     }
+}
+
+pub fn promise(
+    env: Rc<Env<Str, Value>>,
+    thunk: fn(Rc<Env<Str, Value>>) -> Result<Value, Error>,
+) -> Result<Value, Error> {
+    Ok(Value::Promise(Rc::new(Promise::new(env, thunk))))
+}
+
+pub fn force(val: Value) -> Result<Value, Error> {
+    let mut v = val;
+    while let Value::Promise(p) = v {
+        v = p.get()?
+    }
+    Ok(v)
 }
 
 // Environment Wrappers //

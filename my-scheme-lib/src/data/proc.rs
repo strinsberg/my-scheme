@@ -3,6 +3,7 @@ use crate::data::err::Error;
 use crate::data::rep::{DisplayRep, ExternalRep};
 use crate::data::string::Str;
 use crate::data::types::Arity;
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -254,6 +255,105 @@ where
 impl<T> std::fmt::Debug for Lambda<T>
 where
     T: Clone + Debug + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Lambda{{ {} }}", self.to_external())
+    }
+}
+
+// Promise ////////////////////////////////////////////////////////////////////
+
+#[derive(Clone)]
+pub struct Promise<T>
+where
+    T: Clone + Debug + PartialEq,
+{
+    env: Rc<Env<Str, T>>,
+    val: RefCell<Option<T>>,
+    thunk: fn(Rc<Env<Str, T>>) -> Result<T, Error>,
+}
+
+impl<T> Promise<T>
+where
+    T: Clone + Debug + PartialEq,
+{
+    pub fn new(env: Rc<Env<Str, T>>, thunk: fn(Rc<Env<Str, T>>) -> Result<T, Error>) -> Promise<T> {
+        Promise {
+            env: env,
+            val: RefCell::new(None),
+            thunk: thunk,
+        }
+    }
+
+    pub fn get(&self) -> Result<T, Error> {
+        let val = self.val.borrow().clone();
+        match val {
+            Some(v) => Ok(v),
+            None => {
+                let thunk = self.thunk;
+                let v = thunk(self.env.clone())?;
+                self.val.replace(Some(v.clone()));
+                Ok(v)
+            }
+        }
+    }
+}
+
+impl<T> PartialEq for Promise<T>
+where
+    T: Clone + Debug + PartialEq,
+{
+    fn eq(&self, other: &Promise<T>) -> bool {
+        match self.val.borrow().clone() {
+            Some(v) => match other.val.borrow().clone() {
+                Some(v2) => v == v2,
+                None => false,
+            },
+            None => false,
+        }
+    }
+
+    fn ne(&self, other: &Promise<T>) -> bool {
+        !self.eq(other)
+    }
+}
+
+impl<T> DisplayRep for Promise<T>
+where
+    T: Debug + Clone + PartialEq + DisplayRep,
+{
+    fn to_display(&self) -> String {
+        match self.val.borrow().clone() {
+            Some(val) => val.to_display(),
+            None => format!("#<promise>",),
+        }
+    }
+}
+
+impl<T> ExternalRep for Promise<T>
+where
+    T: Debug + Clone + PartialEq + ExternalRep,
+{
+    fn to_external(&self) -> String {
+        match self.val.borrow().clone() {
+            Some(val) => val.to_external(),
+            None => format!("#<promise>",),
+        }
+    }
+}
+
+impl<T> std::fmt::Display for Promise<T>
+where
+    T: Clone + Debug + PartialEq + DisplayRep + ExternalRep,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_display())
+    }
+}
+
+impl<T> std::fmt::Debug for Promise<T>
+where
+    T: Clone + Debug + PartialEq + DisplayRep + ExternalRep,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Lambda{{ {} }}", self.to_external())

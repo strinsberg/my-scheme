@@ -22,6 +22,9 @@ use std::rc::Rc;
 // TODO some of these use the same code over and over again when they could call
 // one of the other compile functions, try and clean it up.
 // TODO remove panics that are compile errors and add proper errors for the user.
+// TODO need some kind of force-all for lists that have promises in them. Would
+// force the head and the tail and set the contents of the cons cell or maybe
+// just create a new one.
 
 // Compiler ///////////////////////////////////////////////////////////////////
 
@@ -160,6 +163,8 @@ impl ModuleCompiler {
                 "letrec" => self.compile_letrec(&args[1..], qmark),
                 "begin" => self.compile_begin(&args[1..], qmark),
                 "do" => self.compile_do(&args[1..], qmark),
+                "promise" => self.compile_promise(&args[1..], qmark),
+                "force" => self.compile_force(&args[1..], qmark),
                 // TODO quote, do, and, or, cond, case, apply
                 _ => self.compile_apply_symbol(s, &args[1..], qmark),
             },
@@ -301,6 +306,22 @@ impl ModuleCompiler {
         Ok(format!(
             "set(&env, {var}, {}){q}",
             self.compile(args[1].clone(), true)?
+        ))
+    }
+
+    fn compile_promise(&mut self, args: &[Value], qmark: bool) -> Result<String, CompileError> {
+        let q = if qmark { "?" } else { "" };
+        Ok(format!(
+            "promise(env.clone(), |env| {{ {} }}){q}",
+            self.compile(args[0].clone(), false)?
+        ))
+    }
+
+    fn compile_force(&mut self, args: &[Value], qmark: bool) -> Result<String, CompileError> {
+        let q = if qmark { "?" } else { "" };
+        Ok(format!(
+            "force({}){q}",
+            self.compile(args[0].clone(), true)?
         ))
     }
 
