@@ -765,8 +765,8 @@ mod tests {
     use super::*;
     use crate::data::array::Array;
     use crate::data::proc::Formals;
-    use crate::interpret::builtin::null_env;
     use crate::io::reader::StringReader;
+    use crate::proc::env::null_env;
 
     #[test]
     fn test_eval_symbol() {

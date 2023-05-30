@@ -1,7 +1,7 @@
 use crate::data::rep::ExternalRep;
-use crate::interpret::builtin::null_env;
 use crate::interpret::vm::Vm;
 use crate::io::reader::StringReader;
+use crate::proc::env::null_env;
 use crate::scheme_libs::std::SCM_LIB_STD;
 
 // TODO other libraries need to be loadable with require or something. Since some
