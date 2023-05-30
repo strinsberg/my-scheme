@@ -1,17 +1,19 @@
-use crate::error::{ScanResult, ScmErr};
-use crate::number::ScmNumber;
-use crate::string::{ScmChar, ScmString};
+use crate::data::char::Char;
+use crate::data::err::ScanError;
+use crate::data::number::Num;
+use crate::data::rep::DisplayRep;
+use crate::data::string::Str;
 use std::fmt;
 
 // Tokens /////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Identifier(ScmString),
+    Identifier(Str),
     Boolean(bool),
-    Number(ScmNumber),
-    Character(ScmChar),
-    String(ScmString),
+    Number(Num),
+    Character(Char),
+    String(Str),
     LParen,
     RParen,
     VecOpen,
@@ -27,11 +29,11 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Token::Identifier(s) => write!(f, "{}", s.to_string()),
+            Token::Identifier(s) => write!(f, "{}", s.to_display()),
             Token::Boolean(b) => write!(f, "{}", b),
             Token::Number(n) => write!(f, "{}", n.to_string()),
-            Token::Character(c) => write!(f, "{}", c.to_string()),
-            Token::String(s) => write!(f, "{}", s.to_string()),
+            Token::Character(c) => write!(f, "{}", c.to_display()),
+            Token::String(s) => write!(f, "{}", s.to_display()),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::VecOpen => write!(f, "#("),
@@ -68,7 +70,7 @@ impl Scanner {
         }
     }
 
-    pub fn next(&mut self) -> ScanResult {
+    pub fn next(&mut self) -> Result<Token, ScanError> {
         self.skip_whitespace();
         if self.eof() {
             return Ok(Token::EOF);
@@ -96,7 +98,7 @@ impl Scanner {
                 } else if is_initial(byte) {
                     self.scan_identifier(byte)
                 } else {
-                    Err(ScmErr::BadChar(self.line, byte as char))
+                    Err(ScanError::BadChar(self.line, byte as char))
                 }
             }
         }
@@ -120,7 +122,7 @@ impl Scanner {
 
     // Token Parsers //
 
-    fn scan_hash(&mut self) -> ScanResult {
+    fn scan_hash(&mut self) -> Result<Token, ScanError> {
         let byte = self.next_byte();
         let ch = byte as char;
 
@@ -128,24 +130,25 @@ impl Scanner {
             '\\' => self.scan_char(),
             '(' => Ok(Token::VecOpen),
             't' | 'f' | 'T' | 'F' => self.scan_bool(byte),
+            // TODO b d o x indicate number
             'c' => self.scan_cyclic(),
-            _ => Err(ScmErr::BadChar(self.line, ch)),
+            _ => Err(ScanError::BadChar(self.line, ch)),
         }
     }
 
-    fn scan_char(&mut self) -> ScanResult {
+    fn scan_char(&mut self) -> Result<Token, ScanError> {
         let byte = self.next_byte();
 
         // If it is a named char get the name and create the ascii byte
         if is_letter(byte) && is_letter(self.peek_byte()) {
             let bytes = self.scan_bytes_lower(byte);
             match as_string(&bytes).as_str() {
-                "newline" => Ok(Token::Character(ScmChar::LineFeed)),
-                "null" => Ok(Token::Character(ScmChar::Null)),
-                "space" => Ok(Token::Character(ScmChar::Space)),
-                "tab" => Ok(Token::Character(ScmChar::Tab)),
-                "unsup" => Ok(Token::Character(ScmChar::Unsupported)),
-                name => Err(ScmErr::BadIdentifier(self.line, format!("#\\{}", name))),
+                "newline" => Ok(Token::Character(Char::LineFeed)),
+                "null" => Ok(Token::Character(Char::Null)),
+                "space" => Ok(Token::Character(Char::Space)),
+                "tab" => Ok(Token::Character(Char::Tab)),
+                "unsup" => Ok(Token::Character(Char::Unsupported)),
+                name => Err(ScanError::BadIdentifier(self.line, format!("#\\{}", name))),
             }
 
         // Else treat it as a single byte character and create the ascii byte
@@ -154,24 +157,24 @@ impl Scanner {
         }
     }
 
-    fn scan_bool(&mut self, byte: u8) -> ScanResult {
+    fn scan_bool(&mut self, byte: u8) -> Result<Token, ScanError> {
         let bytes = self.scan_bytes_lower(byte);
         match as_string(&bytes).as_str() {
             "t" | "true" => Ok(Token::Boolean(true)),
             "f" | "false" => Ok(Token::Boolean(false)),
-            name => Err(ScmErr::BadIdentifier(self.line, format!("#{}", name))),
+            name => Err(ScanError::BadIdentifier(self.line, format!("#{}", name))),
         }
     }
 
-    fn scan_cyclic(&mut self) -> ScanResult {
+    fn scan_cyclic(&mut self) -> Result<Token, ScanError> {
         let bytes = self.scan_bytes('c' as u8);
         match as_string(&bytes).as_str() {
             "cyclic#" => Ok(Token::Cyclic),
-            ident => Err(ScmErr::BadIdentifier(self.line, format!("#{}", ident))),
+            ident => Err(ScanError::BadIdentifier(self.line, format!("#{}", ident))),
         }
     }
 
-    fn scan_comma(&mut self) -> ScanResult {
+    fn scan_comma(&mut self) -> Result<Token, ScanError> {
         if self.peek_byte() as char == '@' {
             self.next_byte();
             Ok(Token::CommaAt)
@@ -180,12 +183,12 @@ impl Scanner {
         }
     }
 
-    fn scan_string(&mut self) -> ScanResult {
+    fn scan_string(&mut self) -> Result<Token, ScanError> {
         let mut bytes = Vec::new();
 
         loop {
             if self.eof() {
-                return Err(ScmErr::BadToken(self.line, Token::EOF));
+                return Err(ScanError::Eof(self.line));
             }
 
             let byte = self.next_byte();
@@ -197,51 +200,51 @@ impl Scanner {
                     't' => bytes.push('\t' as u8),
                     '\\' => bytes.push('\\' as u8),
                     '"' => bytes.push('"' as u8),
-                    b => return Err(ScmErr::BadEscape(self.line, format!("\\{}", b))),
+                    b => return Err(ScanError::BadEscape(self.line, format!("\\{}", b))),
                 },
-                '\n' => return Err(ScmErr::MultiLineString(self.line)),
+                '\n' => return Err(ScanError::MultiLineString(self.line)),
                 _ => bytes.push(byte),
             }
         }
 
-        Ok(Token::String(ScmString::from_bytes(&bytes)))
+        Ok(Token::String(Str::from(&bytes[..])))
     }
 
-    fn scan_number(&mut self, byte: u8) -> ScanResult {
+    fn scan_number(&mut self, byte: u8) -> Result<Token, ScanError> {
         let bytes = self.scan_bytes_lower(byte);
         self.new_number(&bytes)
     }
 
-    fn scan_peculiar_identifier(&mut self, byte: u8) -> ScanResult {
+    fn scan_peculiar_identifier(&mut self, byte: u8) -> Result<Token, ScanError> {
         match byte as char {
             '+' | '-' => match self.peek_byte() as char {
                 'i' | '0'..='9' => self.scan_number(byte),
                 next if is_delimeter(next as u8) => self.new_identifier(&vec![byte]),
-                ch => Err(ScmErr::BadChar(self.line, ch)),
+                ch => Err(ScanError::BadChar(self.line, ch)),
             },
             '.' => match self.peek_byte() as char {
                 '.' => self.scan_dots(),
                 next if is_delimeter(next as u8) || self.eof() => Ok(Token::Dot),
-                ch => Err(ScmErr::BadChar(self.line, ch)),
+                ch => Err(ScanError::BadChar(self.line, ch)),
             },
             ch => panic!("should be one of [+, -, .]: {ch}"),
         }
     }
 
-    fn scan_dots(&mut self) -> ScanResult {
+    fn scan_dots(&mut self) -> Result<Token, ScanError> {
         let bytes = self.scan_bytes('.' as u8);
         match as_string(&bytes).as_str() {
             "..." => self.new_identifier(&bytes),
-            ident => Err(ScmErr::BadIdentifier(self.line, ident.to_owned())),
+            ident => Err(ScanError::BadIdentifier(self.line, ident.to_owned())),
         }
     }
 
-    fn scan_identifier(&mut self, byte: u8) -> ScanResult {
+    fn scan_identifier(&mut self, byte: u8) -> Result<Token, ScanError> {
         let bytes = self.scan_bytes_lower(byte);
         if bytes.iter().all(|b| is_subsequent(*b)) {
             self.new_identifier(&bytes)
         } else {
-            Err(ScmErr::BadIdentifier(self.line, as_string(&bytes)))
+            Err(ScanError::BadIdentifier(self.line, as_string(&bytes)))
         }
     }
 
@@ -301,22 +304,22 @@ impl Scanner {
 
     // Token Helpers //
 
-    fn new_ascii_char(&self, byte: u8) -> ScanResult {
-        match ScmChar::new(byte) {
-            ScmChar::Unsupported => Err(ScmErr::BadChar(self.line, byte as char)),
+    fn new_ascii_char(&self, byte: u8) -> Result<Token, ScanError> {
+        match Char::from(byte) {
+            Char::Unsupported => Err(ScanError::BadChar(self.line, byte as char)),
             ascii => Ok(Token::Character(ascii)),
         }
     }
 
-    fn new_identifier(&self, bytes: &Vec<u8>) -> ScanResult {
-        Ok(Token::Identifier(ScmString::from_bytes(bytes)))
+    fn new_identifier(&self, bytes: &Vec<u8>) -> Result<Token, ScanError> {
+        Ok(Token::Identifier(Str::from(&bytes[..])))
     }
 
-    fn new_number(&self, bytes: &Vec<u8>) -> ScanResult {
+    fn new_number(&self, bytes: &Vec<u8>) -> Result<Token, ScanError> {
         let s: String = bytes.iter().map(|b| *b as char).collect();
-        match ScmNumber::from_str(&s) {
-            Some(n) => Ok(Token::Number(n)),
-            None => Err(ScmErr::BadNumber(self.line, s)),
+        match s.parse::<Num>() {
+            Ok(n) => Ok(Token::Number(n)),
+            Err(_) => Err(ScanError::BadNumber(self.line, s)), // TODO change to ArithErr when ready
         }
     }
 }
@@ -365,14 +368,6 @@ pub fn is_digit(ch: u8) -> bool {
         '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => true,
         _ => false,
     }
-}
-
-pub fn is_hex_digit(ch: u8) -> bool {
-    is_digit(ch)
-        || match ch as char {
-            'a'..='f' | 'A'..='F' => true,
-            _ => false,
-        }
 }
 
 pub fn is_special_subsequent(ch: u8) -> bool {
@@ -425,17 +420,17 @@ mod tests {
         let bytes = (33..127).collect::<Vec<u8>>();
         for b in bytes.iter() {
             let mut s = Scanner::new(&format!("#\\{}", *b as char));
-            assert_eq!(s.next(), Ok(Token::Character(ScmChar::new(*b))));
+            assert_eq!(s.next(), Ok(Token::Character(Char::from(*b))));
         }
     }
 
     #[test]
     fn test_scanning_named_chars() {
         let mut s = Scanner::new("#\\space #\\tab #\\NEWLINE #\\null");
-        assert_eq!(s.next(), Ok(Token::Character(ScmChar::Space)));
-        assert_eq!(s.next(), Ok(Token::Character(ScmChar::Tab)));
-        assert_eq!(s.next(), Ok(Token::Character(ScmChar::LineFeed)));
-        assert_eq!(s.next(), Ok(Token::Character(ScmChar::Null)));
+        assert_eq!(s.next(), Ok(Token::Character(Char::Space)));
+        assert_eq!(s.next(), Ok(Token::Character(Char::Tab)));
+        assert_eq!(s.next(), Ok(Token::Character(Char::LineFeed)));
+        assert_eq!(s.next(), Ok(Token::Character(Char::Null)));
     }
 
     #[test]
@@ -443,11 +438,11 @@ mod tests {
         let mut s = Scanner::new("#\\jERsey");
         assert_eq!(
             s.next(),
-            Err(ScmErr::BadIdentifier(1, "#\\jersey".to_owned()))
+            Err(ScanError::BadIdentifier(1, "#\\jersey".to_owned()))
         );
 
         let mut s = Scanner::new("#\\\x02");
-        assert_eq!(s.next(), Err(ScmErr::BadChar(1, '\x02')));
+        assert_eq!(s.next(), Err(ScanError::BadChar(1, '\x02')));
     }
 
     #[test]
@@ -457,16 +452,19 @@ mod tests {
         assert_eq!(s.next(), Ok(Token::Boolean(false)));
         assert_eq!(s.next(), Ok(Token::Boolean(true)));
         assert_eq!(s.next(), Ok(Token::Boolean(false)));
-        assert_eq!(s.next(), Err(ScmErr::BadIdentifier(1, "#flase".to_owned())));
+        assert_eq!(
+            s.next(),
+            Err(ScanError::BadIdentifier(1, "#flase".to_owned()))
+        );
     }
 
     #[test]
     fn test_scanning_invalid_hash_identifier() {
         let mut s = Scanner::new("#jeff");
-        assert_eq!(s.next(), Err(ScmErr::BadChar(1, 'j')));
+        assert_eq!(s.next(), Err(ScanError::BadChar(1, 'j')));
 
         let mut s = Scanner::new("#1234");
-        assert_eq!(s.next(), Err(ScmErr::BadChar(1, '1')));
+        assert_eq!(s.next(), Err(ScanError::BadChar(1, '1')));
     }
 
     // Identifiers //
@@ -474,67 +472,71 @@ mod tests {
     #[test]
     fn test_scanning_identifiers() {
         let mut s = Scanner::new("hello WoRlD j345.@+- <>!@%&^*_-+=:?~/$0123456789");
-        assert_eq!(s.next(), Ok(Token::Identifier(ScmString::new("hello"))));
-        assert_eq!(s.next(), Ok(Token::Identifier(ScmString::new("world"))));
-        assert_eq!(s.next(), Ok(Token::Identifier(ScmString::new("j345.@+-"))));
+        assert_eq!(s.next(), Ok(Token::Identifier(Str::from("hello"))));
+        assert_eq!(s.next(), Ok(Token::Identifier(Str::from("world"))));
+        assert_eq!(s.next(), Ok(Token::Identifier(Str::from("j345.@+-"))));
         assert_eq!(
             s.next(),
-            Ok(Token::Identifier(ScmString::new(
-                "<>!@%&^*_-+=:?~/$0123456789"
-            )))
+            Ok(Token::Identifier(Str::from("<>!@%&^*_-+=:?~/$0123456789")))
         );
     }
 
     #[test]
     fn test_scanning_invalid_identifiers() {
-        assert_eq!(Scanner::new("@hello").next(), Err(ScmErr::BadChar(1, '@')));
+        assert_eq!(
+            Scanner::new("@hello").next(),
+            Err(ScanError::BadChar(1, '@'))
+        );
         assert_eq!(
             Scanner::new("\\hello").next(),
-            Err(ScmErr::BadChar(1, '\\'))
+            Err(ScanError::BadChar(1, '\\'))
         );
         assert_eq!(
             Scanner::new("hel`lo").next(),
-            Err(ScmErr::BadIdentifier(1, "hel`lo".to_owned()))
+            Err(ScanError::BadIdentifier(1, "hel`lo".to_owned()))
         );
         assert_eq!(
             Scanner::new("hel,lo").next(),
-            Err(ScmErr::BadIdentifier(1, "hel,lo".to_owned()))
+            Err(ScanError::BadIdentifier(1, "hel,lo".to_owned()))
         );
         assert_eq!(
             Scanner::new("hel'lo").next(),
-            Err(ScmErr::BadIdentifier(1, "hel'lo".to_owned()))
+            Err(ScanError::BadIdentifier(1, "hel'lo".to_owned()))
         );
         assert_eq!(
             Scanner::new("hel#lo").next(),
-            Err(ScmErr::BadIdentifier(1, "hel#lo".to_owned()))
+            Err(ScanError::BadIdentifier(1, "hel#lo".to_owned()))
         );
         assert_eq!(
             Scanner::new("hel\\lo").next(),
-            Err(ScmErr::BadIdentifier(1, "hel\\lo".to_owned()))
+            Err(ScanError::BadIdentifier(1, "hel\\lo".to_owned()))
         );
     }
 
     #[test]
     fn test_scanning_peculiar_identifiers() {
         let mut s = Scanner::new("+ - ...");
-        assert_eq!(s.next(), Ok(Token::Identifier(ScmString::new("+"))));
-        assert_eq!(s.next(), Ok(Token::Identifier(ScmString::new("-"))));
-        assert_eq!(s.next(), Ok(Token::Identifier(ScmString::new("..."))));
+        assert_eq!(s.next(), Ok(Token::Identifier(Str::from("+"))));
+        assert_eq!(s.next(), Ok(Token::Identifier(Str::from("-"))));
+        assert_eq!(s.next(), Ok(Token::Identifier(Str::from("..."))));
     }
 
     #[test]
     fn test_scanning_invalid_peculiar_identifiers() {
         let mut s = Scanner::new("+hello");
-        assert_eq!(s.next(), Err(ScmErr::BadChar(1, 'h')));
+        assert_eq!(s.next(), Err(ScanError::BadChar(1, 'h')));
 
         let mut s = Scanner::new("-hello");
-        assert_eq!(s.next(), Err(ScmErr::BadChar(1, 'h')));
+        assert_eq!(s.next(), Err(ScanError::BadChar(1, 'h')));
 
         let mut s = Scanner::new(".hello");
-        assert_eq!(s.next(), Err(ScmErr::BadChar(1, 'h')));
+        assert_eq!(s.next(), Err(ScanError::BadChar(1, 'h')));
 
         let mut s = Scanner::new("....");
-        assert_eq!(s.next(), Err(ScmErr::BadIdentifier(1, "....".to_owned())));
+        assert_eq!(
+            s.next(),
+            Err(ScanError::BadIdentifier(1, "....".to_owned()))
+        );
     }
 
     // Numbers //
@@ -547,45 +549,30 @@ mod tests {
     //
     // Also, some of these tests could really move to the number struct as the scanner
     // really just says if there is a +/- or a digit then scan bytes and send them
-    // to the ScmNumber constructor for a new number.
+    // to the Num constructor for a new number.
 
     #[test]
     fn scanning_simple_integers() {
-        assert_eq!(
-            Scanner::new("100").next(),
-            Ok(Token::Number(ScmNumber::Integer(100)))
-        );
+        assert_eq!(Scanner::new("100").next(), Ok(Token::Number(Num::Int(100))));
         assert_eq!(
             Scanner::new("+100").next(),
-            Ok(Token::Number(ScmNumber::Integer(100)))
+            Ok(Token::Number(Num::Int(100)))
         );
-        assert_eq!(
-            Scanner::new("-42").next(),
-            Ok(Token::Number(ScmNumber::Integer(-42)))
-        );
-        assert_eq!(
-            Scanner::new("0").next(),
-            Ok(Token::Number(ScmNumber::Integer(0)))
-        );
-        assert_eq!(
-            Scanner::new("+0").next(),
-            Ok(Token::Number(ScmNumber::Integer(0)))
-        );
-        assert_eq!(
-            Scanner::new("-0").next(),
-            Ok(Token::Number(ScmNumber::Integer(0)))
-        );
+        assert_eq!(Scanner::new("-42").next(), Ok(Token::Number(Num::Int(-42))));
+        assert_eq!(Scanner::new("0").next(), Ok(Token::Number(Num::Int(0))));
+        assert_eq!(Scanner::new("+0").next(), Ok(Token::Number(Num::Int(0))));
+        assert_eq!(Scanner::new("-0").next(), Ok(Token::Number(Num::Int(0))));
         assert_eq!(
             Scanner::new("9223372036854775807").next(),
-            Ok(Token::Number(ScmNumber::Integer(i64::MAX)))
+            Ok(Token::Number(Num::Int(i64::MAX)))
         );
         assert_eq!(
             Scanner::new("+9223372036854775807").next(),
-            Ok(Token::Number(ScmNumber::Integer(i64::MAX)))
+            Ok(Token::Number(Num::Int(i64::MAX)))
         );
         assert_eq!(
             Scanner::new("-9223372036854775808").next(),
-            Ok(Token::Number(ScmNumber::Integer(i64::MIN)))
+            Ok(Token::Number(Num::Int(i64::MIN)))
         );
     }
 
@@ -593,47 +580,44 @@ mod tests {
     fn test_scanning_simple_float() {
         assert_eq!(
             Scanner::new("1.234").next(),
-            Ok(Token::Number(ScmNumber::Float(1.234)))
+            Ok(Token::Number(Num::Flt(1.234)))
         );
         assert_eq!(
             Scanner::new("+1.234").next(),
-            Ok(Token::Number(ScmNumber::Float(1.234)))
+            Ok(Token::Number(Num::Flt(1.234)))
         );
         assert_eq!(
             Scanner::new("-1.234").next(),
-            Ok(Token::Number(ScmNumber::Float(-1.234)))
+            Ok(Token::Number(Num::Flt(-1.234)))
         );
-        assert_eq!(
-            Scanner::new("0.0").next(),
-            Ok(Token::Number(ScmNumber::Float(0.0)))
-        );
+        assert_eq!(Scanner::new("0.0").next(), Ok(Token::Number(Num::Flt(0.0))));
         assert_eq!(
             Scanner::new("+0.0").next(),
-            Ok(Token::Number(ScmNumber::Float(0.0)))
+            Ok(Token::Number(Num::Flt(0.0)))
         );
         assert_eq!(
             Scanner::new("-0.0").next(),
-            Ok(Token::Number(ScmNumber::Float(0.0)))
+            Ok(Token::Number(Num::Flt(0.0)))
         );
         assert_eq!(
             Scanner::new("-1.7976931348623157e308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::MIN)))
+            Ok(Token::Number(Num::Flt(f64::MIN)))
         );
         assert_eq!(
             Scanner::new("2.2250738585072014E-308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::MIN_POSITIVE)))
+            Ok(Token::Number(Num::Flt(f64::MIN_POSITIVE)))
         );
         assert_eq!(
             Scanner::new("1.7976931348623157E308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::MAX)))
+            Ok(Token::Number(Num::Flt(f64::MAX)))
         );
         assert_eq!(
             Scanner::new("-1.8E308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::NEG_INFINITY)))
+            Ok(Token::Number(Num::Flt(f64::NEG_INFINITY)))
         );
         assert_eq!(
             Scanner::new("2.5E308").next(),
-            Ok(Token::Number(ScmNumber::Float(f64::INFINITY)))
+            Ok(Token::Number(Num::Flt(f64::INFINITY)))
         );
     }
 
@@ -641,11 +625,11 @@ mod tests {
     fn parse_invalid_numbers() {
         assert_eq!(
             Scanner::new("123jkl").next(),
-            Err(ScmErr::BadNumber(1, "123jkl".to_owned()))
+            Err(ScanError::BadNumber(1, "123jkl".to_owned()))
         );
         assert_eq!(
             Scanner::new("123.345.890").next(),
-            Err(ScmErr::BadNumber(1, "123.345.890".to_owned()))
+            Err(ScanError::BadNumber(1, "123.345.890".to_owned()))
         );
     }
 
@@ -655,11 +639,11 @@ mod tests {
     fn scan_simple_strings() {
         assert_eq!(
             Scanner::new("\"Hello, World!\"").next(),
-            Ok(Token::String(ScmString::new("Hello, World!")))
+            Ok(Token::String(Str::from("Hello, World!")))
         );
         assert_eq!(
             Scanner::new("\"\\0 \\t \\\\ \\n \\\" \"").next(),
-            Ok(Token::String(ScmString::new("\0 \t \\ \n \" ")))
+            Ok(Token::String(Str::from("\0 \t \\ \n \" ")))
         );
     }
 
@@ -667,24 +651,22 @@ mod tests {
     fn scan_invalid_strings() {
         assert_eq!(
             Scanner::new("\"Hello, \n World!\"").next(),
-            Err(ScmErr::MultiLineString(1))
+            Err(ScanError::MultiLineString(1))
         );
         assert_eq!(
             Scanner::new("\"Hello, World!").next(),
-            Err(ScmErr::BadToken(1, Token::EOF)),
+            Err(ScanError::Eof(1)),
         );
         // Note because the unicode char spans more than one byte the passed
         // \u{2000} is not what we expect as the bad byte/char
         assert_eq!(
             Scanner::new("\"\u{2000}\x02\"").next(),
-            Ok(Token::String(ScmString::from_bytes(&vec![
-                24u8, 24u8, 24u8, 24u8
-            ])))
+            Ok(Token::String(Str::from(&vec![24u8, 24u8, 24u8, 24u8][..])))
         );
         // Not exhaustive
         assert_eq!(
             Scanner::new("\"Hello, \\h World!\"").next(),
-            Err(ScmErr::BadEscape(1, "\\h".to_string()))
+            Err(ScanError::BadEscape(1, "\\h".to_string()))
         );
     }
 }

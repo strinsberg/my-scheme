@@ -1,7 +1,8 @@
-use crate::reader::StringReader;
+use crate::data::rep::ExternalRep;
+use crate::interpret::vm::Vm;
+use crate::io::reader::StringReader;
+use crate::proc::env::null_env;
 use crate::scheme_libs::std::SCM_LIB_STD;
-use crate::types::Env;
-use crate::vm::Vm;
 
 // TODO other libraries need to be loadable with require or something. Since some
 // are supposed to be built in, but not loaded at startup, there will have to
@@ -29,7 +30,7 @@ impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
             ready: false,
-            vm: Vm::new(Env::new_null_rc()),
+            vm: Vm::new(null_env()),
         }
     }
 
@@ -47,7 +48,7 @@ impl Interpreter {
 
         match StringReader::new(text).read_forms() {
             Ok(forms) => match self.vm.eval_forms(&forms) {
-                Ok(val) => val.to_extern(),
+                Ok(val) => val.to_external(),
                 Err(e) => format!("{e}"),
             },
             Err(e) => panic!("{e}"),
@@ -65,6 +66,8 @@ impl Interpreter {
             .expect("failed to eval SCM_LIB_STD: Err: {e}");
     }
 }
+
+// Testing ////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {

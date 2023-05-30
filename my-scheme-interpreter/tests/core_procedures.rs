@@ -13,7 +13,6 @@ fn test_basic_data() {
     help::eval_assert("#f", "#f");
     help::eval_assert("#true", "#t");
     help::eval_assert("#false", "#f");
-    help::eval_syntax_error("#cyclic#");
 }
 
 #[test]
@@ -43,17 +42,21 @@ fn test_basic_arithmetic() {
     help::eval_assert("(+ 4 9)", "13");
     help::eval_assert("(- 4 9)", "-5");
     help::eval_assert("(* 4 9)", "36");
-    help::eval_assert("(/ 1 2)", "0.5");
+    help::eval_assert("(/ 1.0 2)", "0.5");
+    help::eval_assert("(/ 1 2)", "1/2");
     // Unary
     help::eval_assert("(+ 4)", "4");
     help::eval_assert("(- 4)", "-4");
     help::eval_assert("(* 4)", "4");
-    help::eval_assert("(/ 4)", "0.25");
+    help::eval_assert("(/ 4.0)", "0.25");
+    help::eval_assert("(/ 4)", "1/4");
     // Multi
     help::eval_assert("(+ 4 1 2 3)", "10");
     help::eval_assert("(- 4 1 2 3)", "-2");
     help::eval_assert("(* 4 1 2 3)", "24");
-    help::eval_assert("(/ 4 1 2 4)", "0.5");
+    help::eval_assert("(/ 4.0 1 2 4)", "0.5");
+    help::eval_assert("(/ 4 1 2 4)", "1/2");
+    help::eval_assert("(/ 4 1 2 -4)", "-1/2");
 }
 
 #[test]
@@ -377,4 +380,14 @@ fn test_eval_mutable_list() {
 fn test_redefining_keywords() {
     help::eval_assert("(define if 4) if", "4");
     help::eval_assert("(define (if x) (+ x 1)) (if 4)", "5");
+}
+
+#[test]
+fn test_not() {
+    help::eval_assert("(not #t)", "#f");
+    help::eval_assert("(not 3)", "#f");
+    help::eval_assert("(not '(1 2 3))", "#f");
+    help::eval_assert("(not '())", "#f");
+    help::eval_assert("(not 'nil)", "#f");
+    help::eval_assert("(not #f)", "#t");
 }

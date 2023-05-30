@@ -1,13 +1,5 @@
-pub mod builtin;
-pub mod core_proc;
-pub mod env_impl;
-pub mod error;
-pub mod eval_helpers;
-pub mod interpreter;
-pub mod number;
-pub mod reader;
-pub mod scanner;
+pub mod data;
+pub mod interpret;
+pub mod io;
+pub mod proc;
 pub mod scheme_libs;
-pub mod string;
-pub mod types;
-pub mod vm;

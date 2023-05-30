@@ -1,6 +1,9 @@
-use crate::error::{ScmErr, ScmResult, ValResult};
-use crate::scanner::{Scanner, Token};
-use crate::types::ScmVal;
+use crate::data::array::Array;
+use crate::data::cell::Cell;
+use crate::data::err::ScanError;
+use crate::data::string::Str;
+use crate::data::value::Value;
+use crate::io::scanner::{Scanner, Token};
 
 // TODO confirm that the reader identifies all proper stopping points when
 // parsing complex forms. I.e. a Dot in a vector is an error, is anything else?
@@ -24,12 +27,12 @@ impl StringReader {
         }
     }
 
-    pub fn read(&mut self) -> ValResult {
+    pub fn read(&mut self) -> Result<Value, ScanError> {
         let next = self.scanner.next()?;
         self.read_helper(next)
     }
 
-    pub fn read_forms(&mut self) -> ScmResult<Vec<ScmVal>> {
+    pub fn read_forms(&mut self) -> Result<Vec<Value>, ScanError> {
         let mut forms = Vec::new();
         loop {
             let next = self.scanner.next()?;
@@ -42,22 +45,21 @@ impl StringReader {
         Ok(forms)
     }
 
-    fn read_helper(&mut self, token: Token) -> ValResult {
+    fn read_helper(&mut self, token: Token) -> Result<Value, ScanError> {
         match token {
-            Token::Identifier(s) => Ok(ScmVal::sym_from_scm_str(s)),
-            Token::Boolean(b) => Ok(ScmVal::Boolean(b)),
-            Token::Number(num) => Ok(ScmVal::Number(num)),
-            Token::Character(ch) => Ok(ScmVal::Character(ch)),
-            Token::String(s) => Ok(ScmVal::from_scm_str(s, false)),
+            Token::Identifier(s) => Ok(Value::symbol(s)),
+            Token::Boolean(b) => Ok(Value::Bool(b)),
+            Token::Number(num) => Ok(Value::Number(num)),
+            Token::Character(ch) => Ok(Value::Char(ch)),
+            Token::String(s) => Ok(Value::from(s)),
             Token::LParen => self.read_list(),
             Token::VecOpen => self.read_vector(),
             Token::Quote => self.read_quote(),
-            Token::Cyclic => Ok(ScmVal::Cyclic),
-            tk => Err(ScmErr::BadToken(self.scanner.line, tk)),
+            tk => Err(ScanError::BadToken(self.scanner.line, tk.to_string())),
         }
     }
 
-    fn read_list(&mut self) -> ValResult {
+    fn read_list(&mut self) -> Result<Value, ScanError> {
         // ( was used by caller
         let mut vec = Vec::new();
         let mut val = self.scanner.next()?;
@@ -69,38 +71,41 @@ impl StringReader {
             }
             val = self.scanner.next()?;
         }
-        Ok(ScmVal::vec_to_list(&vec, ScmVal::Empty))
+        Ok(Value::list_from_vec(vec, Value::Empty))
     }
 
-    fn read_dot_end(&mut self, values: &[ScmVal]) -> ValResult {
+    fn read_dot_end(&mut self, values: &[Value]) -> Result<Value, ScanError> {
         // Dot was used by caller
         let next = self.scanner.next()?;
         match next {
             Token::RParen | Token::Dot | Token::EOF => {
-                Err(ScmErr::BadToken(self.scanner.line, next.clone()))
+                Err(ScanError::BadToken(self.scanner.line, next.to_string()))
             }
-            Token::Quote => Err(ScmErr::Syntax(ScmVal::new_sym("quote"))),
+            Token::Quote => Err(ScanError::BadToken(
+                self.scanner.line,
+                Token::Quote.to_string(),
+            )),
             _ => {
                 // If next is a proper value check for ) and make the list
                 let val = self.read_helper(next)?;
                 match self.scanner.next()? {
-                    Token::RParen => Ok(ScmVal::vec_to_list(&values, val)),
-                    tk => Err(ScmErr::BadToken(self.scanner.line, tk)),
+                    Token::RParen => Ok(Value::list_from_vec(values.into(), val)),
+                    tk => Err(ScanError::BadToken(self.scanner.line, tk.to_string())),
                 }
             }
         }
     }
 
-    fn read_quote(&mut self) -> ValResult {
+    fn read_quote(&mut self) -> Result<Value, ScanError> {
         // really just makes a list with quote and the next form inside of it
         let next = self.read()?;
-        Ok(ScmVal::new_pair(
-            ScmVal::new_sym("quote"),
-            ScmVal::new_pair(next, ScmVal::Empty),
-        ))
+        Ok(Value::from(Cell::new(
+            Value::symbol(Str::from("quote")),
+            Some(Value::from(Cell::new(next, None))),
+        )))
     }
 
-    fn read_vector(&mut self) -> ValResult {
+    fn read_vector(&mut self) -> Result<Value, ScanError> {
         // ( was used by caller
         let mut vec = Vec::new();
         let mut val = self.scanner.next()?;
@@ -108,13 +113,13 @@ impl StringReader {
         while val != Token::RParen {
             match val {
                 Token::Dot => {
-                    return Err(ScmErr::BadToken(self.scanner.line, val));
+                    return Err(ScanError::BadToken(self.scanner.line, val.to_string()));
                 }
                 _ => vec.push(self.read_helper(val)?),
             }
             val = self.scanner.next()?;
         }
-        Ok(ScmVal::new_vec(vec))
+        Ok(Value::from(Array::from(vec)))
     }
 }
 
@@ -123,25 +128,19 @@ impl StringReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::number::ScmNumber;
+    use crate::data::number::Num;
 
     #[test]
     fn test_reading_values_parsed_by_the_scanner() {
-        assert_eq!(StringReader::new("10").read(), Ok(ScmVal::new_int(10)));
-        assert_eq!(
-            StringReader::new("1.234").read(),
-            Ok(ScmVal::new_float(1.234))
-        );
-        assert_eq!(StringReader::new("#true").read(), Ok(ScmVal::Boolean(true)));
-        assert_eq!(StringReader::new("#f").read(), Ok(ScmVal::Boolean(false)));
-        assert_eq!(StringReader::new("#\\H").read(), Ok(ScmVal::new_char('H')));
-        assert_eq!(
-            StringReader::new("#\\space").read(),
-            Ok(ScmVal::new_char(' '))
-        );
+        assert_eq!(StringReader::new("10").read(), Ok(Value::from(10)));
+        assert_eq!(StringReader::new("1.234").read(), Ok(Value::from(1.234)));
+        assert_eq!(StringReader::new("#true").read(), Ok(Value::Bool(true)));
+        assert_eq!(StringReader::new("#f").read(), Ok(Value::Bool(false)));
+        assert_eq!(StringReader::new("#\\H").read(), Ok(Value::from('H')));
+        assert_eq!(StringReader::new("#\\space").read(), Ok(Value::from(' ')));
         assert_eq!(
             StringReader::new("hello-world!").read(),
-            Ok(ScmVal::new_sym("hello-world!"))
+            Ok(Value::symbol(Str::from("hello-world!")))
         );
     }
 
@@ -149,7 +148,7 @@ mod tests {
     fn test_reading_strings() {
         assert_eq!(
             StringReader::new("\"hello, world!\"").read().unwrap(),
-            ScmVal::new_str("hello, world!"),
+            Value::from("hello, world!"),
         );
     }
 
@@ -173,7 +172,10 @@ mod tests {
         let result = StringReader::new(expr).read();
         assert_eq!(
             result,
-            Err(ScmErr::BadToken(1, Token::Number(ScmNumber::Integer(5))))
+            Err(ScanError::BadToken(
+                1,
+                Token::Number(Num::Int(5)).to_string()
+            ))
         );
     }
 
@@ -204,7 +206,7 @@ mod tests {
 
         let expr = "#(1 2 3 . 4)";
         let result = StringReader::new(expr).read();
-        assert_eq!(result, Err(ScmErr::BadToken(1, Token::Dot)));
+        assert_eq!(result, Err(ScanError::BadToken(1, Token::Dot.to_string())));
     }
 
     #[test]

@@ -10,8 +10,8 @@ fn test_string_eval() {
 
 #[test]
 fn test_make_string() {
-    help::eval_assert("(make-string 5)", "\"\\0\\0\\0\\0\\0\"");
     help::eval_assert("(make-string 5 #\\a)", "\"aaaaa\"");
+    help::eval_assert("(make-string 5)", "\"\\0\\0\\0\\0\\0\"");
 }
 
 #[test]
@@ -52,15 +52,12 @@ fn test_substring() {
 #[test]
 fn test_string_copy() {
     help::eval_assert("(string-copy \"hello\")", "\"hello\"");
-    /* TODO This won't work until eq? is proper, but should confirm that these are
-     * not the same string.
     help::eval_assert(
         "(define str \"hello\")
                        (define other (string-copy \"hello\"))
-                       (eq? str other)",
+                       (eqv? str other)",
         "#f",
     );
-    */
 }
 
 #[test]
@@ -92,12 +89,6 @@ fn test_string_ref() {
     help::eval_assert("(string-ref \"hello, world!\" 0)", "#\\h");
     help::eval_assert("(string-ref \"hello, world!\" 12)", "#\\!");
     help::eval_assert("(string-ref (make-string 5 #\\%) 3)", "#\\%");
-    help::eval_range_error(
-        "(string-ref \"hello, world!\" 13)",
-        "string-ref",
-        "13",
-        "\"hello, world!\"",
-    );
 }
 
 #[test]

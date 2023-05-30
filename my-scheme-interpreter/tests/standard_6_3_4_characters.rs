@@ -36,7 +36,7 @@ fn test_integer_to_char() {
     help::eval_assert("(integer->char 0)", "#\\null");
     help::eval_assert("(integer->char 9)", "#\\tab");
     help::eval_assert("(integer->char 10)", "#\\newline");
-    help::eval_assert("(integer->char 24)", "#\\unsup");
+    help::eval_assert("(integer->char 127)", "#\\unsup");
     help::eval_assert("(integer->char 32)", "#\\space");
 }
 
@@ -48,7 +48,7 @@ fn test_char_to_integer() {
     help::eval_assert("(char->integer #\\null)", "0");
     help::eval_assert("(char->integer #\\tab)", "9");
     help::eval_assert("(char->integer #\\newline)", "10");
-    help::eval_assert("(char->integer #\\unsup)", "24");
+    help::eval_assert("(char->integer #\\unsup)", "127");
     help::eval_assert("(char->integer #\\space)", "32");
 }
 
@@ -212,6 +212,7 @@ fn test_char_eq() {
     help::eval_assert("(char=? #\\null #\\space)", "#f");
 }
 
+#[test]
 fn test_char_less() {
     help::eval_assert("(char<? #\\a #\\a)", "#f");
     help::eval_assert("(char<? #\\e #\\t)", "#t");
@@ -225,6 +226,7 @@ fn test_char_less() {
     help::eval_assert("(char<? #\\null #\\space)", "#t");
 }
 
+#[test]
 fn test_char_less_eq() {
     help::eval_assert("(char<=? #\\a #\\a)", "#t");
     help::eval_assert("(char<=? #\\e #\\t)", "#t");
@@ -238,6 +240,7 @@ fn test_char_less_eq() {
     help::eval_assert("(char<=? #\\null #\\space)", "#t");
 }
 
+#[test]
 fn test_char_greater() {
     help::eval_assert("(char>? #\\a #\\a)", "#f");
     help::eval_assert("(char>? #\\e #\\t)", "#f");
@@ -251,12 +254,13 @@ fn test_char_greater() {
     help::eval_assert("(char>? #\\null #\\space)", "#f");
 }
 
+#[test]
 fn test_char_greater_eq() {
     help::eval_assert("(char>=? #\\a #\\a)", "#t");
     help::eval_assert("(char>=? #\\e #\\t)", "#f");
     help::eval_assert("(char>=? #\\o #\\k)", "#t");
-    help::eval_assert("(char>=? #\\A #\\a)", "#t");
-    help::eval_assert("(char>=? #\\A #\\A)", "#f");
+    help::eval_assert("(char>=? #\\A #\\a)", "#f");
+    help::eval_assert("(char>=? #\\A #\\A)", "#t");
     help::eval_assert("(char>=? #\\E #\\T)", "#f");
     help::eval_assert("(char>=? #\\O #\\K)", "#t");
     help::eval_assert("(char>=? #\\% #\\#)", "#t");
@@ -264,6 +268,7 @@ fn test_char_greater_eq() {
     help::eval_assert("(char>=? #\\null #\\space)", "#f");
 }
 
+#[test]
 fn test_char_comp_ci() {
     help::eval_assert("(char-ci=? #\\a #\\a)", "#t");
     help::eval_assert("(char-ci=? #\\A #\\a)", "#t");
